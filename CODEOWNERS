@@ -1,7 +1,18 @@
+# TEMPORARY: @TracyHQ/registry-maintainers does not exist yet (the org has only
+# super-admin-team). Ownership below points at @leeknowsai, a single verified org
+# member, as a stand-in. Switch these lines to the real team once
+# registry-maintainers is created — a single person is a single point of failure
+# for review.
+#
+# TODO: CODEOWNERS only gates merges if the main branch has branch protection with
+# "Require review from Code Owners" enabled. Without that rule this file is
+# advisory only, not an enforced gate — confirm branch protection is on before
+# relying on it.
+#
 # Records can be submitted by anyone. Trust labels cannot.
-/curation/   @TracyHQ/registry-maintainers
-/schema/     @TracyHQ/registry-maintainers
-/src/        @TracyHQ/registry-maintainers
-/bin/        @TracyHQ/registry-maintainers
-/scripts/    @TracyHQ/registry-maintainers
-/.github/    @TracyHQ/registry-maintainers
+/curation/   @leeknowsai
+/schema/     @leeknowsai
+/src/        @leeknowsai
+/bin/        @leeknowsai
+/scripts/    @leeknowsai
+/.github/    @leeknowsai
