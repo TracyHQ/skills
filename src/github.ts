@@ -31,11 +31,32 @@ export function sha256(text: string): string {
   return createHash('sha256').update(text, 'utf8').digest('hex')
 }
 
+/**
+ * Lớp phòng thủ cuối: chuẩn hoá URL rồi kiểm nó CÒN nằm trong repo đã khai.
+ *
+ * Vì sao không tin encodeURIComponent: nó không encode dấu `.`, nên `..` đi qua nguyên vẹn và
+ * mọi client theo chuẩn WHATWG URL sẽ rút gọn dot-segment — thoát khỏi repo. Kiểm sau khi
+ * chuẩn hoá là cách duy nhất không phụ thuộc vào việc đoán đúng tập ký tự nguy hiểm.
+ *
+ * Trả về href ĐÃ CHUẨN HOÁ, và caller phải fetch đúng chuỗi này — nếu fetch chuỗi gốc thì thứ
+ * được kiểm và thứ được gửi đi là hai chuỗi khác nhau.
+ */
+function assertWithinRepo(rawUrl: string, expectedHost: string, expectedPrefix: string): string {
+  const url = new URL(rawUrl)
+  if (url.hostname !== expectedHost || !url.pathname.startsWith(expectedPrefix)) {
+    throw new Error(`resolved URL escapes the declared repository: ${url.href}`)
+  }
+  return url.href
+}
+
 export async function fetchSkillMd(record: SkillRecord, fetcher: Fetcher): Promise<string> {
-  const url = `https://raw.githubusercontent.com/${encodeURIComponent(ownerOf(record.gitUrl))}/${encodeURIComponent(repoOf(record.gitUrl))}/${encodePath(record.ref)}/${encodePath(record.skillPath)}/SKILL.md`
-  const response = await fetcher(url, { headers: headers() })
+  const owner = encodeURIComponent(ownerOf(record.gitUrl))
+  const repo = encodeURIComponent(repoOf(record.gitUrl))
+  const url = `https://raw.githubusercontent.com/${owner}/${repo}/${encodePath(record.ref)}/${encodePath(record.skillPath)}/SKILL.md`
+  const safeUrl = assertWithinRepo(url, 'raw.githubusercontent.com', `/${owner}/${repo}/`)
+  const response = await fetcher(safeUrl, { headers: headers() })
   if (!response.ok) {
-    throw new Error(`SKILL.md not found (HTTP ${response.status}): ${url}`)
+    throw new Error(`SKILL.md not found (HTTP ${response.status}): ${safeUrl}`)
   }
   return response.text()
 }
@@ -48,9 +69,12 @@ export async function fetchRepoMeta(
   record: SkillRecord,
   fetcher: Fetcher
 ): Promise<{ stars: number; pushedAt: string | null }> {
-  const url = `https://api.github.com/repos/${encodeURIComponent(ownerOf(record.gitUrl))}/${encodeURIComponent(repoOf(record.gitUrl))}`
+  const owner = encodeURIComponent(ownerOf(record.gitUrl))
+  const repo = encodeURIComponent(repoOf(record.gitUrl))
+  const url = `https://api.github.com/repos/${owner}/${repo}`
   try {
-    const response = await fetcher(url, { headers: headers() })
+    const safeUrl = assertWithinRepo(url, 'api.github.com', `/repos/${owner}/${repo}`)
+    const response = await fetcher(safeUrl, { headers: headers() })
     if (!response.ok) return { stars: 0, pushedAt: null }
     const body = (await response.json()) as { stargazers_count?: unknown; pushed_at?: unknown }
     return {

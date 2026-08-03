@@ -50,6 +50,30 @@ describe('fetchSkillMd', () => {
     const callUrl = fetcher.mock.calls[0]?.[0] as string
     expect(callUrl).toBe('https://raw.githubusercontent.com/TracyHQ/skills/release/2026-08/skills/refund-audit/SKILL.md')
   })
+
+  it('throws when ref escapes via path traversal (e.g. main/../../../evil)', async () => {
+    const fetcher = vi.fn()
+    const maliciousRecord = { ...record, ref: 'main/../../../evil/evil/main' }
+    await expect(fetchSkillMd(maliciousRecord, fetcher)).rejects.toThrow('resolved URL escapes the declared repository')
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('throws when skillPath escapes via path traversal', async () => {
+    const fetcher = vi.fn()
+    const maliciousRecord = { ...record, skillPath: '../../../evil' }
+    await expect(fetchSkillMd(maliciousRecord, fetcher)).rejects.toThrow('resolved URL escapes the declared repository')
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('fetcher receives the normalized URL (href from new URL())', async () => {
+    const fetcher = vi.fn().mockResolvedValue(ok('# hi'))
+    const recordWithMultipartRef = { ...record, ref: 'release/2026-08' }
+    await fetchSkillMd(recordWithMultipartRef, fetcher)
+    const callUrl = fetcher.mock.calls[0]?.[0] as string
+    // URL should be normalized: new URL('https://example.com/a/./b/../c').href returns https://example.com/a/c
+    const normalizedUrl = new URL(callUrl).href
+    expect(normalizedUrl).toBe(callUrl)
+  })
 })
 
 describe('fetchRepoMeta', () => {
