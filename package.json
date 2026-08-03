@@ -12,7 +12,8 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
+  "//license": "Code is MIT. Data under registry/, curation/ and dist/skills/ is CC BY 4.0 — see LICENSE-DATA.",
   "type": "module",
   "dependencies": {
     "gray-matter": "^4.0.3",
