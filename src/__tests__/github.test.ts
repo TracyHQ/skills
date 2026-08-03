@@ -54,15 +54,57 @@ describe('fetchSkillMd', () => {
   it('throws when ref escapes via path traversal (e.g. main/../../../evil)', async () => {
     const fetcher = vi.fn()
     const maliciousRecord = { ...record, ref: 'main/../../../evil/evil/main' }
-    await expect(fetchSkillMd(maliciousRecord, fetcher)).rejects.toThrow('resolved URL escapes the declared repository')
+    await expect(fetchSkillMd(maliciousRecord, fetcher)).rejects.toThrow('ref or skillPath contains a dot segment')
     expect(fetcher).not.toHaveBeenCalled()
   })
 
   it('throws when skillPath escapes via path traversal', async () => {
     const fetcher = vi.fn()
     const maliciousRecord = { ...record, skillPath: '../../../evil' }
-    await expect(fetchSkillMd(maliciousRecord, fetcher)).rejects.toThrow('resolved URL escapes the declared repository')
+    await expect(fetchSkillMd(maliciousRecord, fetcher)).rejects.toThrow('ref or skillPath contains a dot segment')
     expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('throws when ref contains dot-segment main/..', async () => {
+    const fetcher = vi.fn()
+    const maliciousRecord = { ...record, ref: 'main/..' }
+    await expect(fetchSkillMd(maliciousRecord, fetcher)).rejects.toThrow('ref or skillPath contains a dot segment')
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('throws when ref contains dot-segment a/b/../..', async () => {
+    const fetcher = vi.fn()
+    const maliciousRecord = { ...record, ref: 'a/b/../..' }
+    await expect(fetchSkillMd(maliciousRecord, fetcher)).rejects.toThrow('ref or skillPath contains a dot segment')
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('throws when ref is a single dot .', async () => {
+    const fetcher = vi.fn()
+    const maliciousRecord = { ...record, ref: '.' }
+    await expect(fetchSkillMd(maliciousRecord, fetcher)).rejects.toThrow('ref or skillPath contains a dot segment')
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('throws when skillPath contains dot-segment skills/.', async () => {
+    const fetcher = vi.fn()
+    const maliciousRecord = { ...record, skillPath: 'skills/.' }
+    await expect(fetchSkillMd(maliciousRecord, fetcher)).rejects.toThrow('ref or skillPath contains a dot segment')
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('throws when skillPath contains dot-segment a/./b', async () => {
+    const fetcher = vi.fn()
+    const maliciousRecord = { ...record, skillPath: 'a/./b' }
+    await expect(fetchSkillMd(maliciousRecord, fetcher)).rejects.toThrow('ref or skillPath contains a dot segment')
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('accepts valid ref and skillPath without dot-segments', async () => {
+    const fetcher = vi.fn().mockResolvedValue(ok('# hi'))
+    const validRecord = { ...record, ref: 'release/2026-08', skillPath: 'skills/refund-audit' }
+    await fetchSkillMd(validRecord, fetcher)
+    expect(fetcher).toHaveBeenCalledTimes(1)
   })
 
   it('fetcher receives the normalized URL (href from new URL())', async () => {

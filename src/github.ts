@@ -27,6 +27,14 @@ function encodePath(value: string): string {
   return value.split('/').map(encodeURIComponent).join('/')
 }
 
+/**
+ * Kiểm xem giá trị có chứa dot-segment (`.` hoặc `..`). Được dùng làm lớp phòng thủ độc lập
+ * không phụ thuộc schema — ngay cả khi schema bỏ qua, lớp này vẫn chặn.
+ */
+function hasDotSegment(value: string): boolean {
+  return value.split('/').some((s) => s === '.' || s === '..')
+}
+
 export function sha256(text: string): string {
   return createHash('sha256').update(text, 'utf8').digest('hex')
 }
@@ -50,6 +58,11 @@ function assertWithinRepo(rawUrl: string, expectedHost: string, expectedPrefix: 
 }
 
 export async function fetchSkillMd(record: SkillRecord, fetcher: Fetcher): Promise<string> {
+  // Lớp phòng thủ độc lập: từ chối dot-segment độc lập với schema
+  if (hasDotSegment(record.ref) || hasDotSegment(record.skillPath)) {
+    throw new Error(`ref or skillPath contains a dot segment: ${record.ref} ${record.skillPath}`)
+  }
+
   const owner = encodeURIComponent(ownerOf(record.gitUrl))
   const repo = encodeURIComponent(repoOf(record.gitUrl))
   const url = `https://raw.githubusercontent.com/${owner}/${repo}/${encodePath(record.ref)}/${encodePath(record.skillPath)}/SKILL.md`
