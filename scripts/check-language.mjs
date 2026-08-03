@@ -70,7 +70,18 @@ const ROOT = path.resolve(import.meta.dirname, '..')
 const VIETNAMESE = /[\u0102\u0103\u0110\u0111\u01A0\u01A1\u01AF\u01B0\u1EA0-\u1EF9]/u
 
 /** Tracy-authored source. Anything added here must be prose we control. */
-const SOURCE = ['README.md', 'CODEOWNERS', 'src', 'bin', 'schema', '.github', 'registry', 'scripts']
+const SOURCE = [
+  'README.md',
+  'LICENSE',
+  'LICENSE-DATA',
+  'CODEOWNERS',
+  'src',
+  'bin',
+  'schema',
+  '.github',
+  'registry',
+  'scripts'
+]
 
 /**
  * Generated files that reach consumers. Only the schema copy: it is derived straight from
