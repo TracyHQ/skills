@@ -72,6 +72,7 @@ const VIETNAMESE = /[\u0102\u0103\u0110\u0111\u01A0\u01A1\u01AF\u01B0\u1EA0-\u1E
 /** Tracy-authored source. Anything added here must be prose we control. */
 const SOURCE = [
   'README.md',
+  'registry/README.md',
   'LICENSE',
   'LICENSE-DATA',
   'CODEOWNERS',

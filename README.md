@@ -105,7 +105,3 @@ Removing a record from the registry, or moving it to `quarantined`, stops Tracy 
 distributing it going forward. It does not revoke the CC BY licence already granted on copies
 distributed before that point — CC BY grants are irrevocable.
 
-## Related documentation
-
-Architecture decision for this registry:
-[ADR 0014](https://github.com/TracyHQ/tracy-docs/blob/main/adr/0014-registry-skill-cong-khai-git-tinh.md).
