@@ -44,4 +44,36 @@ describe('SkillRecordSchema', () => {
   it('rejects an absolute skillPath', () => {
     expect(SkillRecordSchema.safeParse({ ...valid, skillPath: '/etc' }).success).toBe(false)
   })
+
+  it('rejects a Windows drive-letter absolute skillPath with forward slash', () => {
+    expect(SkillRecordSchema.safeParse({ ...valid, skillPath: 'C:/Windows/System32' }).success).toBe(false)
+  })
+
+  it('rejects a Windows drive-relative skillPath', () => {
+    expect(SkillRecordSchema.safeParse({ ...valid, skillPath: 'C:foo/bar' }).success).toBe(false)
+  })
+
+  it('rejects a Windows drive-letter absolute skillPath on another drive', () => {
+    expect(SkillRecordSchema.safeParse({ ...valid, skillPath: 'D:/secrets' }).success).toBe(false)
+  })
+
+  it('rejects a Windows UNC path skillPath', () => {
+    expect(SkillRecordSchema.safeParse({ ...valid, skillPath: '\\\\server\\share' }).success).toBe(false)
+  })
+
+  it('rejects a gitUrl with userinfo credentials', () => {
+    expect(SkillRecordSchema.safeParse({ ...valid, gitUrl: 'https://user:pass@github.com/a/b' }).success).toBe(false)
+  })
+
+  it('rejects a gitUrl with a non-default port', () => {
+    expect(SkillRecordSchema.safeParse({ ...valid, gitUrl: 'https://github.com:9999/a/b' }).success).toBe(false)
+  })
+
+  it('rejects a gitUrl with a query string', () => {
+    expect(SkillRecordSchema.safeParse({ ...valid, gitUrl: 'https://github.com/a/b?ref=x' }).success).toBe(false)
+  })
+
+  it('rejects a gitUrl with a fragment', () => {
+    expect(SkillRecordSchema.safeParse({ ...valid, gitUrl: 'https://github.com/a/b#readme' }).success).toBe(false)
+  })
 })
