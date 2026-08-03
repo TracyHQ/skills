@@ -149,4 +149,42 @@ describe('buildIndex', () => {
     const { skills } = await buildIndex({ rootDir: root, fetcher })
     expect(skills.map((s) => `${s.namespace}/${s.slug}`)).toEqual(['aaa/a-skill', 'aaa/b-skill', 'zzz/a-skill'])
   })
+
+  it('skips a broken symlink in registry/ instead of crashing the whole build', async () => {
+    await writeRecord('tracyhq', 'refund-audit')
+    await fs.symlink(
+      path.join(root, 'does-not-exist'),
+      path.join(root, 'registry', 'broken-sym')
+    )
+
+    const { skills, warnings } = await buildIndex({ rootDir: root, fetcher })
+
+    expect(skills).toHaveLength(1)
+    expect(skills[0]!.slug).toBe('refund-audit')
+    expect(warnings.join(' ')).toContain('broken-sym')
+    expect(warnings.join(' ')).toContain('cannot stat')
+  })
+
+  it('quietly skips a stray file sitting directly under registry/', async () => {
+    await writeRecord('tracyhq', 'refund-audit')
+    await fs.writeFile(path.join(root, 'registry', 'README.md'), 'not a namespace directory')
+
+    const { skills, warnings } = await buildIndex({ rootDir: root, fetcher })
+
+    expect(skills).toHaveLength(1)
+    expect(skills[0]!.slug).toBe('refund-audit')
+    expect(warnings).toEqual([])
+  })
+
+  it('warns when a curation file exists but is not valid JSON', async () => {
+    await writeRecord('tracyhq', 'refund-audit')
+    await fs.mkdir(path.join(root, 'curation', 'tracyhq'), { recursive: true })
+    await fs.writeFile(path.join(root, 'curation', 'tracyhq', 'refund-audit.json'), '{ this is not valid json')
+
+    const { skills, warnings } = await buildIndex({ rootDir: root, fetcher })
+
+    expect(skills[0]!.tier).toBe('listed')
+    expect(warnings.join(' ')).toContain('curation/tracyhq/refund-audit.json')
+    expect(warnings.join(' ')).toContain('unreadable JSON')
+  })
 })
