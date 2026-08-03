@@ -1,0 +1,15 @@
+# Disable line-ending conversion for every file in this repo.
+#
+# WHY THIS EXISTS
+#
+# `contentHash` in the published index is the sha256 of a skill's SKILL.md, and
+# it is what pins the `curated` trust label to an exact byte sequence. If git
+# rewrote CRLF to LF on checkout, the same file would hash differently on macOS
+# and on the Linux CI runner, and every curated record would silently demote to
+# `listed` the moment CI rebuilt the index.
+#
+# Turning conversion off makes a checkout byte-identical to what
+# raw.githubusercontent.com serves. That is what lets the builder read a skill
+# from disk when the record points at this very repo, instead of fetching a
+# branch that does not yet contain the skill the pull request is adding.
+* -text
