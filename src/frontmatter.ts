@@ -1,8 +1,9 @@
 import matter from 'gray-matter'
 
 /**
- * `SKILL.md` do người ngoài viết, nên mọi field đều có thể sai kiểu. Hàm này không bao giờ ném:
- * một frontmatter hỏng phải làm record thiếu mô tả, không được làm gãy cả lần build.
+ * `SKILL.md` is written by outsiders, so every field can have the wrong type. This function
+ * never throws: a broken frontmatter should leave the record without a description, not break
+ * the whole build.
  */
 export function parseSkillFrontmatter(source: string): {
   name: string | null

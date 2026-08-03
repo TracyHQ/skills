@@ -12,10 +12,12 @@ export const CurationRecordSchema = z.object({
 export type CurationRecord = z.infer<typeof CurationRecordSchema>
 
 /**
- * `curated` gắn vào chuỗi byte đã được đọc, không gắn vào tên repo. Repo còn nhận PR sau khi
- * review, nên nhãn treo trên tên repo là nhãn nói về một phiên bản không còn tồn tại.
+ * `curated` is pinned to the byte string that was actually read, not to the repo's name. The
+ * repo keeps accepting PRs after review, so a label hung on the repo's name would be talking
+ * about a version that no longer exists.
  *
- * `quarantined` không rớt theo hash: nó là quyết định gỡ bỏ, và nội dung đổi không gỡ nó.
+ * `quarantined` does not fall based on hash: it is a removal decision, and a content change
+ * does not lift it.
  */
 export function resolveTier(
   curation: CurationRecord | null,

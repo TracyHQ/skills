@@ -4,9 +4,10 @@ import { isAbsolute as isAbsoluteWin32 } from 'node:path/win32'
 import { z } from 'zod'
 
 /**
- * Chỉ chấp nhận repo GitHub qua HTTPS, không userinfo/port/query/fragment: mọi fetcher ở
- * `github.ts` dựng URL từ giả định này — userinfo lọt qua có thể mang credential vào lệnh
- * `git clone`, còn query/fragment là rác vẫn bị coi là đúng format nếu không chặn.
+ * Only accepts a GitHub repo over HTTPS, no userinfo/port/query/fragment: every fetcher in
+ * `github.ts` builds its URL from this assumption — userinfo slipping through could carry a
+ * credential into a `git clone` command, and query/fragment junk would otherwise pass as a
+ * valid format if left unchecked.
  */
 const GitUrlSchema = z
   .string()
@@ -33,12 +34,12 @@ const SlugSchema = z
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'must be lowercase kebab-case')
 
 /**
- * `skillPath` bị ghép vào đường dẫn khi Desk clone repo về, nên một `..` ở đây là
- * path traversal trên máy người dùng, không phải lỗi hiển thị. Phải kiểm tuyệt đối theo
- * cả POSIX lẫn win32 (`node:path`): trên Windows, `path.resolve(base, "C:/x")` coi
- * `C:/x` là tuyệt đối và vứt bỏ toàn bộ `base`, nên chỉ chặn `/` ở đầu là không đủ. Kiểm
- * riêng drive-letter vì dạng drive-relative (`C:foo/bar`) không được `win32.isAbsolute`
- * coi là tuyệt đối nhưng vẫn nguy hiểm.
+ * `skillPath` gets joined into a filesystem path when Desk clones the repo down, so a `..`
+ * here is a path traversal on the user's machine, not a display bug. It must be checked as
+ * absolute on both POSIX and win32 (`node:path`): on Windows, `path.resolve(base, "C:/x")`
+ * treats `C:/x` as absolute and discards `base` entirely, so blocking a leading `/` alone is
+ * not enough. The drive-letter case is checked separately because a drive-relative form
+ * (`C:foo/bar`) is not considered absolute by `win32.isAbsolute` but is still dangerous.
  */
 const SkillPathSchema = z
   .string()
@@ -49,10 +50,11 @@ const SkillPathSchema = z
   .refine((value) => !value.includes('\\') && !value.includes('\0'), 'must not contain backslash or NUL')
 
 /**
- * `ref` nối vào cùng URL raw với `skillPath`, nên nó cần đúng mức phòng thủ. Một `ref` dạng
- * `main/../../other` bị `new URL()` chuẩn hoá và thoát sang repo khác — ràng buộc `skillPath`
- * mà bỏ `ref` là bịt một nửa cửa.
- * Cho phép: tên nhánh, tag, và SHA. Không cho: `..`, khoảng trắng, `?`, `#`, `\`, NUL.
+ * `ref` is joined into the same raw URL as `skillPath`, so it needs the same level of
+ * defense. A `ref` like `main/../../other` gets normalized by `new URL()` and escapes into a
+ * different repo — constraining `skillPath` while leaving `ref` open only closes half the
+ * door.
+ * Allowed: branch names, tags, and SHAs. Not allowed: `..`, whitespace, `?`, `#`, `\`, NUL.
  */
 const RefSchema = z
   .string()
@@ -76,7 +78,7 @@ export type SkillRecord = z.infer<typeof SkillRecordSchema>
 export const TierSchema = z.enum(['listed', 'curated', 'quarantined'])
 export type Tier = z.infer<typeof TierSchema>
 
-/** Hình dạng một entry trong `dist/skills/index.json`. Mọi field ngoài record là do CI suy ra. */
+/** Shape of one entry in `dist/skills/index.json`. Every field beyond the record is derived by CI. */
 export const HydratedSkillSchema = SkillRecordSchema.omit({ $schema: true }).extend({
   displayName: z.string(),
   description: z.string().nullable(),
@@ -92,23 +94,24 @@ export const HydratedSkillSchema = SkillRecordSchema.omit({ $schema: true }).ext
 export type HydratedSkill = z.infer<typeof HydratedSkillSchema>
 
 /**
- * Owner trong `gitUrl`, dùng để đối chiếu với `namespace`.
+ * The owner in `gitUrl`, used to cross-check against `namespace`.
  *
- * CẢNH BÁO: phải gọi `SkillRecordSchema.parse()` (hoặc validate tương đương) trên `gitUrl`
- * TRƯỚC khi gọi hàm này. Hàm giả định `gitUrl` đã đúng dạng
- * `https://github.com/{owner}/{repo}` nên không tự phòng thủ lại — truyền chuỗi rỗng hoặc
- * không phải URL hợp lệ (`ownerOf('')`, `ownerOf('not-a-url')`) sẽ ném `TypeError` từ
- * `new URL()` thay vì trả lỗi có cấu trúc.
+ * WARNING: `SkillRecordSchema.parse()` (or an equivalent validation) must be called on
+ * `gitUrl` BEFORE calling this function. It assumes `gitUrl` is already in the form
+ * `https://github.com/{owner}/{repo}` and does not defend against that itself — passing an
+ * empty string or an invalid URL (`ownerOf('')`, `ownerOf('not-a-url')`) throws a `TypeError`
+ * from `new URL()` instead of returning a structured error.
  */
 export function ownerOf(gitUrl: string): string {
   return new URL(gitUrl).pathname.split('/').filter(Boolean)[0] ?? ''
 }
 
 /**
- * Repo name trong `gitUrl`, dùng để dựng URL raw.
+ * The repo name in `gitUrl`, used to build the raw URL.
  *
- * CẢNH BÁO: cùng ràng buộc như `ownerOf` — phải `SkillRecordSchema.parse()` trước khi gọi.
- * Hàm không tự validate `gitUrl`, input chưa qua schema sẽ khiến `new URL()` ném `TypeError`.
+ * WARNING: same constraint as `ownerOf` — `SkillRecordSchema.parse()` must run first. This
+ * function does not validate `gitUrl` itself; an input that has not passed the schema will
+ * make `new URL()` throw.
  */
 export function repoOf(gitUrl: string): string {
   return new URL(gitUrl).pathname.split('/').filter(Boolean)[1] ?? ''

@@ -3,11 +3,12 @@ import { ownerOf, SkillRecordSchema } from './record'
 export type ValidationError = { code: string; message: string }
 
 /**
- * Luật thuần, không chạm mạng — chạy được trên mọi PR kể cả khi GitHub API hết quota.
- * Kiểm tra sự tồn tại thật của `SKILL.md` nằm ở `build-index`, không ở đây.
+ * Pure rules, no network access — runs on every PR even when the GitHub API is out of quota.
+ * Checking that `SKILL.md` actually exists lives in `build-index`, not here.
  *
- * Đường dẫn file và nội dung file cố tình lặp lại nhau: `git mv` một record sang thư mục khác
- * mà không sửa nội dung là đổi danh tính bản ghi trong im lặng, nên nó phải là lỗi.
+ * The file path and the file content deliberately mirror each other: `git mv`-ing a record to
+ * a different directory without updating its content silently changes the record's identity,
+ * so it must be an error.
  */
 export function validateRecordFile(filePath: string, raw: unknown): ValidationError[] {
   const errors: ValidationError[] = []
@@ -48,7 +49,7 @@ export function validateRecordFile(filePath: string, raw: unknown): ValidationEr
     })
   }
 
-  // Namespace claim bằng quyền sở hữu GitHub: ai kiểm soát org thì kiểm soát namespace.
+  // Namespace claims are backed by GitHub ownership: whoever controls the org controls the namespace.
   if (ownerOf(record.gitUrl).toLowerCase() !== record.namespace.toLowerCase()) {
     errors.push({
       code: 'namespace_not_owner',

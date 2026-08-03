@@ -20,16 +20,17 @@ function headers(): Record<string, string> {
 }
 
 /**
- * Encode từng segment của đường dẫn: split by `/`, encode mỗi segment, rồi join lại.
- * Điều này giữ `/` giữa các segment trong URL mà encode các ký tự nguy hiểm.
+ * Encode each path segment: split by `/`, encode each segment, then join back. This keeps
+ * the `/` between URL segments while encoding the dangerous characters.
  */
 function encodePath(value: string): string {
   return value.split('/').map(encodeURIComponent).join('/')
 }
 
 /**
- * Kiểm xem giá trị có chứa dot-segment (`.` hoặc `..`). Được dùng làm lớp phòng thủ độc lập
- * không phụ thuộc schema — ngay cả khi schema bỏ qua, lớp này vẫn chặn.
+ * Checks whether a value contains a dot-segment (`.` or `..`). Used as an independent
+ * defense layer that does not depend on the schema — even if the schema lets one through,
+ * this layer still blocks it.
  */
 function hasDotSegment(value: string): boolean {
   return value.split('/').some((s) => s === '.' || s === '..')
@@ -40,14 +41,17 @@ export function sha256(text: string): string {
 }
 
 /**
- * Lớp phòng thủ cuối: chuẩn hoá URL rồi kiểm nó CÒN nằm trong repo đã khai.
+ * Last line of defense: normalize the URL, then check it still lands inside the declared
+ * repository.
  *
- * Vì sao không tin encodeURIComponent: nó không encode dấu `.`, nên `..` đi qua nguyên vẹn và
- * mọi client theo chuẩn WHATWG URL sẽ rút gọn dot-segment — thoát khỏi repo. Kiểm sau khi
- * chuẩn hoá là cách duy nhất không phụ thuộc vào việc đoán đúng tập ký tự nguy hiểm.
+ * Why not trust encodeURIComponent: it does not encode `.`, so `..` passes through intact
+ * and any WHATWG-URL-compliant client will collapse the dot-segment — escaping the repo.
+ * Checking after normalization is the only approach that does not depend on guessing the
+ * right set of dangerous characters.
  *
- * Trả về href ĐÃ CHUẨN HOÁ, và caller phải fetch đúng chuỗi này — nếu fetch chuỗi gốc thì thứ
- * được kiểm và thứ được gửi đi là hai chuỗi khác nhau.
+ * Returns the NORMALIZED href, and the caller must fetch this exact string — fetching the
+ * original string instead means the thing that was checked and the thing that was sent are
+ * two different strings.
  */
 function assertWithinRepo(rawUrl: string, expectedHost: string, expectedPrefix: string): string {
   const url = new URL(rawUrl)
@@ -58,7 +62,7 @@ function assertWithinRepo(rawUrl: string, expectedHost: string, expectedPrefix: 
 }
 
 export async function fetchSkillMd(record: SkillRecord, fetcher: Fetcher): Promise<string> {
-  // Lớp phòng thủ độc lập: từ chối dot-segment độc lập với schema
+  // Independent defense layer: reject dot-segments regardless of what the schema allowed
   if (hasDotSegment(record.ref) || hasDotSegment(record.skillPath)) {
     throw new Error(`ref or skillPath contains a dot segment: ${record.ref} ${record.skillPath}`)
   }
@@ -75,8 +79,9 @@ export async function fetchSkillMd(record: SkillRecord, fetcher: Fetcher): Promi
 }
 
 /**
- * Thứ tư không ném khi API lỗi: thứ tư và ngày commit là thứ trang trí. Rate limit của GitHub
- * không được phép làm rỗng cả registry — record vẫn đúng khi thiếu chúng.
+ * This does not throw when the API fails: stars and the commit date are cosmetic. A GitHub
+ * rate limit must not be allowed to empty out the whole registry — a record is still valid
+ * without them.
  */
 export async function fetchRepoMeta(
   record: SkillRecord,

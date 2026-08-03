@@ -9,7 +9,7 @@ import { sha256 } from '../github'
 
 const SKILL_MD = `---
 name: Refund Audit
-description: Đối chiếu refund với sổ quỹ.
+description: Reconciles refunds against the ledger.
 tags: [woocommerce]
 ---
 body
@@ -60,7 +60,7 @@ describe('buildIndex', () => {
       namespace: 'tracyhq',
       slug: 'refund-audit',
       displayName: 'Refund Audit',
-      description: 'Đối chiếu refund với sổ quỹ.',
+      description: 'Reconciles refunds against the ledger.',
       tags: ['woocommerce'],
       externalStars: 7,
       lastCommitAt: '2026-08-01T00:00:00Z',

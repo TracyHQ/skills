@@ -1,0 +1,26 @@
+name: validate
+on:
+  pull_request:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm validate
+      - name: Build index against the real repos
+        run: pnpm build-index
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Runs AFTER the build on purpose: the schema copy that reaches consumers is generated
+      # into dist/skills/schema/, not written in a source file. Checking sources alone would
+      # miss it.
+      - name: Check the public surface is in English
+        run: node scripts/check-language.mjs

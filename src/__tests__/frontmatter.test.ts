@@ -4,26 +4,26 @@ import { parseSkillFrontmatter } from '../frontmatter'
 
 const doc = `---
 name: woocommerce-refund-audit
-description: Đối chiếu refund trên WooCommerce với sổ quỹ.
+description: Reconciles refunds on WooCommerce against the ledger.
 tags:
   - woocommerce
   - finance
 ---
 
-# Nội dung
+# Body
 `
 
 describe('parseSkillFrontmatter', () => {
   it('reads name, description and tags', () => {
     expect(parseSkillFrontmatter(doc)).toEqual({
       name: 'woocommerce-refund-audit',
-      description: 'Đối chiếu refund trên WooCommerce với sổ quỹ.',
+      description: 'Reconciles refunds on WooCommerce against the ledger.',
       tags: ['woocommerce', 'finance']
     })
   })
 
   it('returns nulls when there is no frontmatter', () => {
-    expect(parseSkillFrontmatter('# Chỉ có nội dung')).toEqual({ name: null, description: null, tags: [] })
+    expect(parseSkillFrontmatter('# Body only')).toEqual({ name: null, description: null, tags: [] })
   })
 
   it('ignores non-string tag entries rather than throwing', () => {

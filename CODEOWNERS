@@ -1,0 +1,6 @@
+# Records can be submitted by anyone. Trust labels cannot.
+/curation/   @TracyHQ/registry-maintainers
+/schema/     @TracyHQ/registry-maintainers
+/src/        @TracyHQ/registry-maintainers
+/bin/        @TracyHQ/registry-maintainers
+/.github/    @TracyHQ/registry-maintainers

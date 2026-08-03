@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "namespace": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "slug": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "gitUrl": {
+      "type": "string",
+      "format": "uri"
+    },
+    "ref": {
+      "default": "main",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "pattern": "^[A-Za-z0-9._\\-\\/]+$"
+    },
+    "skillPath": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "namespace",
+    "slug",
+    "gitUrl",
+    "ref",
+    "skillPath"
+  ],
+  "additionalProperties": false
+}

@@ -10,7 +10,7 @@ import { validateRecordFile } from './validate'
 export type BuildOptions = {
   rootDir: string
   fetcher: Fetcher
-  /** Ai thêm file record này — mặc định suy từ git log ở `bin/build-index.ts`. */
+  /** Who added this record file — defaults to a git-log lookup in `bin/build-index.ts`. */
   submittedByOf?: (filePath: string) => string | null
 }
 
@@ -28,8 +28,9 @@ async function listRecordFiles(rootDir: string, warnings: string[]): Promise<str
   for (const namespace of namespaces.sort()) {
     const dir = path.join(registryDir, namespace)
 
-    // Symlink gãy hoặc entry biến mất giữa readdir và stat. Registry này nhận PR từ người ngoài,
-    // nên một entry hỏng phải bị bỏ qua kèm cảnh báo, không được làm sập cả lần build.
+    // A broken symlink, or an entry that vanished between readdir and stat. This registry
+    // accepts PRs from outsiders, so a broken entry must be skipped with a warning, not
+    // crash the whole build.
     let isDirectory: boolean
     try {
       isDirectory = (await fs.stat(dir)).isDirectory()
@@ -56,9 +57,10 @@ async function listRecordFiles(rootDir: string, warnings: string[]): Promise<str
 type ReadJsonResult = { ok: true; value: unknown } | { ok: false; missing: boolean }
 
 /**
- * Phân biệt "file không tồn tại" (bình thường — curation là tuỳ chọn) với "file tồn tại nhưng
- * JSON sai cú pháp" (bất thường — phải cảnh báo). Gộp hai trường hợp thành cùng một `null` khiến
- * curation hỏng rơi về "không có curation" trong im lặng, không ai biết vì sao record mất tier.
+ * Distinguishes "file does not exist" (normal — curation is optional) from "file exists but
+ * the JSON is malformed" (abnormal — must warn). Collapsing both cases into the same `null`
+ * would let a broken curation file silently fall back to "no curation", and nobody would know
+ * why the record lost its tier.
  */
 async function readJson(absolutePath: string): Promise<ReadJsonResult> {
   let text: string
@@ -117,14 +119,16 @@ export async function buildIndex(options: BuildOptions): Promise<BuildResult> {
         warnings.push(`curation/${record.namespace}/${record.slug}.json: invalid, ignored`)
       }
     } else if (!curationJson.missing) {
-      // File tồn tại nhưng JSON sai cú pháp — khác hẳn "không có curation". Không cảnh báo ở đây
-      // khiến curator sửa hỏng một file thấy record mất tier `curated` mà tưởng nhầm là hash lệch.
+      // File exists but the JSON is malformed — very different from "no curation". Not
+      // warning here would let a curator who broke a file watch the record lose its `curated`
+      // tier and mistake it for a hash mismatch.
       warnings.push(`curation/${record.namespace}/${record.slug}.json: unreadable JSON, ignored`)
     }
 
     const { tier, demoted } = resolveTier(curation, contentHash)
     if (demoted && curation) {
-      // Đây là dấu hiệu repo nguồn đã đổi sau khi Tracy review — chính kịch bản §5 của spec chặn.
+      // This is the sign that the source repo changed after Tracy reviewed it — exactly the
+      // scenario spec section 5 guards against.
       warnings.push(
         `${record.namespace}/${record.slug}: demoted from curated to listed — reviewed ${curation.reviewedHash}, now ${contentHash}`
       )

@@ -37,7 +37,7 @@ describe('validateRecordFile', () => {
   })
 
   it('matches owner case-insensitively', () => {
-    // namespace là kebab-case chữ thường; owner GitHub là "TracyHQ".
+    // namespace is lowercase kebab-case; the GitHub owner is "TracyHQ".
     expect(codes(valid)).not.toContain('namespace_not_owner')
   })
 
