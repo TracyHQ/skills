@@ -32,6 +32,24 @@ describe('fetchSkillMd', () => {
     const fetcher = vi.fn().mockResolvedValue({ ok: false, status: 404, text: async () => '', json: async () => ({}) })
     await expect(fetchSkillMd(record, fetcher)).rejects.toThrow('SKILL.md not found')
   })
+
+  it('throws when status is 403', async () => {
+    const fetcher = vi.fn().mockResolvedValue({ ok: false, status: 403, text: async () => '', json: async () => ({}) })
+    await expect(fetchSkillMd(record, fetcher)).rejects.toThrow('SKILL.md not found')
+  })
+
+  it('throws when fetcher throws', async () => {
+    const fetcher = vi.fn().mockRejectedValue(new Error('network error'))
+    await expect(fetchSkillMd(record, fetcher)).rejects.toThrow('network error')
+  })
+
+  it('encodes ref slashes as segments, not raw characters', async () => {
+    const fetcher = vi.fn().mockResolvedValue(ok('# hi'))
+    const recordWithMultipartRef = { ...record, ref: 'release/2026-08' }
+    await fetchSkillMd(recordWithMultipartRef, fetcher)
+    const callUrl = fetcher.mock.calls[0]?.[0] as string
+    expect(callUrl).toBe('https://raw.githubusercontent.com/TracyHQ/skills/release/2026-08/skills/refund-audit/SKILL.md')
+  })
 })
 
 describe('fetchRepoMeta', () => {
@@ -43,6 +61,33 @@ describe('fetchRepoMeta', () => {
   it('degrades to zero stars when the API fails', async () => {
     const fetcher = vi.fn().mockResolvedValue({ ok: false, status: 403, text: async () => '', json: async () => ({}) })
     await expect(fetchRepoMeta(record, fetcher)).resolves.toEqual({ stars: 0, pushedAt: null })
+  })
+
+  it('never throws: fetcher throws', async () => {
+    const fetcher = vi.fn().mockRejectedValue(new Error('network error'))
+    await expect(fetchRepoMeta(record, fetcher)).resolves.toEqual({ stars: 0, pushedAt: null })
+  })
+
+  it('never throws: ok=true but json() throws', async () => {
+    const fetcher = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => '',
+      json: async () => {
+        throw new Error('parse error')
+      }
+    })
+    await expect(fetchRepoMeta(record, fetcher)).resolves.toEqual({ stars: 0, pushedAt: null })
+  })
+
+  it('never throws: JSON missing stargazers_count', async () => {
+    const fetcher = vi.fn().mockResolvedValue(ok('', { pushed_at: '2026-08-01T00:00:00Z' }))
+    await expect(fetchRepoMeta(record, fetcher)).resolves.toEqual({ stars: 0, pushedAt: '2026-08-01T00:00:00Z' })
+  })
+
+  it('never throws: stargazers_count is a string', async () => {
+    const fetcher = vi.fn().mockResolvedValue(ok('', { stargazers_count: '12', pushed_at: '2026-08-01T00:00:00Z' }))
+    await expect(fetchRepoMeta(record, fetcher)).resolves.toEqual({ stars: 0, pushedAt: '2026-08-01T00:00:00Z' })
   })
 })
 

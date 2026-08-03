@@ -19,12 +19,20 @@ function headers(): Record<string, string> {
   }
 }
 
+/**
+ * Encode từng segment của đường dẫn: split by `/`, encode mỗi segment, rồi join lại.
+ * Điều này giữ `/` giữa các segment trong URL mà encode các ký tự nguy hiểm.
+ */
+function encodePath(value: string): string {
+  return value.split('/').map(encodeURIComponent).join('/')
+}
+
 export function sha256(text: string): string {
   return createHash('sha256').update(text, 'utf8').digest('hex')
 }
 
 export async function fetchSkillMd(record: SkillRecord, fetcher: Fetcher): Promise<string> {
-  const url = `https://raw.githubusercontent.com/${ownerOf(record.gitUrl)}/${repoOf(record.gitUrl)}/${record.ref}/${record.skillPath}/SKILL.md`
+  const url = `https://raw.githubusercontent.com/${encodeURIComponent(ownerOf(record.gitUrl))}/${encodeURIComponent(repoOf(record.gitUrl))}/${encodePath(record.ref)}/${encodePath(record.skillPath)}/SKILL.md`
   const response = await fetcher(url, { headers: headers() })
   if (!response.ok) {
     throw new Error(`SKILL.md not found (HTTP ${response.status}): ${url}`)
@@ -33,14 +41,14 @@ export async function fetchSkillMd(record: SkillRecord, fetcher: Fetcher): Promi
 }
 
 /**
- * Sao không ném khi API lỗi: sao và ngày commit là thứ trang trí. Rate limit của GitHub
+ * Thứ tư không ném khi API lỗi: thứ tư và ngày commit là thứ trang trí. Rate limit của GitHub
  * không được phép làm rỗng cả registry — record vẫn đúng khi thiếu chúng.
  */
 export async function fetchRepoMeta(
   record: SkillRecord,
   fetcher: Fetcher
 ): Promise<{ stars: number; pushedAt: string | null }> {
-  const url = `https://api.github.com/repos/${ownerOf(record.gitUrl)}/${repoOf(record.gitUrl)}`
+  const url = `https://api.github.com/repos/${encodeURIComponent(ownerOf(record.gitUrl))}/${encodeURIComponent(repoOf(record.gitUrl))}`
   try {
     const response = await fetcher(url, { headers: headers() })
     if (!response.ok) return { stars: 0, pushedAt: null }

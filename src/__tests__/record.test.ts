@@ -76,4 +76,48 @@ describe('SkillRecordSchema', () => {
   it('rejects a gitUrl with a fragment', () => {
     expect(SkillRecordSchema.safeParse({ ...valid, gitUrl: 'https://github.com/a/b#readme' }).success).toBe(false)
   })
+
+  it('rejects a ref with path traversal (..)', () => {
+    expect(SkillRecordSchema.safeParse({ ...valid, ref: 'main/../../../evil-owner/evil-repo/main' }).success).toBe(false)
+  })
+
+  it('rejects a ref with query string character (?)', () => {
+    expect(SkillRecordSchema.safeParse({ ...valid, ref: 'main?x=1' }).success).toBe(false)
+  })
+
+  it('rejects a ref with fragment character (#)', () => {
+    expect(SkillRecordSchema.safeParse({ ...valid, ref: 'main#frag' }).success).toBe(false)
+  })
+
+  it('rejects a ref with whitespace', () => {
+    expect(SkillRecordSchema.safeParse({ ...valid, ref: 'has space' }).success).toBe(false)
+  })
+
+  it('rejects a ref starting with /', () => {
+    expect(SkillRecordSchema.safeParse({ ...valid, ref: '/leading' }).success).toBe(false)
+  })
+
+  it('rejects a ref ending with /', () => {
+    expect(SkillRecordSchema.safeParse({ ...valid, ref: 'trailing/' }).success).toBe(false)
+  })
+
+  it('rejects a ref with backslash', () => {
+    expect(SkillRecordSchema.safeParse({ ...valid, ref: 'a\\b' }).success).toBe(false)
+  })
+
+  it('accepts a ref that is just main', () => {
+    expect(SkillRecordSchema.safeParse({ ...valid, ref: 'main' }).success).toBe(true)
+  })
+
+  it('accepts a semantic version ref', () => {
+    expect(SkillRecordSchema.safeParse({ ...valid, ref: 'v1.2.3' }).success).toBe(true)
+  })
+
+  it('accepts a release branch ref', () => {
+    expect(SkillRecordSchema.safeParse({ ...valid, ref: 'release/2026-08' }).success).toBe(true)
+  })
+
+  it('accepts a commit SHA ref', () => {
+    expect(SkillRecordSchema.safeParse({ ...valid, ref: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0' }).success).toBe(true)
+  })
 })

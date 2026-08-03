@@ -48,12 +48,26 @@ const SkillPathSchema = z
   .refine((value) => !value.split(/[\\/]/).includes('..'), 'must not contain ".."')
   .refine((value) => !value.includes('\\') && !value.includes('\0'), 'must not contain backslash or NUL')
 
+/**
+ * `ref` nối vào cùng URL raw với `skillPath`, nên nó cần đúng mức phòng thủ. Một `ref` dạng
+ * `main/../../other` bị `new URL()` chuẩn hoá và thoát sang repo khác — ràng buộc `skillPath`
+ * mà bỏ `ref` là bịt một nửa cửa.
+ * Cho phép: tên nhánh, tag, và SHA. Không cho: `..`, khoảng trắng, `?`, `#`, `\`, NUL.
+ */
+const RefSchema = z
+  .string()
+  .min(1)
+  .max(255)
+  .regex(/^[A-Za-z0-9._\-\/]+$/, 'ref may only contain letters, digits, dot, underscore, hyphen and slash')
+  .refine((v) => !v.split('/').includes('..'), 'ref must not contain ".."')
+  .refine((v) => !v.startsWith('/') && !v.endsWith('/'), 'ref must not start or end with "/"')
+
 export const SkillRecordSchema = z.object({
   $schema: z.string().optional(),
   namespace: SlugSchema,
   slug: SlugSchema,
   gitUrl: GitUrlSchema,
-  ref: z.string().min(1).default('main'),
+  ref: RefSchema.default('main'),
   skillPath: SkillPathSchema
 })
 
