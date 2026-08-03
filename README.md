@@ -6,12 +6,22 @@ truth for each skill still lives in the GitHub repo owned by whoever submitted i
 
 ## How to submit a skill
 
-1. Fork this repo.
-2. Add a file at `registry/<namespace>/<slug>.json`, where `<namespace>` must be the name
-   (case-insensitive) of the **GitHub owner** behind `gitUrl` — CI rejects a record whose
-   namespace does not match the owner.
-3. Open a PR. `validate.yml` runs `pnpm validate` (structural checks, no network access) and
-   `pnpm build-index` (checks that `SKILL.md` actually exists in the declared repo).
+Your skill stays in your own repo. All you add here is a record pointing at it.
+
+1. **[Create `registry/<namespace>/<slug>.json`](https://github.com/TracyHQ/skills/new/main/registry)**
+   — `<namespace>` must be the name (case-insensitive) of the **GitHub owner** behind `gitUrl`.
+   CI rejects a record whose namespace does not match the owner, so you can only publish under a
+   name you already control.
+2. **Propose the change.** If you do not have write access here, GitHub forks the repo for you
+   when you save — you do not need to fork anything by hand.
+
+`validate.yml` then runs `pnpm validate` (structural checks, no network access) and
+`pnpm build-index` (checks that `SKILL.md` really exists in the declared repo). Both must pass
+before the record can be merged.
+
+Once merged, the next build publishes your skill to
+[`registry.tracy.ai/skills/index.json`](https://registry.tracy.ai/skills/index.json), and it
+becomes installable from Tracy Desktop.
 
 ### A complete example record
 
