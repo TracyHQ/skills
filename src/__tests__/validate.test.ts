@@ -44,4 +44,26 @@ describe('validateRecordFile', () => {
   it('rejects a file outside registry/', () => {
     expect(codes(valid, 'curation/tracyhq/refund-audit.json')).toContain('path_outside_registry')
   })
+
+  it('rejects extra path segments after the filename', () => {
+    expect(codes(valid, 'registry/tracyhq/refund-audit.json/x/y/z')).toContain('path_outside_registry')
+  })
+
+  it('rejects path traversal attempts in extra segments', () => {
+    expect(codes(valid, 'registry/tracyhq/refund-audit.json/../../etc/passwd')).toContain('path_outside_registry')
+  })
+
+  it('rejects a path with wrong segment structure (4 segments)', () => {
+    expect(codes({ ...valid, namespace: 'a', slug: 'b' }, 'registry/a/b/sub.json')).toContain(
+      'path_outside_registry'
+    )
+  })
+
+  it('rejects a path with missing filename', () => {
+    expect(codes(valid, 'registry/tracyhq')).toContain('path_outside_registry')
+  })
+
+  it('rejects a path with only registry directory', () => {
+    expect(codes(valid, 'registry')).toContain('path_outside_registry')
+  })
 })

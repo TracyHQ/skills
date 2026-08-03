@@ -13,8 +13,11 @@ export function validateRecordFile(filePath: string, raw: unknown): ValidationEr
   const errors: ValidationError[] = []
   const segments = filePath.split('/').filter(Boolean)
 
-  if (segments[0] !== 'registry') {
-    errors.push({ code: 'path_outside_registry', message: `record must live under registry/: ${filePath}` })
+  if (segments.length !== 3 || segments[0] !== 'registry') {
+    errors.push({
+      code: 'path_outside_registry',
+      message: `record must live at registry/{namespace}/{slug}.json: ${filePath}`
+    })
     return errors
   }
 
@@ -27,8 +30,9 @@ export function validateRecordFile(filePath: string, raw: unknown): ValidationEr
   }
 
   const record = parsed.data
-  const pathNamespace = segments[1] ?? ''
-  const pathSlug = (segments[2] ?? '').replace(/\.json$/, '')
+  const pathNamespace = segments[1]!
+  const fileSegment = segments[2]!
+  const pathSlug = fileSegment.endsWith('.json') ? fileSegment.slice(0, -'.json'.length) : fileSegment
 
   if (pathNamespace !== record.namespace) {
     errors.push({
