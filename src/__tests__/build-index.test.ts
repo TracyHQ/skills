@@ -56,7 +56,7 @@ describe('buildIndex', () => {
 
     expect(warnings).toEqual([])
     expect(skills).toHaveLength(1)
-    expect(skills[0]).toMatchObject({
+    expect(skills[0]!).toMatchObject({
       namespace: 'tracyhq',
       slug: 'refund-audit',
       displayName: 'Refund Audit',
@@ -80,7 +80,9 @@ describe('buildIndex', () => {
     )
 
     const { skills } = await buildIndex({ rootDir: root, fetcher })
-    expect(skills[0].tier).toBe('curated')
+    const [first] = skills
+    expect(first).toBeDefined()
+    expect(first!.tier).toBe('curated')
   })
 
   it('demotes curated to listed and warns when the content changed', async () => {
@@ -92,7 +94,9 @@ describe('buildIndex', () => {
     )
 
     const { skills, warnings } = await buildIndex({ rootDir: root, fetcher })
-    expect(skills[0].tier).toBe('listed')
+    const [first] = skills
+    expect(first).toBeDefined()
+    expect(first!.tier).toBe('listed')
     expect(warnings.join(' ')).toContain('demoted')
     expect(warnings.join(' ')).toContain('c'.repeat(64))
   })
@@ -131,8 +135,10 @@ describe('buildIndex', () => {
     )
 
     const { skills } = await buildIndex({ rootDir: root, fetcher: bare })
-    expect(skills[0].displayName).toBe('refund-audit')
-    expect(skills[0].description).toBeNull()
+    const [first] = skills
+    expect(first).toBeDefined()
+    expect(first!.displayName).toBe('refund-audit')
+    expect(first!.description).toBeNull()
   })
 
   it('sorts by namespace then slug so the output is stable', async () => {
