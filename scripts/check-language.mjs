@@ -43,7 +43,8 @@
  * literally and therefore failed its own check. Adding a self-exemption would have left a
  * hole big enough to hide a real violation in, so the pattern is built from escapes and the
  * comments name characters instead of showing them. This file is scanned by the same rule as
- * every other.
+ * every other: `scripts/` is listed in SOURCE below, on purpose, so this file checks itself.
+ * A gatekeeper that exempts its own directory is a gatekeeper nobody is checking.
  */
 
 import fs from 'node:fs'
@@ -69,7 +70,7 @@ const ROOT = path.resolve(import.meta.dirname, '..')
 const VIETNAMESE = /[\u0102\u0103\u0110\u0111\u01A0\u01A1\u01AF\u01B0\u1EA0-\u1EF9]/u
 
 /** Tracy-authored source. Anything added here must be prose we control. */
-const SOURCE = ['README.md', 'CODEOWNERS', 'src', 'bin', 'schema', '.github', 'registry']
+const SOURCE = ['README.md', 'CODEOWNERS', 'src', 'bin', 'schema', '.github', 'registry', 'scripts']
 
 /**
  * Generated files that reach consumers. Only the schema copy: it is derived straight from

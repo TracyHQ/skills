@@ -3,4 +3,5 @@
 /schema/     @TracyHQ/registry-maintainers
 /src/        @TracyHQ/registry-maintainers
 /bin/        @TracyHQ/registry-maintainers
+/scripts/    @TracyHQ/registry-maintainers
 /.github/    @TracyHQ/registry-maintainers
