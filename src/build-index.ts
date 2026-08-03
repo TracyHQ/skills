@@ -4,7 +4,7 @@ import path from 'node:path'
 import { CurationRecordSchema, resolveTier, type CurationRecord } from './curation'
 import { parseSkillFrontmatter } from './frontmatter'
 import { fetchRepoMeta, fetchSkillMd, sha256, type Fetcher } from './github'
-import { HydratedSkillSchema, SkillRecordSchema, type HydratedSkill } from './record'
+import { HydratedSkillSchema, SkillRecordSchema, ownerOf, repoOf, type HydratedSkill } from './record'
 import { validateRecordFile } from './validate'
 
 export type BuildOptions = {
@@ -12,6 +12,15 @@ export type BuildOptions = {
   fetcher: Fetcher
   /** Who added this record file — defaults to a git-log lookup in `bin/build-index.ts`. */
   submittedByOf?: (filePath: string) => string | null
+  /**
+   * `owner/repo`, lowercase (e.g. `'tracyhq/skills'`) — identifies the repository this build
+   * is running inside. When a record's `gitUrl` resolves to this same repo, its `SKILL.md` is
+   * read from the local checkout instead of fetched over HTTP. Without this, a PR that adds
+   * `skills/foo/SKILL.md` together with its record would have that record fetched from
+   * `raw.githubusercontent.com` on the default branch, where the file doesn't exist yet — a
+   * 404 that drops the record from the index in exactly the PR meant to add it.
+   */
+  selfRepo?: string
 }
 
 export type BuildResult = { skills: HydratedSkill[]; warnings: string[] }
@@ -77,7 +86,7 @@ async function readJson(absolutePath: string): Promise<ReadJsonResult> {
 }
 
 export async function buildIndex(options: BuildOptions): Promise<BuildResult> {
-  const { rootDir, fetcher, submittedByOf } = options
+  const { rootDir, fetcher, submittedByOf, selfRepo } = options
   const warnings: string[] = []
   const skills: HydratedSkill[] = []
 
@@ -97,12 +106,44 @@ export async function buildIndex(options: BuildOptions): Promise<BuildResult> {
 
     const record = SkillRecordSchema.parse(raw)
 
+    const isSelfRepo =
+      selfRepo !== undefined &&
+      `${ownerOf(record.gitUrl)}/${repoOf(record.gitUrl)}`.toLowerCase() === selfRepo.toLowerCase()
+
     let source: string
-    try {
-      source = await fetchSkillMd(record, fetcher)
-    } catch (error) {
-      warnings.push(`${relativePath}: ${error instanceof Error ? error.message : String(error)}`)
-      continue
+    if (isSelfRepo) {
+      // Reading from disk instead of fetching. `ref` is ignored here on purpose — the local
+      // checkout only has one state, there's no ref to select between.
+      //
+      // `record.skillPath` already passed `SkillPathSchema`, which rejects `..`, absolute
+      // paths, and drive letters. But that check runs against a string, not this machine's
+      // real filesystem, and this is the one place that string reaches `fs.readFile`. So it
+      // gets re-verified independently here: resolve the path, then assert the result still
+      // lands inside `rootDir`. This mirrors `assertWithinRepo` in `src/github.ts` — never let
+      // a single layer of path validation be the only thing standing between untrusted input
+      // and disk I/O.
+      const resolvedRoot = path.resolve(rootDir)
+      const resolved = path.resolve(resolvedRoot, record.skillPath, 'SKILL.md')
+      const withinRoot = resolved === resolvedRoot || resolved.startsWith(resolvedRoot + path.sep)
+      if (!withinRoot) {
+        warnings.push(`${relativePath}: skillPath escapes rootDir, refused to read from disk: ${record.skillPath}`)
+        continue
+      }
+      try {
+        source = await fs.readFile(resolved, 'utf8')
+      } catch {
+        // Deliberately not falling back to HTTP: a silent fallback would mean a skill deleted
+        // from disk still shows green because of a stale copy on the default branch.
+        warnings.push(`${relativePath}: SKILL.md not found on disk at ${record.skillPath}`)
+        continue
+      }
+    } else {
+      try {
+        source = await fetchSkillMd(record, fetcher)
+      } catch (error) {
+        warnings.push(`${relativePath}: ${error instanceof Error ? error.message : String(error)}`)
+        continue
+      }
     }
 
     const contentHash = sha256(source)

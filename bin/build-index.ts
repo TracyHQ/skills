@@ -4,6 +4,11 @@ import path from 'node:path'
 
 import { buildIndex } from '../src/build-index'
 
+// This repo's own `owner/repo`, lowercase. Matched against each record's `gitUrl` so a skill
+// added together with its record in the same PR gets read from the local checkout instead of
+// 404ing against `raw.githubusercontent.com` on the default branch, where it doesn't exist yet.
+const SELF_REPO = 'tracyhq/skills'
+
 const root = process.cwd()
 const outDir = path.join(root, 'dist', 'skills')
 
@@ -22,7 +27,8 @@ function submittedByOf(relativePath: string): string | null {
 const { skills, warnings } = await buildIndex({
   rootDir: root,
   fetcher: fetch as never,
-  submittedByOf
+  submittedByOf,
+  selfRepo: SELF_REPO
 })
 
 for (const warning of warnings) console.warn(`warn ${warning}`)

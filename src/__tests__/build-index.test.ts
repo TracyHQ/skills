@@ -176,6 +176,82 @@ describe('buildIndex', () => {
     expect(warnings).toEqual([])
   })
 
+  it('fetches over HTTP when selfRepo is set but the record points elsewhere', async () => {
+    await writeRecord('tracyhq', 'refund-audit')
+
+    const { skills, warnings } = await buildIndex({ rootDir: root, fetcher, selfRepo: 'tracyhq/skills-desk' })
+
+    expect(warnings).toEqual([])
+    expect(skills).toHaveLength(1)
+    expect(fetcher).toHaveBeenCalledWith(
+      expect.stringContaining('https://raw.githubusercontent.com/'),
+      expect.anything()
+    )
+  })
+
+  it('reads SKILL.md from disk when the record points at selfRepo and the file exists', async () => {
+    await writeRecord('tracyhq', 'refund-audit')
+    await fs.mkdir(path.join(root, 'skills', 'refund-audit'), { recursive: true })
+    await fs.writeFile(path.join(root, 'skills', 'refund-audit', 'SKILL.md'), SKILL_MD)
+
+    const { skills, warnings } = await buildIndex({ rootDir: root, fetcher, selfRepo: 'tracyhq/skills' })
+
+    expect(warnings).toEqual([])
+    expect(skills).toHaveLength(1)
+    expect(skills[0]!.contentHash).toBe(sha256(SKILL_MD))
+    for (const call of fetcher.mock.calls) {
+      expect(call[0]).not.toContain('raw.githubusercontent.com')
+    }
+    expect(fetcher).toHaveBeenCalledWith(expect.stringContaining('https://api.github.com/'), expect.anything())
+  })
+
+  it('warns and skips, without falling back to HTTP, when selfRepo matches but the file is missing on disk', async () => {
+    await writeRecord('tracyhq', 'refund-audit')
+
+    const { skills, warnings } = await buildIndex({ rootDir: root, fetcher, selfRepo: 'tracyhq/skills' })
+
+    expect(skills).toEqual([])
+    expect(warnings.join(' ')).toContain('SKILL.md not found on disk')
+    for (const call of fetcher.mock.calls) {
+      expect(call[0]).not.toContain('raw.githubusercontent.com')
+    }
+  })
+
+  it('matches selfRepo case-insensitively against gitUrl', async () => {
+    await fs.mkdir(path.join(root, 'registry', 'tracyhq'), { recursive: true })
+    await fs.writeFile(
+      path.join(root, 'registry', 'tracyhq', 'refund-audit.json'),
+      JSON.stringify({
+        namespace: 'tracyhq',
+        slug: 'refund-audit',
+        gitUrl: 'https://github.com/TracyHQ/Skills',
+        ref: 'main',
+        skillPath: 'skills/refund-audit'
+      })
+    )
+    await fs.mkdir(path.join(root, 'skills', 'refund-audit'), { recursive: true })
+    await fs.writeFile(path.join(root, 'skills', 'refund-audit', 'SKILL.md'), SKILL_MD)
+
+    const { skills, warnings } = await buildIndex({ rootDir: root, fetcher, selfRepo: 'tracyhq/skills' })
+
+    expect(warnings).toEqual([])
+    expect(skills).toHaveLength(1)
+    expect(skills[0]!.contentHash).toBe(sha256(SKILL_MD))
+  })
+
+  it('behaves exactly as before when selfRepo is not passed', async () => {
+    await writeRecord('tracyhq', 'refund-audit')
+
+    const { skills, warnings } = await buildIndex({ rootDir: root, fetcher })
+
+    expect(warnings).toEqual([])
+    expect(skills).toHaveLength(1)
+    expect(fetcher).toHaveBeenCalledWith(
+      expect.stringContaining('https://raw.githubusercontent.com/'),
+      expect.anything()
+    )
+  })
+
   it('warns when a curation file exists but is not valid JSON', async () => {
     await writeRecord('tracyhq', 'refund-audit')
     await fs.mkdir(path.join(root, 'curation', 'tracyhq'), { recursive: true })
