@@ -7,7 +7,8 @@ const valid = {
   slug: 'woocommerce-refund-audit',
   gitUrl: 'https://github.com/TracyHQ/skills',
   ref: 'main',
-  skillPath: 'skills/woocommerce-refund-audit'
+  skillPath: 'skills/woocommerce-refund-audit',
+  platforms: ['woocommerce']
 }
 
 describe('SkillRecordSchema', () => {
@@ -119,5 +120,38 @@ describe('SkillRecordSchema', () => {
 
   it('accepts a commit SHA ref', () => {
     expect(SkillRecordSchema.safeParse({ ...valid, ref: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0' }).success).toBe(true)
+  })
+
+  it('defaults platforms to an empty array when omitted', () => {
+    const { platforms, ...withoutPlatforms } = valid
+    expect(SkillRecordSchema.parse(withoutPlatforms).platforms).toEqual([])
+  })
+
+  it('accepts several platforms on one record', () => {
+    expect(SkillRecordSchema.parse({ ...valid, platforms: ['wordpress', 'woocommerce'] }).platforms).toEqual([
+      'wordpress',
+      'woocommerce'
+    ])
+  })
+
+  // The three spellings that used to pass as free-text tags and reach a client unchecked.
+  it('rejects a platform outside the vocabulary', () => {
+    expect(SkillRecordSchema.safeParse({ ...valid, platforms: ['drupal'] }).success).toBe(false)
+  })
+
+  it('rejects a platform with the wrong casing', () => {
+    expect(SkillRecordSchema.safeParse({ ...valid, platforms: ['Joomla!'] }).success).toBe(false)
+  })
+
+  it('rejects a versioned platform name', () => {
+    expect(SkillRecordSchema.safeParse({ ...valid, platforms: ['joomla-6'] }).success).toBe(false)
+  })
+
+  it('rejects a repeated platform', () => {
+    expect(SkillRecordSchema.safeParse({ ...valid, platforms: ['joomla', 'joomla'] }).success).toBe(false)
+  })
+
+  it('rejects platforms that is not an array', () => {
+    expect(SkillRecordSchema.safeParse({ ...valid, platforms: 'joomla' }).success).toBe(false)
   })
 })

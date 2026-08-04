@@ -31,14 +31,25 @@
     "skillPath": {
       "type": "string",
       "minLength": 1
+    },
+    "platforms": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "wordpress",
+          "woocommerce",
+          "joomla",
+          "shopify"
+        ]
+      }
     }
   },
   "required": [
     "namespace",
     "slug",
     "gitUrl",
-    "ref",
     "skillPath"
-  ],
-  "additionalProperties": false
+  ]
 }

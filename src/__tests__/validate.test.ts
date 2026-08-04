@@ -22,6 +22,16 @@ describe('validateRecordFile', () => {
     expect(codes({ ...valid, gitUrl: 'nope' })).toContain('schema')
   })
 
+  // The gate that used to be missing entirely: a platform name is checked on the PR, offline,
+  // instead of reaching a client as an unmatched free-text tag.
+  it('rejects a platform outside the vocabulary', () => {
+    expect(codes({ ...valid, platforms: ['drupal'] })).toContain('schema')
+  })
+
+  it('accepts a record that declares no platform', () => {
+    expect(validateRecordFile(validPath, valid)).toEqual([])
+  })
+
   it('rejects a namespace that does not match the file path', () => {
     expect(codes(valid, 'registry/someone-else/refund-audit.json')).toContain('path_namespace_mismatch')
   })

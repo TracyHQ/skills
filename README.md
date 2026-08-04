@@ -31,7 +31,8 @@ becomes installable from Tracy Desktop.
   "slug": "refund-audit",
   "gitUrl": "https://github.com/TracyHQ/skills",
   "ref": "main",
-  "skillPath": "skills/refund-audit"
+  "skillPath": "skills/refund-audit",
+  "platforms": ["woocommerce"]
 }
 ```
 
@@ -39,6 +40,35 @@ becomes installable from Tracy Desktop.
 - `gitUrl`: `https://github.com/{owner}/{repo}`, no userinfo/port/query/fragment.
 - `ref`: branch, tag, or SHA (defaults to `main`).
 - `skillPath`: path, relative to the repo root, to the directory containing `SKILL.md`.
+- `platforms`: what the skill runs on. Optional, defaults to `[]` — see below.
+
+### `platforms` — what it runs on, not what it does
+
+`platforms` is a closed vocabulary. Anything else fails validation on the PR:
+
+| Value | Platform |
+|---|---|
+| `wordpress` | WordPress |
+| `woocommerce` | WooCommerce |
+| `joomla` | Joomla |
+| `shopify` | Shopify |
+
+It is deliberately separate from the `tags:` in your `SKILL.md`. Tags say what a skill **does**
+(`security`, `wp-cli`, `maintenance`); `platforms` says what it **runs on**. They were the same
+list once, and every client had to recover the second from the first by intersecting against a
+hardcoded set of four names — so `Joomla!`, `joomla-6` and a skill with no platform tag at all
+were indistinguishable from a correct record until a filter row looked wrong to someone.
+
+It lives in the record rather than in `SKILL.md` for a reason that matters when the skill is not
+yours: **a record points at a repo Tracy does not own.** A classification only the source repo
+can set is one nobody here can correct. This one sits next to `tier` — Tracy's judgment, in
+Tracy's file.
+
+Omitting it is legal; a skill may genuinely target no platform. It is not silent, though: the
+build names the slug in a warning, because the alternative is a record that quietly vanishes from
+every platform filter and is only ever noticed as a gap in someone's UI.
+
+Declaring more than one is fine — a skill that spans WordPress and WooCommerce lists both.
 
 ## The three tiers
 
@@ -68,12 +98,15 @@ of leaving you to infer it.
 | `dist/skills/` | **mixed** — see below | — |
 
 `dist/skills/` carries two different authors' work. The record's presence in the index, the
-`namespace`/`slug`/`gitUrl`/`ref`/`skillPath` coordinates, and the `tier` label are Tracy's
-compilation and classification, so they are **CC BY 4.0**. But `displayName`, `description`,
-and `tags` are copied verbatim from the third-party author's own `SKILL.md`, and `submittedBy`
-is a third-party person's name — none of that is Tracy's to license. Those fields carry
-whatever license the source repository named in `gitUrl` already carries. See
+`namespace`/`slug`/`gitUrl`/`ref`/`skillPath` coordinates, and the `tier` and `platforms` labels
+are Tracy's compilation and classification, so they are **CC BY 4.0**. But `displayName`,
+`description`, and `tags` are copied verbatim from the third-party author's own `SKILL.md`, and
+`submittedBy` is a third-party person's name — none of that is Tracy's to license. Those fields
+carry whatever license the source repository named in `gitUrl` already carries. See
 [`LICENSE-DATA`](./LICENSE-DATA) for the full breakdown.
+
+`platforms` falls on Tracy's side of that line precisely because it is not copied from anyone —
+it is a classification made here, which is also why it can be corrected here.
 
 ### Attribution — copy this line
 

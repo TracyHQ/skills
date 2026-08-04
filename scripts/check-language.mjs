@@ -26,16 +26,18 @@
  *
  *   - `dist/skills/index.json`, `dist/skills/search.json`, and every
  *     `dist/skills/<namespace>/<slug>.json` file. Every one of these is built from fields
- *     that are either coordinates (namespace, slug, tier, hashes, URLs — not prose in any
- *     language) or third-party content copied verbatim from someone else's `SKILL.md`
- *     (`displayName`, `description`, `tags`) or a third-party git author name (`submittedBy`).
+ *     that are either coordinates and Tracy's own classification (namespace, slug, tier,
+ *     platforms, hashes, URLs — not prose in any language) or third-party content copied
+ *     verbatim from someone else's `SKILL.md` (`displayName`, `description`, `tags`) or a
+ *     third-party git author name (`submittedBy`).
  *     None of it is Tracy's own prose. Flagging it would mean either scanning the exact field
  *     this repo promises never to translate, or hand-maintaining a field allowlist that drifts
  *     the moment `HydratedSkillSchema` grows a field — both worse than excluding the files.
  *     "Translate the data" is a data-corruption bug, not a language fix.
  *   - `registry/**` is Tracy-controlled but holds only coordinates (namespace, slug, gitUrl,
- *     ref, skillPath) — no prose exists there to mistranslate, so it is safe to include in the
- *     scan below; it will simply never match.
+ *     ref, skillPath) and `platforms`, a closed enum of lowercase ASCII identifiers — no prose
+ *     exists there to mistranslate, so it is safe to include in the scan below; it will simply
+ *     never match.
  *
  * WHY CODE POINTS INSTEAD OF LITERAL CHARACTERS
  *

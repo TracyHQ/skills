@@ -8,7 +8,8 @@ const record: SkillRecord = {
   slug: 'refund-audit',
   gitUrl: 'https://github.com/TracyHQ/skills',
   ref: 'main',
-  skillPath: 'skills/refund-audit'
+  skillPath: 'skills/refund-audit',
+  platforms: ['woocommerce']
 }
 
 const ok = (body: string, json: unknown = {}) => ({
