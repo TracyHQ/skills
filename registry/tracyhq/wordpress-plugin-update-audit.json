@@ -4,5 +4,6 @@
   "slug": "wordpress-plugin-update-audit",
   "gitUrl": "https://github.com/TracyHQ/skills",
   "ref": "main",
-  "skillPath": "skills/wordpress-plugin-update-audit"
+  "skillPath": "skills/wordpress-plugin-update-audit",
+  "platforms": ["wordpress"]
 }

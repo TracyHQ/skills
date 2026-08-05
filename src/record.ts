@@ -64,13 +64,45 @@ const RefSchema = z
   .refine((v) => !v.split('/').includes('..'), 'ref must not contain ".."')
   .refine((v) => !v.startsWith('/') && !v.endsWith('/'), 'ref must not start or end with "/"')
 
+/**
+ * The platforms a skill runs on. A closed vocabulary, and deliberately not the same axis as
+ * the `tags:` in the author's `SKILL.md`.
+ *
+ * Tags answer "what does this skill do" (`security`, `wp-cli`, `maintenance`). Platform
+ * answers "what does it run on". Carrying both on one free-text list meant every client had
+ * to re-derive the second from the first by intersecting against a hardcoded list of four
+ * names, and nothing checked the result: `Joomla!`, `joomla-6`, or no platform tag at all
+ * were indistinguishable from a correct record until someone noticed a chip row looked wrong.
+ *
+ * Closed rather than free-text because a filter vocabulary is a product decision, not a
+ * description. An open list produces one chip per spelling, which is the failure this field
+ * exists to prevent. Adding a platform is a deliberate edit here, and it is the one place
+ * that has to change.
+ *
+ * Kept out of `SKILL.md` on purpose. Records point at repos Tracy does not own — the skill
+ * that exposed this problem lives in a third party's repo — so a classification that only the
+ * source repo can set is one Tracy cannot fix. This field is Tracy's own classification,
+ * alongside `tier`, and it lives where Tracy can correct it.
+ */
+export const PlatformSchema = z.enum(['wordpress', 'woocommerce', 'joomla', 'shopify'])
+export type Platform = z.infer<typeof PlatformSchema>
+
 export const SkillRecordSchema = z.object({
   $schema: z.string().optional(),
   namespace: SlugSchema,
   slug: SlugSchema,
   gitUrl: GitUrlSchema,
   ref: RefSchema.default('main'),
-  skillPath: SkillPathSchema
+  skillPath: SkillPathSchema,
+  /**
+   * Empty is legal — a skill genuinely may not be platform-specific — but never silent:
+   * `build-index` warns by slug, because the alternative is a record that quietly disappears
+   * from every platform filter and only surfaces as a gap in someone's UI.
+   */
+  platforms: z
+    .array(PlatformSchema)
+    .refine((value) => new Set(value).size === value.length, 'platforms must not repeat a value')
+    .default([])
 })
 
 export type SkillRecord = z.infer<typeof SkillRecordSchema>

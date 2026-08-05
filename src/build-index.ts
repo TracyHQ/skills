@@ -176,6 +176,16 @@ export async function buildIndex(options: BuildOptions): Promise<BuildResult> {
     }
     if (tier === 'quarantined') continue
 
+    // Not an error: a skill may genuinely target no particular platform. But it drops out of
+    // every platform filter downstream, and the only place that is visible is a client's chip
+    // row — so it gets named here, where someone maintaining the registry will read it,
+    // rather than discovered in a UI.
+    if (record.platforms.length === 0) {
+      warnings.push(
+        `${record.namespace}/${record.slug}: no platforms declared — reachable only under "All" in platform filters`
+      )
+    }
+
     skills.push(
       HydratedSkillSchema.parse({
         namespace: record.namespace,
@@ -183,6 +193,7 @@ export async function buildIndex(options: BuildOptions): Promise<BuildResult> {
         gitUrl: record.gitUrl,
         ref: record.ref,
         skillPath: record.skillPath,
+        platforms: record.platforms,
         displayName: frontmatter.name ?? record.slug,
         description: frontmatter.description,
         tags: frontmatter.tags,

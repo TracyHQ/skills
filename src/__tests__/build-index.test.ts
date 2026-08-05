@@ -17,7 +17,7 @@ body
 
 let root: string
 
-async function writeRecord(namespace: string, slug: string) {
+async function writeRecord(namespace: string, slug: string, platforms: string[] = ['woocommerce']) {
   await fs.mkdir(path.join(root, 'registry', namespace), { recursive: true })
   await fs.writeFile(
     path.join(root, 'registry', namespace, `${slug}.json`),
@@ -26,7 +26,8 @@ async function writeRecord(namespace: string, slug: string) {
       slug,
       gitUrl: `https://github.com/${namespace}/skills`,
       ref: 'main',
-      skillPath: `skills/${slug}`
+      skillPath: `skills/${slug}`,
+      platforms
     })
   )
 }
@@ -61,6 +62,7 @@ describe('buildIndex', () => {
       slug: 'refund-audit',
       displayName: 'Refund Audit',
       description: 'Reconciles refunds against the ledger.',
+      platforms: ['woocommerce'],
       tags: ['woocommerce'],
       externalStars: 7,
       lastCommitAt: '2026-08-01T00:00:00Z',
@@ -69,6 +71,37 @@ describe('buildIndex', () => {
       contentHash: sha256(SKILL_MD),
       sourceUrl: 'https://github.com/tracyhq/skills/tree/main/skills/refund-audit'
     })
+  })
+
+  it('takes platforms from the record, not from the tags in SKILL.md', async () => {
+    // SKILL_MD declares `tags: [woocommerce]`; the record says joomla. The record wins,
+    // because the record is the classification and the tags are the author's own prose.
+    await writeRecord('tracyhq', 'refund-audit', ['joomla'])
+
+    const { skills } = await buildIndex({ rootDir: root, fetcher })
+
+    expect(skills[0]!.platforms).toEqual(['joomla'])
+    expect(skills[0]!.tags).toEqual(['woocommerce'])
+  })
+
+  it('warns by slug when a record declares no platform', async () => {
+    await writeRecord('tracyhq', 'refund-audit', [])
+
+    const { skills, warnings } = await buildIndex({ rootDir: root, fetcher })
+
+    // Still published — an unplatformed skill is legal, just not silent.
+    expect(skills).toHaveLength(1)
+    expect(skills[0]!.platforms).toEqual([])
+    expect(warnings).toEqual([expect.stringContaining('tracyhq/refund-audit: no platforms declared')])
+  })
+
+  it('drops a record whose platform is outside the vocabulary', async () => {
+    await writeRecord('tracyhq', 'refund-audit', ['Joomla!'])
+
+    const { skills, warnings } = await buildIndex({ rootDir: root, fetcher })
+
+    expect(skills).toEqual([])
+    expect(warnings).toEqual([expect.stringContaining('platforms')])
   })
 
   it('keeps curated when the reviewed hash matches', async () => {
@@ -226,7 +259,8 @@ describe('buildIndex', () => {
         slug: 'refund-audit',
         gitUrl: 'https://github.com/TracyHQ/Skills',
         ref: 'main',
-        skillPath: 'skills/refund-audit'
+        skillPath: 'skills/refund-audit',
+        platforms: ['woocommerce']
       })
     )
     await fs.mkdir(path.join(root, 'skills', 'refund-audit'), { recursive: true })
