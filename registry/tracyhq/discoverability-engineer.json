@@ -1,0 +1,9 @@
+{
+  "$schema": "https://registry.tracy.ai/skills/schema/skill-record.schema.json",
+  "namespace": "tracyhq",
+  "slug": "discoverability-engineer",
+  "gitUrl": "https://github.com/TracyHQ/skills",
+  "ref": "main",
+  "skillPath": "skills/discoverability-engineer",
+  "platforms": ["shopify", "woocommerce", "wordpress", "joomla"]
+}
