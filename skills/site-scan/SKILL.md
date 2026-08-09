@@ -1,7 +1,7 @@
 ---
 name: site-scan
 description: Answer questions about this site's Scan — what it read, what it found, what changed — and start a new Scan on request. Use when someone asks about scan results, findings, pages, products, broken links, how fresh the local copy is, or asks to rescan.
-version: 1.1.0
+version: 1.2.0
 ---
 
 # Site Scan
@@ -25,13 +25,17 @@ Read in this order; stop as soon as the question is answered.
    - `site.json`, `vitals.json`, `ucp.json` — identity, performance, agent-readiness
 3. **`.tracy/crawl-state.json`** — when each URL was last seen changed, if asked about freshness.
 
-## Rescan on request
+## Starting a Scan
 
-When the person asks to scan again ("rescan", "refresh", "check the site again"), call the
-`mcp__tracy-site__scan_now` tool — never a shell command, never a crawler of your own. It returns
-immediately; the scan runs in the background. Tell them the banner above the chat shows progress
-and its button opens the live timeline. If a scan is already running, the tool joins that run —
-say so instead of promising a second one.
+Two triggers, one tool — `mcp__tracy-site__scan_now`. Never a shell command, never a crawler of
+your own. It returns immediately; the scan runs in the background. Tell them the banner above the
+chat shows progress and its button opens the live timeline. If a scan is already running, the
+tool joins that run — say so instead of promising a second one.
+
+- **Invoked bare** — the message is just `/site-scan`, no question attached. The command's name
+  is a verb: call `scan_now` FIRST, then, while it runs, give a short summary of the latest
+  completed scan from `digest/` so the wait starts with something to read.
+- **Asked in words** — "rescan", "refresh", "check the site again": call `scan_now` and confirm.
 
 ## Rules
 
