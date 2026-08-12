@@ -1,7 +1,7 @@
 ---
 name: reskin
 description: Dress a client site's working copy in a demo template's layout while keeping every word of the client's real content, then gate it on text, collision, box-model and responsive checks. Use when someone asks to reskin a site, apply a demo/template look to an existing site, try a new template with real content, check a dressed site's layout or mobile behaviour, or roll a reskin back.
-version: 1.2.0
+version: 1.3.0
 ---
 
 # Reskin — real copy, demo layout
@@ -10,10 +10,10 @@ You dress the **working copy** of a client site in the layout of a **demo** (a t
 quickstart), keeping the client's real content untouched. The demo lends its shape; it never
 lends its words. The live site is never touched.
 
-Everything mechanical is owned by twelve deterministic scripts (in `tracy.ai`
-`infra/fleet/reskin/`, deployed on the fleet host). You do exactly two jobs the scripts cannot:
-**write the content mapping** and **write real copy into block shapes**. You never write SQL —
-if you are about to, stop: either a script owns that step, or the step is wrong.
+Everything mechanical is owned by twelve deterministic scripts, and they ship **with this
+skill** — `scripts/` beside this file. You do exactly two jobs the scripts cannot: **write the
+content mapping** and **write real copy into block shapes**. You never write SQL — if you are
+about to, stop: either a script owns that step, or the step is wrong.
 
 The full spec — including the trap list that every rule below comes from — is
 `tracy-docs/reskin/README.md`. Read it before your first run.
@@ -25,9 +25,19 @@ computer, and they act on the copy's containers — never on the customer's live
 the four facts below before step 1; everything after them is just arguments.
 
 1. **The fleet host.** `TRACY_FLEET_HOST` in the environment, or the SSH alias the operator
-   uses for it. Verify with `ssh <host> 'ls /opt/tracy-fleet/reskin/'` — you should see the
-   twelve scripts. If that directory is missing, the toolkit is not deployed there yet: say so
-   and stop, rather than improvising.
+   uses for it. **Deploy the toolkit before the first run** — the scripts travel with this
+   skill, so put them where they need to run and keep them current:
+
+   ```
+   ssh <host> 'mkdir -p /opt/tracy-fleet/reskin'
+   scp <skill-dir>/scripts/* <host>:/opt/tracy-fleet/reskin/
+   ssh <host> 'chmod +x /opt/tracy-fleet/reskin/*.sh && ls /opt/tracy-fleet/reskin/'
+   ```
+
+   Re-copying is safe and idempotent: the scripts hold no state, everything they produce lands
+   in `out/`. Do it at the start of every run so a host is never a version behind the skill.
+   The QA gates also need Docker with the Playwright image — `docker pull
+   mcr.microsoft.com/playwright:v1.49.0-jammy` once per host.
 2. **The site's label.** The first hostname segment of the working copy's address
    (`joomlart-com-0871462c.tracy.ai` → `joomlart-com-0871462c`). It names both the stack
    directory and the containers.
@@ -130,8 +140,9 @@ ssh <host> 'bash /opt/tracy-fleet/reskin/fill-block.sh /opt/tracy-fleet/reskin/j
 ```
 
 Worked examples of every job shape — a page shell, block overrides, an `unpublish`, a
-`mod_custom` with HTML — live beside the scripts in `fixtures/joomlart-stratum/`. Read one
-before writing your first.
+`mod_custom` with HTML — ship with this skill in `fixtures/joomlart-stratum/`. Read one before
+writing your first; its README also lists the two edits no script owns yet (the brand tint
+block, and article layouts for pages that stay on the old skin).
 
 ## Reporting back
 

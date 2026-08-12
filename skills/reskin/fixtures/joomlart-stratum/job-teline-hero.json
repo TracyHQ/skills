@@ -1,0 +1,39 @@
+{
+  "client": {
+    "db": "ja-teline-v-demo-joomlart-com-835ff2df-db-1",
+    "web": "ja-teline-v-demo-joomlart-com-835ff2df-web-1",
+    "prefix": "jos_",
+    "pass": "SAoepJMKujCvsky8viVhx9Ig",
+    "host": "ja-teline-v-demo-joomlart-com-835ff2df.tracy.ai",
+    "port": "8082"
+  },
+  "source": {
+    "db": "ja-stratum-demo-joomlart-com-edac7993-db-1",
+    "prefix": "stratum_",
+    "pass": "0AgOFYAED9MxNXSi3RzsdMya"
+  },
+  "modules": [
+    {
+      "id": 1205,
+      "title": "[Stratum] Teline Home - Hero",
+      "position": "slideshow",
+      "ordering": 1,
+      "source_module": 205,
+      "menus": [113],
+      "set": {
+        "hero[badge]": ["JA TELINE V · NEWS DEMO"],
+        "hero[title]": ["Obama Says He'll Order Action((br/))to Aid Immigrants"],
+        "hero[sub]": ["From the Teline V magazine demo: real demo articles, dressed in the Stratum layout by Tracy Reskin."],
+        "hero[btn-text]": ["Read the story"],
+        "hero[btn-link]": ["/index.php?option=com_content&view=article&id=371"],
+        "hero[btn2-text]": [""],
+        "hero[btn2-link]": [""]
+      }
+    }
+  ],
+  "verify": {
+    "path": "/",
+    "markers": ["JA TELINE V", "Order Action"],
+    "forbid": ["All-in-one Joomla", "powerful tools"]
+  }
+}

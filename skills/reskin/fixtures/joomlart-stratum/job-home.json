@@ -1,0 +1,172 @@
+{
+  "client": {
+    "db": "joomlart-com-0871462c-db-1",
+    "web": "joomlart-com-0871462c-web-1",
+    "prefix": "ja_",
+    "pass": "bWwHuzHvG630Qjq0Ll6ddeJ9",
+    "host": "joomlart-com-0871462c.tracy.ai",
+    "port": "8084"
+  },
+  "modules": [
+    {
+      "id": 1204,
+      "title": "[Stratum] Home - Clients",
+      "position": "section-1",
+      "ordering": 1,
+      "menus": [435],
+      "set": {
+        "clients[caption]": ["THE JOOMLART FAMILY OF BRANDS"],
+        "clients[data]": {
+          "clients[data][name]": ["JoomlArt", "Gavick", "JomSocial", "iJoomla", "Shape5", "GeoReport"]
+        }
+      }
+    },
+    {
+      "id": 1195,
+      "title": "[Stratum] Home - Features Grid",
+      "position": "section-2",
+      "ordering": 1,
+      "menus": [435],
+      "set": {
+        "features-grid[section-label]": ["ONE SUBSCRIPTION"],
+        "features-grid[title]": ["Every Joomla product you need"],
+        "features-grid[desc]": ["Templates, extensions, the T4 page builder and more, in one membership."],
+        "features-grid[data]": {
+          "features-grid[data][title]": ["300+ Joomla templates", "T4 Page Builder", "T4 Framework", "40+ extensions", "GeoReport", "Joomla MCP"],
+          "features-grid[data][desc]": [
+            "The full JoomlArt collection, plus Gavick and Shape5 templates on JA Template and above.",
+            "Build pages visually on any T4 template. Pro included with JA Template.",
+            "The framework behind every modern JoomlArt template, free and open.",
+            "The whole JoomlArt extension library, covered by every plan from JA Extensions up.",
+            "See how AI search reads your site. Weekly credits included with membership plans.",
+            "Manage your Joomla website by chatting with AI. Works with Joomla 4, 5 and 6."
+          ]
+        }
+      }
+    },
+    {
+      "id": 1172,
+      "title": "[Stratum] Home - T4 Builder Split",
+      "position": "section-3",
+      "ordering": 1,
+      "menus": [435],
+      "set": {
+        "features-intro[eyebrow]": ["T4 PAGE BUILDER"],
+        "features-intro[info-title]": ["Design pages visually, no code"],
+        "features-intro[info-desc]": ["<p>Drag and drop sections and blocks on any T4 template. Pro is included with the JA Template plan and above.</p>"],
+        "features-intro[button]": ["Browse T4 templates"],
+        "features-intro[btn-link]": ["https://www.joomlart.com/joomla/templates/"],
+        "features-intro[data]": {
+          "features-intro[data][title]": ["Drag-and-drop sections and blocks", "Works with every T4 template", "Pro included with JA Template plans"],
+          "features-intro[data][icon]": ["fa fa-check", "fa fa-check", "fa fa-check"],
+          "features-intro[data][desc]": ["", "", ""]
+        }
+      }
+    },
+    {
+      "id": 1173,
+      "title": "[Stratum] Home - GeoReport Split",
+      "position": "section-4",
+      "ordering": 1,
+      "menus": [435],
+      "set": {
+        "features-intro[eyebrow]": ["GEOREPORT"],
+        "features-intro[info-title]": ["See how AI search reads your site"],
+        "features-intro[info-desc]": ["<p>GeoReport audits your site for AI visibility. Weekly credits come with every membership plan, from 15 credits and 3 sites on JA Starter to 35 credits and 12 sites on JoomlArt One.</p>"],
+        "features-intro[button]": ["Learn about GeoReport"],
+        "features-intro[btn-link]": ["https://www.joomlart.com/geo-report"],
+        "features-intro[data]": {
+          "features-intro[data][title]": ["Included with membership plans", "Weekly credit allowance", "Audit up to 12 sites on JoomlArt One"],
+          "features-intro[data][icon]": ["fa fa-check", "fa fa-check", "fa fa-check"],
+          "features-intro[data][desc]": ["", "", ""]
+        }
+      }
+    },
+    {
+      "id": 1196,
+      "title": "[Stratum] Home - Stats Band",
+      "position": "section-5",
+      "ordering": 1,
+      "menus": [435],
+      "set": {
+        "stats[data]": {
+          "stats[data][value]": ["19", "300+", "40+", "300K+"],
+          "stats[data][label]": ["Years building for Joomla", "Templates in the club", "Extensions in the library", "Happy members"],
+          "stats[data][desc]": ["", "", "", ""]
+        }
+      }
+    },
+    {
+      "id": 1203,
+      "title": "[Stratum] Home - How It Works",
+      "position": "section-6",
+      "ordering": 1,
+      "menus": [435],
+      "set": {
+        "steps[section-label]": ["HOW IT WORKS"],
+        "steps[title]": ["From plan to live site in three steps"],
+        "steps[data]": {
+          "steps[data][num]": ["01", "02", "03"],
+          "steps[data][title]": ["Choose your plan", "Download and build", "Get support"],
+          "steps[data][desc]": [
+            "Pick the membership that fits you, from JA Extensions at $59 a year to JoomlArt One.",
+            "Grab any template or extension in your plan and build pages with the T4 Page Builder.",
+            "Forum support on every plan, helpdesk on JA Template and above."
+          ]
+        }
+      }
+    },
+    {
+      "id": 1200,
+      "title": "[Stratum] Home - Testimonials",
+      "position": "section-7",
+      "unpublish": true
+    },
+    {
+      "id": 1199,
+      "title": "[Stratum] Home - FAQ",
+      "position": "section-9",
+      "ordering": 1,
+      "menus": [435],
+      "set": {
+        "faq[eyebrow]": ["FAQ"],
+        "faq[title]": ["Joomla questions, answered"],
+        "faq[desc]": ["Straight from the JoomlArt knowledge base."],
+        "faq[data]": {
+          "faq[data][question]": [
+            "How do I enable search engine friendly URLs?",
+            "How do I add Google Analytics to a Joomla site?",
+            "How do I customize the logo of a Joomla template?",
+            "How do I customize a Joomla layout?"
+          ],
+          "faq[data][answer]": [
+            "The JoomlArt guide covers enabling SEF and URL rewriting, configuring .htaccess, and fixing issues after turning SEF on.",
+            "Step-by-step guides for adding Google Analytics on T3, T4 and non-framework templates.",
+            "The guide walks through replacing the template logo across JoomlArt frameworks.",
+            "Layout customization guides for JoomlArt templates, from module positions to overrides."
+          ]
+        }
+      }
+    },
+    {
+      "id": 1197,
+      "title": "[Stratum] Home - CTA Band",
+      "position": "section-10",
+      "ordering": 1,
+      "menus": [435],
+      "set": {
+        "cta[title]": ["Build your next Joomla site with JoomlArt"],
+        "cta[desc]": ["One subscription, every Joomla product you need. Plans from $59 a year."],
+        "cta[button]": ["See pricing"],
+        "cta[btn-link]": ["/pricing-stratum"],
+        "cta[button-2]": ["Browse templates"],
+        "cta[btn-link-2]": ["https://www.joomlart.com/joomla/templates/"]
+      }
+    }
+  ],
+  "verify": {
+    "path": "/",
+    "markers": ["THE JOOMLART FAMILY OF BRANDS", "Every Joomla product you need", "Years building for Joomla", "From plan to live site", "Build your next Joomla site with JoomlArt"],
+    "forbid": ["Loomwork", "Teams ship faster on Stratum", "stratum.toml", "Deploy your first app today", "TRUSTED BY ENGINEERING TEAMS"]
+  }
+}

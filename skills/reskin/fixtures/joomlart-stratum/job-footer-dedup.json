@@ -1,0 +1,21 @@
+{
+  "client": {
+    "db": "joomlart-com-0871462c-db-1",
+    "web": "joomlart-com-0871462c-web-1",
+    "prefix": "ja_",
+    "pass": "bWwHuzHvG630Qjq0Ll6ddeJ9",
+    "host": "joomlart-com-0871462c.tracy.ai",
+    "port": "8084"
+  },
+  "modules": [
+    {"id": 373, "unpublish": true},
+    {"id": 375, "unpublish": true},
+    {"id": 156, "unpublish": true},
+    {"id": 377, "unpublish": true}
+  ],
+  "verify": {
+    "path": "/",
+    "markers": ["THE JOOMLART FAMILY OF BRANDS"],
+    "forbid": ["Money Back Guarantee", "All demos"]
+  }
+}

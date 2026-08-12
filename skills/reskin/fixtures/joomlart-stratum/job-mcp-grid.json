@@ -1,0 +1,47 @@
+{
+  "client": {
+    "db": "joomlart-com-0871462c-db-1",
+    "web": "joomlart-com-0871462c-web-1",
+    "prefix": "ja_",
+    "pass": "bWwHuzHvG630Qjq0Ll6ddeJ9",
+    "host": "joomlart-com-0871462c.tracy.ai",
+    "port": "8084"
+  },
+  "source": {
+    "db": "ja-stratum-demo-joomlart-com-edac7993-db-1",
+    "prefix": "stratum_",
+    "pass": "0AgOFYAED9MxNXSi3RzsdMya"
+  },
+  "modules": [
+    {
+      "id": 1228,
+      "title": "[Stratum] MCP - What You Can Do",
+      "position": "features-page",
+      "ordering": 1,
+      "source_module": 228,
+      "menus": [913],
+      "set": {
+        "features-grid[section-label]": ["WHAT YOU CAN DO"],
+        "features-grid[title]": ["Real, everyday tasks, handled by simply asking"],
+        "features-grid[desc]": ["No coding. Nothing to install on your site. Tell an AI assistant what you want done, in your own words."],
+        "features-grid[data]": {
+          "features-grid[data][icon]": ["fa-solid fa-pen-nib", "fa-solid fa-globe", "fa-solid fa-shield", "fa-solid fa-key", "fa-solid fa-check", "fa-solid fa-cloud"],
+          "features-grid[data][title]": ["Publish by asking", "All your sites, one chat", "Built-in guardrails", "You hold the key", "Confirmation for big changes", "Nothing installed"],
+          "features-grid[data][desc]": [
+            "Write a post about our new product launch and put it under News. Done in seconds.",
+            "One AI conversation manages all your Joomla sites. Nothing extra to install on any of them.",
+            "The AI can only do what your own Joomla user account is allowed to do.",
+            "Revoke the access key any time, just like changing a password. Access is cut off instantly.",
+            "Anything that really matters gets a check-in with you before it happens.",
+            "The connection lives in the cloud. Your Joomla website itself is never modified."
+          ]
+        }
+      }
+    }
+  ],
+  "verify": {
+    "path": "/joomla-mcp",
+    "markers": ["Real, everyday tasks", "Publish by asking", "Built-in guardrails"],
+    "forbid": ["THE STACK", "Six primitives"]
+  }
+}

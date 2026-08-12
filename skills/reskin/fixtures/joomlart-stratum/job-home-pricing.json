@@ -1,0 +1,44 @@
+{
+  "client": {
+    "db": "joomlart-com-0871462c-db-1",
+    "web": "joomlart-com-0871462c-web-1",
+    "prefix": "ja_",
+    "pass": "bWwHuzHvG630Qjq0Ll6ddeJ9",
+    "host": "joomlart-com-0871462c.tracy.ai",
+    "port": "8084"
+  },
+  "modules": [
+    {
+      "id": 1198,
+      "title": "[Stratum] Home - Pricing Teaser",
+      "position": "section-8",
+      "ordering": 1,
+      "menus": [435],
+      "set": {
+        "pricing[title]": ["Choose the plan that fits you"],
+        "pricing[desc]": ["One subscription, every Joomla product you need. Full comparison on the pricing page."],
+        "pricing[data]": {
+          "pricing[data][plan-name]": ["JA Starter", "JA Template", "JoomlArt One"],
+          "pricing[data][price]": ["$99", "$149", "$299"],
+          "pricing[data][period]": ["/yr", "/yr", "/yr"],
+          "pricing[data][price-annual]": ["$99", "$149", "$299"],
+          "pricing[data][period-annual]": ["/yr", "/yr", "/yr"],
+          "pricing[data][desc]": ["Hobby users with a single, simple site.", "SMBs and freelance Joomla builders.", "Agencies and developers."],
+          "pricing[data][features]": [
+            "300+ JoomlArt templates\nGeoReport: 15 credits/wk, 3 sites\nForum support\n1 year updates",
+            "All JoomlArt, Gavick and Shape5 templates\nT4 Page Builder Pro\nGeoReport: 20 credits/wk, 6 sites\nSupport helpdesk",
+            "Developer access to 5 product sites\nPriority support, early access\nGeoReport: 35 credits/wk, 12 sites"
+          ],
+          "pricing[data][btn-text]": ["Buy now", "Buy now", "Buy now"],
+          "pricing[data][btn-link]": ["/pricing-stratum", "/pricing-stratum", "/pricing-stratum"],
+          "pricing[data][featured]": ["no", "yes", "no"]
+        }
+      }
+    }
+  ],
+  "verify": {
+    "path": "/",
+    "markers": ["JA Starter", "JA Template", "JoomlArt One", "Choose the plan that fits you"],
+    "forbid": ["Start Pro trial", "2 GB RAM", "30-region edge", "Talk to sales"]
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "client": {
+    "db": "joomlart-com-0871462c-db-1",
+    "web": "joomlart-com-0871462c-web-1",
+    "prefix": "ja_",
+    "pass": "bWwHuzHvG630Qjq0Ll6ddeJ9",
+    "host": "joomlart-com-0871462c.tracy.ai",
+    "port": "8084"
+  },
+  "modules": [
+    {
+      "id": 1181,
+      "title": "Explore",
+      "position": "footnav-2",
+      "ordering": 1,
+      "module": "mod_custom",
+      "content": "<ul class=\"menu\"><li><a href=\"/pricing-stratum\">Pricing</a></li><li><a href=\"https://www.joomlart.com/demo/\">Demo</a></li><li><a href=\"https://www.joomlart.com/forums/\">Forums</a></li><li><a href=\"https://www.joomlart.com/downloads/\">Download</a></li></ul>",
+      "set": {"prepare_content": 0, "style": "0", "cache": "0"}
+    },
+    {
+      "id": 1182,
+      "title": "Support",
+      "position": "footnav-3",
+      "ordering": 1,
+      "module": "mod_custom",
+      "content": "<ul class=\"menu\"><li><a href=\"https://www.joomlart.com/documentation/\">Documentation</a></li><li><a href=\"https://www.joomlart.com/video-tutorials/\">Video Tutorials</a></li><li><a href=\"https://www.joomlart.com/glossary-joomla/\">Joomla Glossary</a></li><li><a href=\"https://www.joomlart.com/joomlart/support-policy\">Support Policy</a></li></ul>",
+      "set": {"prepare_content": 0, "style": "0", "cache": "0"}
+    },
+    {
+      "id": 1183,
+      "title": "Company",
+      "position": "footnav-4",
+      "ordering": 1,
+      "module": "mod_menu",
+      "set": {"menutype": "footer-menu"}
+    }
+  ],
+  "verify": {
+    "path": "/",
+    "markers": ["Video Tutorials", "Refund Policy", "Joomla Glossary", "Terms of Use"],
+    "forbid": []
+  }
+}

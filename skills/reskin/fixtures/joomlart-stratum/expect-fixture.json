@@ -1,0 +1,13 @@
+{
+  "denylist": ["Stratum"],
+  "allow": ["JA Stratum", "ja_stratum", "jaStratumTheme"],
+  "pages": {
+    "/": {"markers": ["19 YEARS", "All-in-one Joomla", "Browse templates"]},
+    "/pricing-stratum": {"markers": ["JA Extensions", "JA Starter", "JA Template", "JoomlArt One", "Buy now"]},
+    "/blog/": {"markers": ["The JoomlArt Blog", "News, tutorials and product updates"]},
+    "/joomla-mcp": {"markers": ["Real, everyday tasks", "safe bridge", "Talk to our team"], "forbid": ["THE STACK"]},
+    "/extensions-catalog": {"markers": ["Extend Joomla functionality", "See pricing"]},
+    "/solutions": {"markers": ["One subscription for every kind of Joomla builder", "Agencies & developers"]},
+    "/faq": {"markers": ["Joomla questions, answered", "Still have questions?"]}
+  }
+}
