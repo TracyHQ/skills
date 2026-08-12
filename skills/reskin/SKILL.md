@@ -1,7 +1,7 @@
 ---
 name: reskin
 description: Dress a client site's working copy in a demo template's layout while keeping every word of the client's real content, then gate it on text, collision, box-model and responsive checks. Use when someone asks to reskin a site, apply a demo/template look to an existing site, try a new template with real content, check a dressed site's layout or mobile behaviour, or roll a reskin back.
-version: 1.4.0
+version: 1.5.0
 ---
 
 # Reskin — real copy, demo layout
@@ -64,8 +64,10 @@ it: the client copy alone cannot tell you how the template is meant to look.
    with example values, styles, extensions, assets, branding deny-list). `scan-client-site.sh`
    → the client's *content inventory* (menus with per-item flags, content mines, SEO stack,
    link diagnosis, branding). `scan-extensions.sh` → a three-column UI-relevant diff.
-   **Freeze the inventory file** — it is the restore point `undress.sh` uses. Never re-scan
-   over it mid-run; a fresh scan goes to a different file.
+   **Keep that inventory as the snapshot** — the picture of the site before anything was
+   touched, and the only thing `undress.sh` can restore from. Never re-scan over it mid-run: a
+   snapshot taken halfway through a dress restores a half-dressed site. A fresh scan goes to a
+   different file.
 2. **Mapping** (your first real job): one document, reviewed by a human before anything is
    built. Every row answers: which real page ↔ which demo pattern, and *for every field of
    every block*, where the words and images come from — `real` (verbatim, source named),
@@ -96,7 +98,7 @@ it: the client copy alone cannot tell you how the template is meant to look.
      when `<meta viewport>` is missing.
    - **Your own eyes** on the screenshots. Machines pass layouts that are *arranged but wrong*
      — a block still wearing demo content, a logo that dwarfs its column. Look every round.
-5. **Rollback** when asked: `undress.sh` with the frozen inventory restores the client copy.
+5. **Rollback** when asked: `undress.sh` restores the client copy from the snapshot.
 
 ## Rules that are not negotiable
 

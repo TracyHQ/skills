@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # undress.sh — the brake of the Reskin pipeline: put the client working copy
-# back the way the Content inventory recorded it. Cheap by design (spec §9):
-# every Reskin row lives above an ID offset, and the inventory JSON *is* the
+# back the way the snapshot recorded it. Cheap by design (spec §9):
+# every Reskin row lives above an ID offset, and the snapshot JSON *is* the
 # semantic backup of everything the run was allowed to mutate.
 #
 # Restores, in order:
 #   1. drop Reskin modules (id >= module offset) + their menu assignments
-#   2. drop Reskin menu items (ids not present in the inventory), closing
+#   2. drop Reskin menu items (ids not present in the snapshot), closing
 #      nested-set gaps leaf by leaf
 #   3. drop Reskin article shells (id >= content offset)
 #   4. restore link + template_style_id of every surviving menu item from the
-#      inventory (style pins, de-ja_v5'd links, repointed pages)
-#   5. drop template styles not present in the inventory; restore the original
+#      snapshot (style pins, de-ja_v5'd links, repointed pages)
+#   5. drop template styles not present in the snapshot; restore the original
 #      default-style flag
-#   6. restore extension enabled flags from the inventory
+#   6. restore extension enabled flags from the snapshot
 #   7. strip the "TRACY RESKIN TINT" block from darkmode.css
 #   8. purge the forSEF url cache, clear Joomla cache, verify homepage
 #
@@ -23,7 +23,7 @@
 #
 # Usage:
 #   undress.sh --db <ctr> --web <ctr> --prefix ja_ --pass <pw> \
-#              --inventory content-inventory.json --host <h> --port <n> \
+#              --snapshot content-inventory.json --host <h> --port <n> \
 #              [--module-offset 1000] [--content-offset 3000] [--dry-run]
 set -euo pipefail
 
@@ -34,7 +34,8 @@ while [ $# -gt 0 ]; do
     --web) WEB="$2"; shift 2 ;;
     --prefix) PREFIX="$2"; shift 2 ;;
     --pass) PASS="$2"; shift 2 ;;
-    --inventory) INV="$2"; shift 2 ;;
+    # --snapshot is the name; --inventory still works for older call sites.
+    --snapshot|--inventory) INV="$2"; shift 2 ;;
     --host) HOST="$2"; shift 2 ;;
     --port) PORT="$2"; shift 2 ;;
     --module-offset) MOFF="$2"; shift 2 ;;
@@ -44,7 +45,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 [ -n "$DB" ] && [ -n "$WEB" ] && [ -n "$PREFIX" ] && [ -n "$PASS" ] && [ -f "$INV" ] || {
-  echo "usage: undress.sh --db <c> --web <c> --prefix <p> --pass <pw> --inventory <json> --host <h> --port <n> [--dry-run]" >&2
+  echo "usage: undress.sh --db <c> --web <c> --prefix <p> --pass <pw> --snapshot <json> --host <h> --port <n> [--dry-run]" >&2
   exit 2
 }
 
@@ -74,7 +75,7 @@ print(f"[1] drop {mods} reskin modules (id>={moff})")
 sql(f"DELETE FROM {P}modules_menu WHERE moduleid>={moff}")
 sql(f"DELETE FROM {P}modules WHERE id>={moff}")
 
-# --- 2. menu items the inventory never saw ---------------------------------
+# --- 2. menu items the snapshot never saw ---------------------------------
 inv_menu_ids = {i["id"] for items in inv["menus"].values() for i in items}
 live = sql(f"SELECT id FROM {P}menu WHERE client_id=0 AND id>1", mutate=False)
 added = [int(x) for x in live.split() if x and int(x) not in inv_menu_ids]
@@ -102,7 +103,7 @@ for items in inv["menus"].values():
         style = i.get("style_pin") or 0
         sql(f"UPDATE {P}menu SET link={q1(i['link'])}, template_style_id={style} WHERE id={i['id']}")
         restored += 1
-print(f"[4] restored link+style on {restored} menu items from inventory")
+print(f"[4] restored link+style on {restored} menu items from snapshot")
 
 # --- 5. template styles ----------------------------------------------------
 inv_styles = {s["id"] for s in inv.get("styles", [])}
