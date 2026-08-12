@@ -1,7 +1,7 @@
 ---
 name: reskin
 description: Dress a client site's working copy in a demo template's layout while keeping every word of the client's real content, then gate it on text, collision, box-model and responsive checks. Use when someone asks to reskin a site, apply a demo/template look to an existing site, try a new template with real content, check a dressed site's layout or mobile behaviour, or roll a reskin back.
-version: 1.3.0
+version: 1.4.0
 ---
 
 # Reskin — real copy, demo layout
@@ -140,7 +140,7 @@ ssh <host> 'bash /opt/tracy-fleet/reskin/fill-block.sh /opt/tracy-fleet/reskin/j
 ```
 
 Worked examples of every job shape — a page shell, block overrides, an `unpublish`, a
-`mod_custom` with HTML — ship with this skill in `fixtures/joomlart-stratum/`. Read one before
+`mod_custom` with HTML — ship with this skill in `examples/joomlart-stratum/`. Read one before
 writing your first; its README also lists the two edits no script owns yet (the brand tint
 block, and article layouts for pages that stay on the old skin).
 

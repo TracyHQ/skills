@@ -2,7 +2,7 @@
 # install-demo-frame.sh — put the demo's FRAME onto a client working copy
 # (spec §4): template files + framework + the two-style structure, plus the
 # render preconditions every later step depends on. Idempotent: rerunning on a
-# dressed copy is a no-op. Carries traps 1/2/3/6/7/21 from the fixture:
+# dressed copy is a no-op. Carries traps 1/2/3/6/7/21 from the reference pair:
 #   - template + T4 framework + versioned deps come as FILES from the demo
 #     container (the CLI installer can refuse without a reason, trap 21) with
 #     the DB rows discover'd or manifest-synced
@@ -93,7 +93,7 @@ print(f"[2] template DB row: {'present' if row else 'discovering'}")
 if not row:
     print(sh(cw, "php /var/www/html/cli/joomla.php extension:discover 2>&1 | tail -1"))
 # A discovered row sits at state=-1 and enabling it does nothing until
-# discover:install runs (second fixture: "T4 Framework Plugin is not enabled"
+# discover:install runs (second reference pair: "T4 Framework Plugin is not enabled"
 # with enabled=1). Install every discovered row we care about, then enable.
 for el, cond in ((tpl, f"type='template' AND element={q1(tpl)}"),
                  ("t4", "type='plugin' AND element='t4' AND folder='system'")):

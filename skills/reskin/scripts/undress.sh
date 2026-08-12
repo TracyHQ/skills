@@ -137,7 +137,7 @@ if not dry:
     subprocess.run(["docker", "exec", web, "sh", "-c", tint_cmd], check=False)
 
 # --- 8. caches + verify ----------------------------------------------------
-# Not every site runs forSEF (the second fixture didn't) — purge only what exists.
+# Not every site runs forSEF (the second reference pair didn't) — purge only what exists.
 if sql(f"SHOW TABLES LIKE '{P}forsef_urls'", mutate=False):
     sql(f"DELETE FROM {P}forsef_urls")
 if not dry:

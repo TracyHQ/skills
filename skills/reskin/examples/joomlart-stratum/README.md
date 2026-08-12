@@ -1,4 +1,4 @@
-# Fixture — joomlart.com × ja_stratum
+# Example run — joomlart.com × ja_stratum
 
 The fill-block jobs that dressed the joomlart.com working copy in JA Stratum on 2026-08-12,
 kept here so the dress can be **replayed** rather than remembered. A re-migrate rebuilds the
@@ -19,7 +19,7 @@ fill-block.sh         job-home.json
 fill-block.sh         job-home-pricing.json
 fill-block.sh         job-footer-columns.json
 fill-block.sh         job-footer-dedup.json
-design-qa.sh --expect expect-fixture.json
+design-qa.sh --expect expect-pages.json
 layout-qa.sh   --baseline write
 responsive-qa.sh --mode reference   # against the DEMO, once
 responsive-qa.sh --mode compare     # against the dressed copy

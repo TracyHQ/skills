@@ -3,7 +3,7 @@
 # job file (JSON, authored by the mapping agent) and applies it to a client
 # working copy: page shell + menu item + ACM/module blocks with real copy.
 #
-# The agent never writes SQL. Every mechanical trap learned on the fixture is
+# The agent never writes SQL. Every mechanical trap learned on the reference pair is
 # owned here (spec: tracy-docs/reskin/README.md, traps 8-10, 12, 16, 20, 22-25):
 #   - params written via FROM_BASE64, inner JSON serialized RAW UTF-8
 #   - article shells get publish_up NULL and an alias that IS the public URL

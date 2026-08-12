@@ -2,7 +2,7 @@
 # sync-extensions.sh — apply the ticked rows of an extension diff to the client
 # working copy (spec §5). Sources in order of trust:
 #   (a) copy files from the demo container + refresh the DB row from the real
-#       manifest XML — the path proven on the fixture (the CLI installer can
+#       manifest XML — the path proven on the reference pair (the CLI installer can
 #       refuse without a reason on these containers, trap 21)
 #   (b) `enable` rows just flip `enabled` in the extensions table
 # The reverse direction (demo lacks something) is out of scope by spec.
