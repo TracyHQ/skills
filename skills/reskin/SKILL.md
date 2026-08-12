@@ -1,7 +1,7 @@
 ---
 name: reskin
 description: Dress a client site's working copy in a demo template's layout while keeping every word of the client's real content, then gate it on text, collision, box-model and responsive checks. Use when someone asks to reskin a site, apply a demo/template look to an existing site, try a new template with real content, check a dressed site's layout or mobile behaviour, or roll a reskin back.
-version: 1.5.0
+version: 1.5.1
 ---
 
 # Reskin — real copy, demo layout
@@ -134,10 +134,12 @@ menu item — the article alias **is** the public URL), modules with a `set` of 
 appear and demo strings that must not. The script owns escaping, ID offsets, publish dates,
 router-cache purges, and cache clearing — your job is only *what the fields say*.
 
-Write the job locally, copy it over, run it there:
+Write the job locally, copy it over, run it there. The same goes for the expectations file
+`design-qa` reads — only `scripts/` is deployed, so anything else you hand a script has to
+travel with the command:
 
 ```
-scp job-home.json <host>:/opt/tracy-fleet/reskin/
+scp job-home.json expect-pages.json <host>:/opt/tracy-fleet/reskin/
 ssh <host> 'bash /opt/tracy-fleet/reskin/fill-block.sh /opt/tracy-fleet/reskin/job-home.json'
 ```
 
