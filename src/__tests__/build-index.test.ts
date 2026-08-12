@@ -73,6 +73,29 @@ describe('buildIndex', () => {
     })
   })
 
+  it('hydrates requiresMcp from the SKILL.md frontmatter', async () => {
+    const withRequires = '---\nname: Campaigns\nrequires-mcp:\n  - sendy\n---\nbody\n'
+    const localFetcher = vi.fn(async (url: string) => {
+      if (url.startsWith('https://raw.githubusercontent.com/')) {
+        return { ok: true, status: 200, text: async () => withRequires, json: async () => ({}) }
+      }
+      return { ok: true, status: 200, text: async () => '', json: async () => ({ stargazers_count: 0 }) }
+    })
+    await writeRecord('tracyhq', 'campaigns')
+
+    const { skills } = await buildIndex({ rootDir: root, fetcher: localFetcher })
+
+    expect(skills[0]!.requiresMcp).toEqual(['sendy'])
+  })
+
+  it('defaults requiresMcp to an empty list when the frontmatter has none', async () => {
+    await writeRecord('tracyhq', 'refund-audit')
+
+    const { skills } = await buildIndex({ rootDir: root, fetcher })
+
+    expect(skills[0]!.requiresMcp).toEqual([])
+  })
+
   it('takes platforms from the record, not from the tags in SKILL.md', async () => {
     // SKILL_MD declares `tags: [woocommerce]`; the record says joomla. The record wins,
     // because the record is the classification and the tags are the author's own prose.

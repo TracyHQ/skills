@@ -45,13 +45,14 @@ const write = async (relative: string, data: unknown) => {
 await write('index.json', skills)
 await write(
   'search.json',
-  skills.map(({ namespace, slug, displayName, description, platforms, tags, tier, externalStars }) => ({
+  skills.map(({ namespace, slug, displayName, description, platforms, tags, requiresMcp, tier, externalStars }) => ({
     namespace,
     slug,
     displayName,
     description,
     platforms,
     tags,
+    requiresMcp,
     tier,
     externalStars
   }))

@@ -197,6 +197,7 @@ export async function buildIndex(options: BuildOptions): Promise<BuildResult> {
         displayName: frontmatter.name ?? record.slug,
         description: frontmatter.description,
         tags: frontmatter.tags,
+        requiresMcp: frontmatter.requiresMcp,
         contentHash,
         externalStars: meta.stars,
         lastCommitAt: meta.pushedAt,
