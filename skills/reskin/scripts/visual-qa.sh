@@ -16,7 +16,7 @@
 #                [--variant stratum]
 #
 # --variant judges a PROPOSAL instead of the site: the same container and port, with the
-# `X-Tracy-Variant` header that decides which database it reads (ADR 0040). Judging a proposal
+# `X-Tracy-Variant` header that decides which database it reads (ADR 0044). Judging a proposal
 # through the site's own address would grade the wrong thing and pass.
 set -euo pipefail
 

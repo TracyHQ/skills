@@ -120,7 +120,7 @@ it: the client copy alone cannot tell you how the template is meant to look.
 
 ### Dressing a proposal instead of the site
 
-A site can wear more than one dressing at a time, each on its own address (ADR 0040). The
+A site can wear more than one dressing at a time, each on its own address (ADR 0044). The
 mechanism is one schema per proposal beside the site's own, chosen by the `X-Tracy-Variant`
 header the edge derives from the hostname; files are shared, so a template lives on disk once
 and the database decides who wears it.

@@ -26,7 +26,7 @@
 #              --snapshot content-inventory.json --host <h> --port <n> \
 #              [--module-offset 1000] [--content-offset 3000] [--keep-files] [--dry-run]
 #
-# --keep-files leaves step 7 alone. Files are shared by every variant of a site (ADR 0040):
+# --keep-files leaves step 7 alone. Files are shared by every variant of a site (ADR 0044):
 # only the database is per-proposal. Undressing the base must not reach into a stylesheet a
 # proposal is still wearing — and the tint it would strip lives in the demo template's own
 # CSS, which the undressed site no longer loads anyway.

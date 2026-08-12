@@ -21,7 +21,7 @@
 #     [--home-menu-id 435] [--unpin "435,666"|all] [--variant stratum] [--dry-run]
 #
 # --variant dresses a PROPOSAL rather than the site: the frame is written into the
-# `joomla_<variant>` schema and verified through the `X-Tracy-Variant` header (ADR 0040).
+# `joomla_<variant>` schema and verified through the `X-Tracy-Variant` header (ADR 0044).
 # Template files are shared by every variant, so the file half of this script is unchanged —
 # a template lives on disk once and the database decides who wears it.
 set -euo pipefail
@@ -57,7 +57,7 @@ import base64, json, subprocess, sys
 
 cdb, cw, P, pw, sdb, sw, SP, spw, tpl, sdid, shid, homeid, unpin, dry, variant = sys.argv[1:16]
 dry = dry == "1"
-# The proposal's own schema (ADR 0040). The demo source keeps its own — it is another site.
+# The proposal's own schema (ADR 0044). The demo source keeps its own — it is another site.
 CLIENT_SCHEMA = "joomla" if not variant else "joomla_" + variant.replace("-", "_")
 
 def sql_on(db, dbpw, q, mutate=False, schema="joomla"):
