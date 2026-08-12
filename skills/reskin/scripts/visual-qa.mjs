@@ -115,7 +115,12 @@ for (const vp of viewports) {
         for (const el of [...document.querySelectorAll("header *, nav *, .btn, a.btn, button")].filter(visible)) {
           const r = el.getBoundingClientRect();
           if (r.right > vw + 8) out.edgeBleed.push({ el: label(el) || el.className.toString().slice(0, 30), px: Math.round(r.right - vw) });
-          if (el.scrollWidth > el.clientWidth + 4 && ["A", "BUTTON"].includes(el.tagName))
+          // Only a clipping context can clip: with overflow visible the text just
+          // renders past the padding box (e.g. chevron-shaped breadcrumbs whose
+          // arrow padding inflates scrollWidth) — nothing is lost to the eye.
+          // Found by the site agent on its own run, 2026-08-12.
+          const ovx = getComputedStyle(el).overflowX;
+          if (el.scrollWidth > el.clientWidth + 4 && ["A", "BUTTON"].includes(el.tagName) && ovx !== "visible")
             out.textClip.push({ el: label(el), px: el.scrollWidth - el.clientWidth });
         }
         out.edgeBleed = out.edgeBleed.slice(0, 8);
