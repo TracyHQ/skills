@@ -56,7 +56,7 @@ if not str(job.get("mapping", "")).strip():
 
 C = job["client"]
 
-# A proposal is a database beside the site's own (ADR 0040): same files, same container,
+# A proposal is a database beside the site's own (ADR 0044): same files, same container,
 # different schema. `client.variant` picks it — and the same name goes out as the header the
 # copy reads to decide which schema to serve, so the verify at the end of this job looks at
 # the proposal it just wrote and not at the site underneath it.

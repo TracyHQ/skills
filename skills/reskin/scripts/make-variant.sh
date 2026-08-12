@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # make-variant.sh — give a proposal its own database, so two skins of one site can be
-# looked at side by side instead of one overwriting the other (ADR 0040).
+# looked at side by side instead of one overwriting the other (ADR 0044).
 #
 # A variant is a schema named `<base>_<slug>` beside the site's own, reached by the
 # `X-Tracy-Variant` header the edge Worker sets from the hostname. Files are shared:
