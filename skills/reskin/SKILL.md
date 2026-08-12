@@ -74,8 +74,10 @@ it: the client copy alone cannot tell you how the template is meant to look.
    knows" the site from a previous run. Knowing it is not the same as having ruled on it.
    `install-demo-frame` hands you the hardest part of this document for free: a **position
    bleed report** listing every client module that the new template's positions would surface
-   (a login form, an old footer menu). Each line is a decision — keep, move, or unpublish. Every row answers: which real page ↔ which demo pattern, and *for every field of
-   every block*, where the words and images come from — `real` (verbatim, source named),
+   (a login form, an old footer menu). Each line is a decision — keep, move, or unpublish.
+
+   Every row of the mapping answers: which real page ↔ which demo pattern, and *for every
+   field of every block*, where the words and images come from — `real` (verbatim, source named),
    `placeholder` (kept from the demo, flagged), or dropped. Chrome (header, menu, footer,
    branding) is mapped once for the whole site. Pages the demo can't express and parts of the
    client site that are not this CMS go into a **customer report**, not into the build.
