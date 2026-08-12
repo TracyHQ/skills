@@ -40,7 +40,11 @@ export GIT_SSH_COMMAND="ssh -i /root/.ssh/tracy_repo_ed25519 -o StrictHostKeyChe
 # --- 1. the repo, at the ref that owns this proposal -------------------------
 mkdir -p "$(dirname "$CHECKOUT")"
 if [ ! -d "$CHECKOUT/.git" ]; then
-  git clone --quiet --filter=blob:none "$REPO" "$CHECKOUT"
+  # Sparse from the first byte: a rebuild reads proposals/ and .tracy/ only. Materializing
+  # webroot/ here would pull the whole site's blobs to build something that never reads them
+  # (0043 §3 — the same reason an Editor's clone skips it).
+  git clone --quiet --filter=blob:none --sparse "$REPO" "$CHECKOUT"
+  git -C "$CHECKOUT" sparse-checkout set proposals .tracy
 fi
 git -C "$CHECKOUT" fetch --quiet origin
 WANT="${REF:-proposal/$SLUG}"
