@@ -1,7 +1,7 @@
 ---
 name: reskin
 description: Dress a client site's working copy in a demo template's layout while keeping every word of the client's real content, then gate it on text, collision, box-model and responsive checks. Use when someone asks to reskin a site, apply a demo/template look to an existing site, try a new template with real content, check a dressed site's layout or mobile behaviour, or roll a reskin back.
-version: 1.7.0
+version: 1.8.0
 ---
 
 # Reskin — real copy, demo layout
@@ -107,12 +107,33 @@ it: the client copy alone cannot tell you how the template is meant to look.
      when `<meta viewport>` is missing.
    - **Your own eyes** on the screenshots. Machines pass layouts that are *arranged but wrong*
      — a block still wearing demo content, a logo that dwarfs its column. Look every round.
-5. **Rollback** when asked: `undress.sh` restores the client copy from the snapshot.
+5. **Rollback** when asked: `undress.sh` restores the client copy from the snapshot. Pass
+   `--keep-files` when another proposal of the same site is still standing: only the database is
+   per-proposal, so stripping a stylesheet reaches every one of them.
+
+### Dressing a proposal instead of the site
+
+A site can wear more than one dressing at a time, each on its own address (ADR 0040). The
+mechanism is one schema per proposal beside the site's own, chosen by the `X-Tracy-Variant`
+header the edge derives from the hostname; files are shared, so a template lives on disk once
+and the database decides who wears it.
+
+- `make-variant.sh --slug <name>` builds the proposal's schema from the site's. It copies the
+  structure of cache, log and submission tables without their rows — on a real site that is the
+  difference between 748 MB and 43 MB, and it keeps other people's form submissions out of a
+  copy that exists to be shown to people.
+- Then pass the same slug to the build and the gates: `install-demo-frame.sh --variant <name>`,
+  `"client": {"variant": "<name>"}` in every `fill-block` job, `visual-qa.sh --variant <name>`.
+  Miss it on the gate and you grade the site while the proposal goes unlooked at.
+- `--unpin all` is usually right on a site that pins pages to template styles by habit: a pin
+  outranks the default, so pinned pages keep wearing the old template inside the new one.
 
 ## Rules that are not negotiable
 
 - **Real copy only.** No invented quotes, numbers, or pages. A block whose fields have no real
   source is unpublished (`fill-block` has an `unpublish` action), never left wearing demo text.
+  Its `publish` action is the other half: a module the site already owns, that the old template
+  never rendered, is the right thing to put in the new one's drawer — its links are real.
 - **Every link is looked up, never guessed.** Database paths are not public URLs — take links
   from rendered pages or probe them. This applies to links copied from the demo too: demos
   ship dead links.

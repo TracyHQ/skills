@@ -18,10 +18,15 @@
 #     --source-db <ctr> --source-web <ctr> --source-prefix stratum_ --source-pass <pw> \
 #     --template ja_stratum \
 #     --style-default-id 174 --style-home-id 173 \
-#     [--home-menu-id 435] [--unpin "435,666"] [--dry-run]
+#     [--home-menu-id 435] [--unpin "435,666"|all] [--variant stratum] [--dry-run]
+#
+# --variant dresses a PROPOSAL rather than the site: the frame is written into the
+# `joomla_<variant>` schema and verified through the `X-Tracy-Variant` header (ADR 0040).
+# Template files are shared by every variant, so the file half of this script is unchanged —
+# a template lives on disk once and the database decides who wears it.
 set -euo pipefail
 
-CDB="" CW="" P="" PW="" SDB="" SW="" SP="" SPW="" TPL="" SDID="" SHID="" HOMEID="" UNPIN="" DRY=0
+CDB="" CW="" P="" PW="" SDB="" SW="" SP="" SPW="" TPL="" SDID="" SHID="" HOMEID="" UNPIN="" VARIANT="" DRY=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --client-db) CDB="$2"; shift 2 ;;
@@ -37,6 +42,7 @@ while [ $# -gt 0 ]; do
     --style-home-id) SHID="$2"; shift 2 ;;
     --home-menu-id) HOMEID="$2"; shift 2 ;;
     --unpin) UNPIN="$2"; shift 2 ;;
+    --variant) VARIANT="$2"; shift 2 ;;
     --dry-run) DRY=1; shift ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
@@ -46,21 +52,23 @@ done
   echo "usage: see header of install-demo-frame.sh" >&2; exit 2
 }
 
-python3 - "$CDB" "$CW" "$P" "$PW" "$SDB" "$SW" "$SP" "$SPW" "$TPL" "$SDID" "$SHID" "${HOMEID:-}" "$UNPIN" "$DRY" <<'PYEOF'
+python3 - "$CDB" "$CW" "$P" "$PW" "$SDB" "$SW" "$SP" "$SPW" "$TPL" "$SDID" "$SHID" "${HOMEID:-}" "$UNPIN" "$DRY" "$VARIANT" <<'PYEOF'
 import base64, json, subprocess, sys
 
-cdb, cw, P, pw, sdb, sw, SP, spw, tpl, sdid, shid, homeid, unpin, dry = sys.argv[1:15]
+cdb, cw, P, pw, sdb, sw, SP, spw, tpl, sdid, shid, homeid, unpin, dry, variant = sys.argv[1:16]
 dry = dry == "1"
+# The proposal's own schema (ADR 0040). The demo source keeps its own — it is another site.
+CLIENT_SCHEMA = "joomla" if not variant else "joomla_" + variant.replace("-", "_")
 
-def sql_on(db, dbpw, q, mutate=False):
+def sql_on(db, dbpw, q, mutate=False, schema="joomla"):
     if dry and mutate:
         print("  DRY:", q[:120]); return ""
-    r = subprocess.run(["docker", "exec", db, "mariadb", "-uroot", f"-p{dbpw}", "joomla", "-N", "-B", "-e", q],
+    r = subprocess.run(["docker", "exec", db, "mariadb", "-uroot", f"-p{dbpw}", schema, "-N", "-B", "-e", q],
                        capture_output=True, text=True)
     if r.returncode: raise SystemExit(r.stderr[-300:])
     return r.stdout.strip()
 
-def csql(q, mutate=True): return sql_on(cdb, pw, q, mutate)
+def csql(q, mutate=True): return sql_on(cdb, pw, q, mutate, CLIENT_SCHEMA)
 def ssql(q): return sql_on(sdb, spw, q)
 
 def sh(ctr, cmd, mutate=True):
@@ -125,11 +133,20 @@ if homeid and shome:
     csql(f"UPDATE {P}menu SET template_style_id={shid} WHERE id={homeid}")
     print(f"  home menu item {homeid} pinned to home style {shid}")
 
-# --- 4. unpin listed old-style pins (trap 2) -------------------------------
-pins = [x.strip() for x in unpin.split(",") if x.strip()]
-if pins:
-    csql(f"UPDATE {P}menu SET template_style_id=0 WHERE id IN ({','.join(pins)})")
-print(f"[4] unpinned {len(pins)} menu items")
+# --- 4. unpin old-style pins (trap 2) --------------------------------------
+# A pin outranks the default style, so a page pinned to the OLD template keeps wearing it —
+# a handful of pages that never change while everything around them does. `--unpin all` is
+# the honest setting on a site that pins by habit: keep only the two styles just ported.
+if unpin.strip() == "all":
+    where = f"template_style_id NOT IN (0,{sdid},{shid})"
+    n = csql(f"SELECT COUNT(*) FROM {P}menu WHERE {where}", mutate=False) or "0"
+    csql(f"UPDATE {P}menu SET template_style_id=0 WHERE {where}")
+    print(f"[4] unpinned {n} menu items pinned to a style this dressing does not own")
+else:
+    pins = [x.strip() for x in unpin.split(",") if x.strip()]
+    if pins:
+        csql(f"UPDATE {P}menu SET template_style_id=0 WHERE id IN ({','.join(pins)})")
+    print(f"[4] unpinned {len(pins)} menu items")
 
 # --- 5. render preconditions: .htaccess (trap 6) + cache off (trap 3) ------
 sef_rw = sh(cw, "grep -c \"public [$]sef_rewrite = true\" /var/www/html/configuration.php || true", mutate=False)

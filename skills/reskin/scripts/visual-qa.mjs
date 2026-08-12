@@ -15,11 +15,11 @@
 //                  (third-party CDN and CORS complaints are not ours to answer)
 // Screenshots are saved for the (later) vision tier and for human eyes.
 //
-// Usage: node visual-qa.mjs <host> <port> <outDir> <path1,path2,...>
+// Usage: node visual-qa.mjs <host> <port> <outDir> <path1,path2,...> [variant]
 import { chromium } from "playwright";
 import fs from "node:fs";
 
-const [host, port, outDir, pathsArg] = process.argv.slice(2);
+const [host, port, outDir, pathsArg, variant] = process.argv.slice(2);
 if (!host || !port || !outDir || !pathsArg) {
   console.error("usage: node visual-qa.mjs <host> <port> <outDir> <p1,p2,...>");
   process.exit(2);
@@ -47,8 +47,11 @@ const findings = [];
 for (const vp of viewports) {
   const context = await browser.newContext({
     viewport: { width: vp.width, height: vp.height },
-    // X-Forwarded-Proto keeps Joomla from https-redirecting the loopback hit.
-    extraHTTPHeaders: { "X-Forwarded-Proto": "https" },
+    // X-Forwarded-Proto keeps Joomla from https-redirecting the loopback hit; X-Tracy-Variant
+    // picks the proposal's database, the same way the edge Worker does from the hostname.
+    extraHTTPHeaders: variant
+      ? { "X-Forwarded-Proto": "https", "X-Tracy-Variant": variant }
+      : { "X-Forwarded-Proto": "https" },
   });
 
   for (const path of paths) {

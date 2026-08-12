@@ -15,7 +15,8 @@
 #
 # Job schema (all IDs are final client-side IDs, offset already applied):
 # {
-#  "client": {"db":"...","web":"...","prefix":"ja_","pass":"...","host":"...","port":"8084"},
+#  "client": {"db":"...","web":"...","prefix":"ja_","pass":"...","host":"...","port":"8084",
+#             "variant":"stratum"},   // optional: write into this proposal's schema, not the site's
 #  "source": {"db":"...","prefix":"stratum_","pass":"..."},          // demo DB for source modules
 #  "page": {                                                         // optional
 #    "article_id":3084, "title":"Joomla MCP", "alias":"joomla-mcp",
@@ -55,8 +56,16 @@ if not str(job.get("mapping", "")).strip():
 
 C = job["client"]
 
-def sql_on(db, pw, q):
-    r = subprocess.run(["docker", "exec", db, "mariadb", "-uroot", f"-p{pw}", "joomla", "-N", "-B", "-e", q],
+# A proposal is a database beside the site's own (ADR 0040): same files, same container,
+# different schema. `client.variant` picks it — and the same name goes out as the header the
+# copy reads to decide which schema to serve, so the verify at the end of this job looks at
+# the proposal it just wrote and not at the site underneath it.
+VARIANT = str(C.get("variant") or "").strip()
+BASE_SCHEMA = C.get("schema") or "joomla"
+SCHEMA = BASE_SCHEMA if not VARIANT else f"{BASE_SCHEMA}_{VARIANT.replace('-', '_')}"
+
+def sql_on(db, pw, q, schema=None):
+    r = subprocess.run(["docker", "exec", db, "mariadb", "-uroot", f"-p{pw}", schema or SCHEMA, "-N", "-B", "-e", q],
                        capture_output=True, text=True)
     if r.returncode:
         raise SystemExit(f"SQL failed: {r.stderr[-400:]}\n--- query: {q[:200]}")
@@ -69,7 +78,9 @@ def q1(s):  # single-quote a SQL literal
     return "'" + str(s).replace("\\", "\\\\").replace("'", "\\'") + "'"
 
 def b64_of(db, pw, prefix, table, col, where):
-    return sql_on(db, pw, f"SELECT REPLACE(TO_BASE64({col}), CHAR(10), '') FROM {prefix}{table} WHERE {where}")
+    # Reads from whichever site owns `prefix` — the demo's own schema when this is a source read.
+    schema = SCHEMA if db == C["db"] else (job.get("source", {}).get("schema") or "joomla")
+    return sql_on(db, pw, f"SELECT REPLACE(TO_BASE64({col}), CHAR(10), '') FROM {prefix}{table} WHERE {where}", schema)
 
 def write_params_b64(obj):
     # Trap 24: ACM chokes on \uXXXX — inner AND outer JSON go out as raw UTF-8.
@@ -156,6 +167,12 @@ for mod in job.get("modules", []):
     if mod.get("unpublish"):
         sql(f"UPDATE {P}modules SET published=0 WHERE id={mod['id']}")
         continue
+    # The other half of the same decision: a client module the OLD template never rendered can be
+    # exactly what the new one needs — its off-canvas drawer, its subnav. Publishing what the site
+    # already owns beats cloning the demo's, because the demo's carries the demo's links.
+    if mod.get("publish"):
+        sql(f"UPDATE {P}modules SET published=1{', position=' + q1(mod['position']) if mod.get('position') else ''} WHERE id={mod['id']}")
+        continue
     if "source_module" in mod:
         raw = base64.b64decode(b64_of(S["db"], S["pass"], S["prefix"], "modules", "params", f"id={mod['source_module']}")).decode()
     else:
@@ -188,8 +205,10 @@ subprocess.run(["docker", "exec", C["web"], "sh", "-c", "rm -rf /var/www/html/ca
 v = job.get("verify")
 if v:
     def fetch(path):
-        req = urllib.request.Request(f"http://127.0.0.1:{C['port']}{path}",
-                                     headers={"Host": C["host"], "X-Forwarded-Proto": "https"})
+        headers = {"Host": C["host"], "X-Forwarded-Proto": "https"}
+        if VARIANT:
+            headers["X-Tracy-Variant"] = VARIANT
+        req = urllib.request.Request(f"http://127.0.0.1:{C['port']}{path}", headers=headers)
         with urllib.request.urlopen(req, timeout=40) as r:
             return r.status, htmlmod.unescape(r.read().decode("utf-8", "replace"))
     # Trap 22c: forSEF learns a URL only when some page BUILDS it — warm via home.

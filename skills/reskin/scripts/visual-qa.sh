@@ -12,16 +12,22 @@
 #
 # Usage:
 #   visual-qa.sh --host <public-host> --port <loopback-port> \
-#                --pages "/,/pricing-stratum,/blog/" [--out /opt/tracy-fleet/reskin/out/visual]
+#                --pages "/,/pricing-stratum,/blog/" [--out /opt/tracy-fleet/reskin/out/visual] \
+#                [--variant stratum]
+#
+# --variant judges a PROPOSAL instead of the site: the same container and port, with the
+# `X-Tracy-Variant` header that decides which database it reads (ADR 0040). Judging a proposal
+# through the site's own address would grade the wrong thing and pass.
 set -euo pipefail
 
-HOST="" PORT="" PAGES="" OUT=""
+HOST="" PORT="" PAGES="" OUT="" VARIANT=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --host) HOST="$2"; shift 2 ;;
     --port) PORT="$2"; shift 2 ;;
     --pages) PAGES="$2"; shift 2 ;;
     --out) OUT="$2"; shift 2 ;;
+    --variant) VARIANT="$2"; shift 2 ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
 done
@@ -46,5 +52,5 @@ docker run --rm --network host --memory 512m --shm-size 256m \
   -v "$DIR/visual-qa.mjs:/qa/visual-qa.mjs:ro" -v "$OUT:/qa/out" -v "$CACHE:/qa/node_modules" \
   -w /qa "$IMAGE" bash -lc '
     [ -d node_modules/playwright ] || npm install --no-save --loglevel=error playwright@1.49.0 >/dev/null 2>&1
-    node visual-qa.mjs "'"$HOST"'" "'"$PORT"'" /qa/out "'"$PAGES"'"
+    node visual-qa.mjs "'"$HOST"'" "'"$PORT"'" /qa/out "'"$PAGES"'" "'"$VARIANT"'"
   '

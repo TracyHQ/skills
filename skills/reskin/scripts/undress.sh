@@ -14,7 +14,7 @@
 #   5. drop template styles not present in the snapshot; restore the original
 #      default-style flag
 #   6. restore extension enabled flags from the snapshot
-#   7. strip the "TRACY RESKIN TINT" block from darkmode.css
+#   7. strip the "TRACY RESKIN TINT" block from darkmode.css (unless --keep-files)
 #   8. purge the forSEF url cache, clear Joomla cache, verify homepage
 #
 # Known limits (recorded in the spec): menu params edits (page_heading) and the
@@ -24,10 +24,15 @@
 # Usage:
 #   undress.sh --db <ctr> --web <ctr> --prefix ja_ --pass <pw> \
 #              --snapshot content-inventory.json --host <h> --port <n> \
-#              [--module-offset 1000] [--content-offset 3000] [--dry-run]
+#              [--module-offset 1000] [--content-offset 3000] [--keep-files] [--dry-run]
+#
+# --keep-files leaves step 7 alone. Files are shared by every variant of a site (ADR 0040):
+# only the database is per-proposal. Undressing the base must not reach into a stylesheet a
+# proposal is still wearing — and the tint it would strip lives in the demo template's own
+# CSS, which the undressed site no longer loads anyway.
 set -euo pipefail
 
-DB="" WEB="" PREFIX="" PASS="" INV="" HOST="" PORT="" MOFF=1000 COFF=3000 DRY=0
+DB="" WEB="" PREFIX="" PASS="" INV="" HOST="" PORT="" MOFF=1000 COFF=3000 DRY=0 KEEPF=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --db) DB="$2"; shift 2 ;;
@@ -40,6 +45,7 @@ while [ $# -gt 0 ]; do
     --port) PORT="$2"; shift 2 ;;
     --module-offset) MOFF="$2"; shift 2 ;;
     --content-offset) COFF="$2"; shift 2 ;;
+    --keep-files) KEEPF=1; shift ;;
     --dry-run) DRY=1; shift ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
@@ -49,11 +55,11 @@ done
   exit 2
 }
 
-python3 - "$DB" "$WEB" "$PREFIX" "$PASS" "$INV" "$HOST" "$PORT" "$MOFF" "$COFF" "$DRY" <<'PYEOF'
+python3 - "$DB" "$WEB" "$PREFIX" "$PASS" "$INV" "$HOST" "$PORT" "$MOFF" "$COFF" "$DRY" "$KEEPF" <<'PYEOF'
 import base64, json, subprocess, sys, urllib.request
 
-db, web, P, pw, inv_path, host, port, moff, coff, dry = sys.argv[1:11]
-moff, coff, dry = int(moff), int(coff), dry == "1"
+db, web, P, pw, inv_path, host, port, moff, coff, dry, keep_files = sys.argv[1:12]
+moff, coff, dry, keep_files = int(moff), int(coff), dry == "1", keep_files == "1"
 inv = json.load(open(inv_path))
 
 def sql(q, mutate=True):
@@ -133,8 +139,8 @@ print(f"[6] restored enabled flag on {flips} extensions")
 tint_cmd = ("f=/var/www/html/templates/*/css/darkmode.css; for x in $f; do "
             "grep -q 'TRACY RESKIN TINT' $x 2>/dev/null && "
             "sed -i '/TRACY RESKIN TINT/,$d' $x && sed -i '${/^\\/\\* =*$/d}' $x && echo tinted:$x; done; true")
-print("[7] strip tint block from darkmode.css")
-if not dry:
+print("[7] strip tint block from darkmode.css" + (" — skipped (--keep-files)" if keep_files else ""))
+if not dry and not keep_files:
     subprocess.run(["docker", "exec", web, "sh", "-c", tint_cmd], check=False)
 
 # --- 8. caches + verify ----------------------------------------------------
