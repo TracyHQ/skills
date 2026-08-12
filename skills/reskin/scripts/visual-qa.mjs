@@ -9,6 +9,10 @@
 //   edge-bleed   — visible elements protruding past the right edge
 //   text-clip    — nav/button labels wider than their box
 //   broken-img   — <img> that loaded with naturalWidth 0
+//   interaction  — the mobile nav toggler reveals nothing; an aria-expanded
+//                  control that never flips. A page frozen at load hides both.
+//   js-error     — an uncaught exception or console error from the page itself
+//                  (third-party CDN and CORS complaints are not ours to answer)
 // Screenshots are saved for the (later) vision tier and for human eyes.
 //
 // Usage: node visual-qa.mjs <host> <port> <outDir> <path1,path2,...>
@@ -50,6 +54,22 @@ for (const vp of viewports) {
   for (const path of paths) {
     const page = await context.newPage();
     const url = `http://${host}:${port}${path}`;
+    // A dressed page can throw where the mold never did — a template script that
+    // expects a block the mapping dropped, a library the old skin loaded. None of
+    // that shows in the HTML, so listen for it instead of reading for it.
+    const jsErrors = [];
+    page.on("pageerror", (e) => jsErrors.push(String(e).slice(0, 120)));
+    page.on("console", (m) => {
+      if (m.type() !== "error") return;
+      const text = m.text();
+      // 404s for assets are the image checks' business, and they report them with
+      // the element that asked; counting them twice buries the real exceptions.
+      if (/Failed to load resource|net::ERR_/.test(text)) return;
+      // Fonts and scripts served from someone else's CDN answer to their rules, not
+      // ours — a reskin cannot cause (or fix) a cross-origin refusal.
+      if (/blocked by CORS policy|Access to (font|script|stylesheet|image)/i.test(text)) return;
+      jsErrors.push(text.slice(0, 120));
+    });
     try {
       await page.goto(url, { waitUntil: "load", timeout: 45000 });
       await page.waitForTimeout(1200); // let fonts/late CSS settle
@@ -114,8 +134,64 @@ for (const vp of viewports) {
         return out;
       });
 
-      const bad = result.overflowX > 8 || result.navOverlap.length || result.edgeBleed.length || result.textClip.length || result.brokenImg.length;
-      findings.push({ path, viewport: vp.name, ok: !bad, ...result });
+      // Interaction: everything above judges a page frozen at load. A menu that
+      // will not open and a panel that will not expand look perfect standing still,
+      // so the only way to see them is to press them.
+      const interaction = [];
+      // Every visible link on the page, not the ones inside a container we guessed:
+      // each template names its drawer differently (`t3-off-canvas`, `offcanvas`,
+      // `mobile-menu`), and a selector that misses it reports a working menu as broken.
+      const countNavLinks = () =>
+        page.evaluate(
+          () =>
+            [...document.querySelectorAll("a")].filter((el) => {
+              const s = getComputedStyle(el);
+              const r = el.getBoundingClientRect();
+              return s.display !== "none" && s.visibility !== "hidden" && r.width > 1 && r.height > 1;
+            }).length
+        );
+
+      if (vp.name === "mobile") {
+        // The toggler is the whole navigation on a phone: if pressing it reveals
+        // nothing, the dressed site has no menu at all.
+        const toggler = page
+          .locator('.navbar-toggler:visible, [data-bs-toggle="offcanvas"]:visible, button[class*="toggle"]:visible')
+          .first();
+        if ((await toggler.count()) > 0) {
+          const before = await countNavLinks();
+          await toggler.click({ timeout: 5000 }).catch(() => {});
+          await page.waitForTimeout(700);
+          const after = await countNavLinks();
+          if (after <= before) {
+            interaction.push(`nav toggler opens nothing (${before} links before, ${after} after)`);
+          }
+        }
+      }
+
+      if (vp.name === "desktop") {
+        // Only judged where the template states the contract itself: an element
+        // carrying aria-expanded promises to flip it. No promise, no verdict.
+        const trigger = page.locator('[aria-expanded]:visible[data-bs-toggle], .accordion-button:visible').first();
+        if ((await trigger.count()) > 0) {
+          const before = await trigger.getAttribute("aria-expanded");
+          await trigger.click({ timeout: 5000 }).catch(() => {});
+          await page.waitForTimeout(600);
+          const after = await trigger.getAttribute("aria-expanded");
+          if (before !== null && before === after) {
+            interaction.push(`accordion does not expand (aria-expanded stayed ${after})`);
+          }
+        }
+      }
+
+      const bad =
+        result.overflowX > 8 ||
+        result.navOverlap.length ||
+        result.edgeBleed.length ||
+        result.textClip.length ||
+        result.brokenImg.length ||
+        interaction.length ||
+        jsErrors.length;
+      findings.push({ path, viewport: vp.name, ok: !bad, interaction, jsErrors: [...new Set(jsErrors)], ...result });
     } catch (e) {
       findings.push({ path, viewport: vp.name, ok: false, error: String(e).slice(0, 160) });
     } finally {
@@ -136,6 +212,8 @@ for (const f of failed) {
   if (f.edgeBleed?.length) parts.push(`edge-bleed=${f.edgeBleed.length}`);
   if (f.textClip?.length) parts.push(`text-clip=${f.textClip.length}`);
   if (f.brokenImg?.length) parts.push(`broken-img=${f.brokenImg.length}`);
+  if (f.interaction?.length) parts.push(`interaction: ${f.interaction.join("; ")}`);
+  if (f.jsErrors?.length) parts.push(`js-error: ${f.jsErrors.slice(0, 2).join(" | ")}`);
   console.log(`FAIL ${f.path} [${f.viewport}] ${parts.join(" | ")}`);
 }
 console.log(`visual-qa: ${findings.length - failed.length}/${findings.length} pass -> ${outDir}/visual-qa.json`);

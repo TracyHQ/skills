@@ -1,7 +1,7 @@
 ---
 name: reskin
 description: Dress a client site's working copy in a demo template's layout while keeping every word of the client's real content, then gate it on text, collision, box-model and responsive checks. Use when someone asks to reskin a site, apply a demo/template look to an existing site, try a new template with real content, check a dressed site's layout or mobile behaviour, or roll a reskin back.
-version: 1.6.0
+version: 1.7.0
 ---
 
 # Reskin — real copy, demo layout
@@ -89,8 +89,10 @@ it: the client copy alone cannot tell you how the template is meant to look.
    question. A failure comes back to you to fix; it never ships as a warning.
    - `design-qa.sh` — the words and the wiring: markers present, demo copy absent, every
      internal link and image answers.
-   - `visual-qa.sh` — collision geometry: nav items overlapping, edge bleed, clipped labels,
-     broken images. Saves full-page screenshots.
+   - `visual-qa.sh` — collision geometry plus behaviour: nav items overlapping, edge bleed,
+     clipped labels, broken images, **the mobile nav toggler actually revealing a menu**, an
+     `aria-expanded` control actually flipping, and **uncaught JS errors** from the page. A
+     page judged only at rest hides a menu that will not open. Saves full-page screenshots.
    - `layout-qa.sh` — the page box model, in absolute terms: horizontal page overflow **with
      the culprit elements named**, sections overlapping vertically, children escaping their
      parent, collapsed sections, media taller than the viewport or upscaled past its natural
