@@ -63,9 +63,46 @@ PDIR="$CHECKOUT/proposals/$SLUG"
 # --- 2. a fresh schema: every rebuild starts from the site, not from the last build ---
 bash "$DIR/make-variant.sh" --db "$LABEL-db-1" --slug "$SLUG" --replace
 
-# --- 3. replay the jobs, oldest first ---------------------------------------
 set -a; . "/srv/tracy/$LABEL/.env"; set +a
 PREFIX=$(docker exec "$LABEL-web-1" grep -m1 dbprefix /var/www/html/configuration.php | sed "s/.*'\(.*\)'.*/\1/")
+
+# --- 2b. the frame, when the proposal declares one ---------------------------
+# The first automated rebuild failed for the lack of this: jobs assume the template's styles
+# exist, and a schema cut fresh from the site does not have them. frame.json names the demo
+# pair and the two styles; install-demo-frame ports them into the proposal's schema.
+if [ -f "$PDIR/frame.json" ]; then
+  echo "--- frame $(python3 -c "import json;print(json.load(open('$PDIR/frame.json'))['template'])")"
+  FRAME_ARGS=$(python3 - "$PDIR/frame.json" <<'PYEOF'
+import json, sys
+f = json.load(open(sys.argv[1]))
+demo = f["source"]["demo"]
+parts = [
+    "--source-db", f"{demo}-db-1", "--source-web", f"{demo}-web-1",
+    "--source-prefix", f["source"]["prefix"],
+    "--template", f["template"],
+    "--style-default-id", str(f["styleDefaultId"]), "--style-home-id", str(f["styleHomeId"]),
+]
+if f.get("homeMenuId"): parts += ["--home-menu-id", str(f["homeMenuId"])]
+if f.get("unpin"): parts += ["--unpin", str(f["unpin"])]
+print(" ".join(parts))
+PYEOF
+)
+  SRC_DEMO=$(python3 -c "import json;print(json.load(open('$PDIR/frame.json'))['source']['demo'])")
+  SRC_PASS=$(. "/srv/tracy/$SRC_DEMO/.env" 2>/dev/null && echo "$DB_PASSWORD" || echo "")
+  # shellcheck disable=SC2086
+  bash "$DIR/install-demo-frame.sh" \
+    --client-db "$LABEL-db-1" --client-web "$LABEL-web-1" --prefix "$PREFIX" --pass "$DB_PASSWORD" \
+    --source-pass "$SRC_PASS" --variant "$SLUG" $FRAME_ARGS
+  # A frame that pins the home item to the DEFAULT style (component homepage inside the new
+  # frame) says so; install-demo-frame pins to the home style by default.
+  if python3 -c "import json,sys;sys.exit(0 if json.load(open('$PDIR/frame.json')).get('homeUsesDefaultStyle') else 1)"; then
+    SDID=$(python3 -c "import json;print(json.load(open('$PDIR/frame.json'))['styleDefaultId'])")
+    HMID=$(python3 -c "import json;print(json.load(open('$PDIR/frame.json'))['homeMenuId'])")
+    docker exec "$LABEL-db-1" sh -c "mariadb -uroot -p\"\$MARIADB_ROOT_PASSWORD\" joomla_$(echo "$SLUG" | tr - _) -e \"UPDATE ${PREFIX}menu SET template_style_id=$SDID WHERE id=$HMID\""
+  fi
+fi
+
+# --- 3. replay the jobs, oldest first ---------------------------------------
 JOBS_HASH=""
 shopt -s nullglob
 for JOB in "$PDIR"/jobs/*.json; do
