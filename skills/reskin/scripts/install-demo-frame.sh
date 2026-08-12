@@ -105,7 +105,11 @@ csql(f"UPDATE {P}extensions SET enabled=1 WHERE (type='template' AND element={q1
 
 # --- 3. two-style structure ported from the demo (trap 7) ------------------
 sdef = ssql(f"SELECT id FROM {SP}template_styles WHERE template={q1(tpl)} AND client_id=0 AND home='1'")
-shome = ssql(f"SELECT id FROM {SP}template_styles WHERE template={q1(tpl)} AND client_id=0 AND title LIKE '%Home%' LIMIT 1")
+# The home style is whichever style the demo's OWN home page is pinned to — a title
+# match fails the moment a template calls it something else (Teline calls it "Magazine").
+shome = ssql(f"SELECT template_style_id FROM {SP}menu WHERE home=1 AND client_id=0 AND template_style_id>0 LIMIT 1")
+if not shome:
+    shome = ssql(f"SELECT id FROM {SP}template_styles WHERE template={q1(tpl)} AND client_id=0 AND title LIKE '%Home%' LIMIT 1")
 print(f"[3] port styles: demo default={sdef} -> client {sdid}; demo home={shome} -> client {shid}")
 for src, dst, title, make_default in ((sdef, sdid, f"{tpl} - Default", True), (shome, shid, f"{tpl} - Home", False)):
     if not src:
@@ -138,5 +142,31 @@ else:
 sh(cw, "sed -i \"/public [$]caching/s/= '[0-9]'/= '0'/\" /var/www/html/configuration.php")
 sh(cw, "rm -rf /var/www/html/cache/* 2>/dev/null; true")
 print("[6] page cache off, cache dir cleared")
+# --- 7. position bleed: the client's OWN modules that the new template renders ---
+# Two templates on one framework share position names, so the old skin's modules
+# reappear inside the new one (a login form on the homepage, a stray menu in the
+# footer). This is a mapping decision, never a guess — so the list is printed,
+# loudly, and the run is not "done" until someone has ruled on every line.
+# Positions come from TWO places: the manifest, and the layout mapping files a
+# framework template routes through (T3/T4 `etc/layout/*.ini`). Reading only the
+# manifest missed `header-1` — the very slot that put a login form on a homepage.
+declared = set(sh(cw, f"grep -ohE '<position>[a-z0-9_-]+' /var/www/html/templates/{tpl}/templateDetails.xml | cut -d'>' -f2",
+                  mutate=False).split())
+declared |= set(sh(cw, f"grep -ohE '^position=\"[a-z0-9_-]+' /var/www/html/templates/{tpl}/etc/layout/*.ini 2>/dev/null | cut -d'\"' -f2",
+                   mutate=False).split())
+declared = sorted(declared)
+bleed = []
+if declared:
+    inlist = ",".join(q1(x) for x in declared)
+    rows = csql(f"SELECT id, title, module, position FROM {P}modules "
+                f"WHERE id<1000 AND published=1 AND client_id=0 AND position IN ({inlist}) "
+                f"ORDER BY position", mutate=False)
+    bleed = [r.split("\t") for r in rows.split("\n") if r.strip()]
+print(f"[7] POSITION BLEED: {len(bleed)} client module(s) sit in positions {tpl} renders")
+for mid, title, mod, pos in bleed[:40]:
+    print(f"      {pos:<16} {mod:<24} #{mid} {title[:40]}")
+if bleed:
+    print("    -> Each line is a mapping decision: keep it, move it, or unpublish it.")
+    print("       Nothing here is a defect the QA gates can see — they are all valid layouts.")
 print("install-demo-frame:", "DRY RUN" if dry else "done")
 PYEOF

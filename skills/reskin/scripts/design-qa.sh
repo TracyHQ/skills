@@ -104,8 +104,11 @@ for path in pages:
                 problems.append(f"denylist '{token}' visible: {hits[0][:70]!r} (+{len(hits)-1} more)" if len(hits) > 1
                                 else f"denylist '{token}' visible: {hits[0][:70]!r}")
 
-        # probe internal links + images (dedup, capped per page)
-        hrefs = set(re.findall(r'href="(/[^"#]*)"', raw)) | set(re.findall(r'src="(/[^"]+)"', raw))
+        # probe internal links + images (dedup, capped per page). Code samples are
+        # not navigation: an FAQ showing `<img src="/<?php ... ?>">` inside a <pre>
+        # is documentation, and probing it manufactures dead links that never existed.
+        crawlable = re.sub(r"(?is)<(pre|code|textarea).*?</\1>", "", raw)
+        hrefs = set(re.findall(r'href="(/[^"#]*)"', crawlable)) | set(re.findall(r'src="(/[^"]+)"', crawlable))
         hrefs = {h for h in hrefs if not h.startswith("//")}
         bad_links = []
         for h in sorted(hrefs)[:40]:

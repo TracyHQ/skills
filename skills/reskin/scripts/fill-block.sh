@@ -40,6 +40,19 @@ python3 - "$JOB" <<'PYEOF'
 import base64, html as htmlmod, json, re, subprocess, sys, urllib.request
 
 job = json.load(open(sys.argv[1]))
+
+# The pipeline's one human gate, made mechanical. A job that names no approved
+# mapping is a job whose decisions nobody reviewed — and an advisory step is a
+# step an agent skips under pressure (it happened, 12/08: a login form landed on
+# a dressed homepage because the mapping step was skipped from memory).
+if not str(job.get("mapping", "")).strip():
+    raise SystemExit(
+        "refused: this job names no mapping.\n"
+        "  Add \"mapping\": \"<path or note naming the approved mapping>\" once the\n"
+        "  decisions in it have been reviewed by a person. Every block, every chrome\n"
+        "  slot, and every client module the new template's positions would surface\n"
+        "  belongs in that document before anything is written.")
+
 C = job["client"]
 
 def sql_on(db, pw, q):
@@ -75,6 +88,15 @@ def deep_set(body, overrides):
 
 # ---------- page shell + menu ----------
 page = job.get("page")
+if page and page["menu"].get("mode") == "set":
+    m = page["menu"]
+    if m.get("link"):
+        sql(f"UPDATE {P}menu SET link={q1(m['link'])} WHERE id={m['id']}")
+    for key, value in (m.get("params") or {}).items():
+        sql(f"UPDATE {P}menu SET params=JSON_SET(params, '$.{key}', {q1(value)}) WHERE id={m['id']}")
+    if m.get("style_id"):
+        sql(f"UPDATE {P}menu SET template_style_id={m['style_id']} WHERE id={m['id']}")
+    page = None
 if page:
     alias, aid = page["alias"], page["article_id"]
     taken = sql(f"SELECT id FROM {P}content WHERE alias={q1(alias)} AND id!={aid}")
@@ -100,11 +122,31 @@ if page:
                 f"INSERT INTO {P}menu (id, menutype, title, alias, note, path, link, type, published, parent_id, level, component_id, checked_out, checked_out_time, browserNav, access, img, template_style_id, params, lft, rgt, home, language, client_id, publish_up, publish_down) "
                 f"VALUES ({m['id']}, {q1(m['menutype'])}, {q1(page['title'])}, {q1(alias)}, '', {q1(ppath + alias)}, {q1(link)}, 'component', 1, {parent}, {level}, {comp}, NULL, NULL, 0, 1, '', {m['style_id']}, "
                 f"'{{\"menu_text\":1,\"menu_show\":\"1\",\"layout\":\"_:fullwidth\",\"show_page_heading\":0}}', @r, @r+1, 0, '*', 0, NULL, NULL)")
+    elif m["mode"] == "set":
+        # Point an existing menu item at whatever the mold's own page uses — a component
+        # layout plus its params. Teline's home is a category rendered through a `blank`
+        # layout whose only job is to print one module position, named by the menu item's
+        # `load_position`; without this the page has nothing to show. Generic on purpose:
+        # the job supplies link and params, the script owns the write.
+        if m.get("link"):
+            sql(f"UPDATE {P}menu SET link={q1(m['link'])} WHERE id={m['id']}")
+        for key, value in (m.get("params") or {}).items():
+            sql(f"UPDATE {P}menu SET params=JSON_SET(params, '$.{key}', {q1(value)}) WHERE id={m['id']}")
+        if m.get("style_id"):
+            sql(f"UPDATE {P}menu SET template_style_id={m['style_id']} WHERE id={m['id']}")
     else:
         raise SystemExit(f"unknown menu.mode {m['mode']!r}")
     # Trap 22a: forSEF keeps routing by stale nonsef until told otherwise.
     sql(f"DELETE FROM {P}forsef_urls WHERE sef LIKE {q1(alias + '%')}")
     sql(f"DELETE FROM {P}forsef_redirects WHERE source LIKE {q1(alias + '%')}")
+
+# ---------- template styles ----------
+# A template's logo, favicon and footer branding live in STYLE params, not in any
+# block. Porting the mold's logo files makes them load; it does not make them right —
+# the client's brand belongs here (branding has no placeholder tier).
+for st in job.get("styles", []):
+    for key, value in st["set"].items():
+        sql(f"UPDATE {P}template_styles SET params=JSON_SET(params, '$.{key}', {q1(value)}) WHERE id={st['id']}")
 
 # ---------- modules ----------
 S = job.get("source")

@@ -1,7 +1,7 @@
 ---
 name: reskin
 description: Dress a client site's working copy in a demo template's layout while keeping every word of the client's real content, then gate it on text, collision, box-model and responsive checks. Use when someone asks to reskin a site, apply a demo/template look to an existing site, try a new template with real content, check a dressed site's layout or mobile behaviour, or roll a reskin back.
-version: 1.5.1
+version: 1.6.0
 ---
 
 # Reskin — real copy, demo layout
@@ -69,7 +69,12 @@ it: the client copy alone cannot tell you how the template is meant to look.
    snapshot taken halfway through a dress restores a half-dressed site. A fresh scan goes to a
    different file.
 2. **Mapping** (your first real job): one document, reviewed by a human before anything is
-   built. Every row answers: which real page ↔ which demo pattern, and *for every field of
+   built. **`fill-block` refuses a job that names no mapping** — the gate is mechanical
+   because an advisory step is one an agent skips under pressure, especially when it "already
+   knows" the site from a previous run. Knowing it is not the same as having ruled on it.
+   `install-demo-frame` hands you the hardest part of this document for free: a **position
+   bleed report** listing every client module that the new template's positions would surface
+   (a login form, an old footer menu). Each line is a decision — keep, move, or unpublish. Every row answers: which real page ↔ which demo pattern, and *for every field of
    every block*, where the words and images come from — `real` (verbatim, source named),
    `placeholder` (kept from the demo, flagged), or dropped. Chrome (header, menu, footer,
    branding) is mapped once for the whole site. Pages the demo can't express and parts of the

@@ -90,9 +90,15 @@ def params_json(raw):
     except Exception:
         return {}
 
+asset_refs = set()
 styles = []
 for r in rows("styles.tsv"):
     p = params_json(b64(r[3]))
+    # A template's logo, footer logo and favicon live in STYLE params, not in any
+    # block — miss them and the dressed site renders a broken logo (Teline, 12/08).
+    for value in p.values():
+        if isinstance(value, str) and re.search(r"\.(?:png|jpe?g|svg|webp|ico|gif)$", value, re.I):
+            asset_refs.add(value.lstrip("/"))
     # Joomla's `home` column marks the site DEFAULT style — nothing to do with a
     # home-page style, which this pipeline also talks about. Rename to avoid it.
     styles.append({"id": int(r[0]), "default": r[1] == "1", "title": r[2],
@@ -114,7 +120,7 @@ assign = defaultdict(list)
 for r in rows("modules_menu.tsv"):
     assign[int(r[0])].append(int(r[1]))
 
-blocks, shapes, asset_refs, logo_fields, hardcoded = [], {}, set(), [], []
+blocks, shapes, logo_fields, hardcoded = [], {}, [], []
 domains = set()
 for r in rows("modules.tsv"):
     if r[4] != "1":
