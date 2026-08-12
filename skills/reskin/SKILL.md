@@ -1,7 +1,7 @@
 ---
 name: reskin
 description: Dress a client site's working copy in a demo template's layout while keeping every word of the client's real content, then gate it on text, collision, box-model and responsive checks. Use when someone asks to reskin a site, apply a demo/template look to an existing site, try a new template with real content, check a dressed site's layout or mobile behaviour, or roll a reskin back.
-version: 1.1.0
+version: 1.2.0
 ---
 
 # Reskin — real copy, demo layout
@@ -17,6 +17,36 @@ if you are about to, stop: either a script owns that step, or the step is wrong.
 
 The full spec — including the trap list that every rule below comes from — is
 `tracy-docs/reskin/README.md`. Read it before your first run.
+
+## Reaching the scripts and the site
+
+The scripts run on the **fleet host** (the machine hosting the working copies), not on this
+computer, and they act on the copy's containers — never on the customer's live site. Work out
+the four facts below before step 1; everything after them is just arguments.
+
+1. **The fleet host.** `TRACY_FLEET_HOST` in the environment, or the SSH alias the operator
+   uses for it. Verify with `ssh <host> 'ls /opt/tracy-fleet/reskin/'` — you should see the
+   twelve scripts. If that directory is missing, the toolkit is not deployed there yet: say so
+   and stop, rather than improvising.
+2. **The site's label.** The first hostname segment of the working copy's address
+   (`joomlart-com-0871462c.tracy.ai` → `joomlart-com-0871462c`). It names both the stack
+   directory and the containers.
+3. **Port and database password**, from the stack's own env file:
+   `ssh <host> 'cat /srv/tracy/<label>/.env'` → `HOST_PORT` and `DB_PASSWORD`. Container names
+   are `<label>-web-1` and `<label>-db-1`; confirm with `docker ps`.
+4. **The table prefix**, from the copy itself:
+   `docker exec <label>-web-1 grep dbprefix /var/www/html/configuration.php`.
+
+Sanity-check the pair before doing anything else — a loopback request with the public Host
+header must answer 200:
+
+```
+curl -s -o /dev/null -w '%{http_code}\n' -H "Host: <label>.tracy.ai" \
+  -H "X-Forwarded-Proto: https" http://127.0.0.1:<HOST_PORT>/
+```
+
+The demo (the mold) is another stack on the same host, discovered the same way. Both scans need
+it: the client copy alone cannot tell you how the template is meant to look.
 
 ## The pipeline, in order
 
@@ -91,6 +121,25 @@ menu item — the article alias **is** the public URL), modules with a `set` of 
 (shapes and example values come from the pattern library), and `verify` with markers that must
 appear and demo strings that must not. The script owns escaping, ID offsets, publish dates,
 router-cache purges, and cache clearing — your job is only *what the fields say*.
+
+Write the job locally, copy it over, run it there:
+
+```
+scp job-home.json <host>:/opt/tracy-fleet/reskin/
+ssh <host> 'bash /opt/tracy-fleet/reskin/fill-block.sh /opt/tracy-fleet/reskin/job-home.json'
+```
+
+Worked examples of every job shape — a page shell, block overrides, an `unpublish`, a
+`mod_custom` with HTML — live beside the scripts in `fixtures/joomlart-stratum/`. Read one
+before writing your first.
+
+## Reporting back
+
+The person who asked cannot see your terminal. When a stage finishes, tell them: which pages
+now wear the new layout and which deliberately still wear the old one, what each gate returned,
+what went into the customer report (parts of the site this CMS does not serve, defects that
+exist on the live site too), and what still carries demo content behind a placeholder flag.
+Screenshots from `visual-qa` are the fastest way to show it.
 
 ## When something breaks
 
