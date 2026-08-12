@@ -20,6 +20,13 @@ The full spec — including the trap list that every rule below comes from — i
 
 ## Reaching the scripts and the site
 
+**Inside Tracy, call the tools.** A Site agent is handed `scan_client`, `make_proposal`,
+`list_proposals`, `fill_block` and `visual_qa`. They resolve the host, the container names, the
+port, the table prefix and the database password from the site you are already working on, so
+none of the four facts below are yours to find and no credential is yours to hold. When those
+tools are present, use them and skip to the pipeline; the rest of this section is for running
+the toolkit by hand on a machine that has none.
+
 The scripts run on the **fleet host** (the machine hosting the working copies), not on this
 computer, and they act on the copy's containers — never on the customer's live site. Work out
 the four facts below before step 1; everything after them is just arguments.
