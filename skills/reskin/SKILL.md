@@ -1,7 +1,7 @@
 ---
 name: reskin
-description: Dress a client site's working copy in a demo template's layout while keeping every word of the client's real content. Use when someone asks to reskin a site, apply a demo/template look to an existing site, try a new template with real content, or roll a reskin back.
-version: 1.0.0
+description: Dress a client site's working copy in a demo template's layout while keeping every word of the client's real content, then gate it on text, collision, box-model and responsive checks. Use when someone asks to reskin a site, apply a demo/template look to an existing site, try a new template with real content, check a dressed site's layout or mobile behaviour, or roll a reskin back.
+version: 1.1.0
 ---
 
 # Reskin — real copy, demo layout
@@ -10,7 +10,7 @@ You dress the **working copy** of a client site in the layout of a **demo** (a t
 quickstart), keeping the client's real content untouched. The demo lends its shape; it never
 lends its words. The live site is never touched.
 
-Everything mechanical is owned by ten deterministic scripts (in `tracy.ai`
+Everything mechanical is owned by twelve deterministic scripts (in `tracy.ai`
 `infra/fleet/reskin/`, deployed on the fleet host). You do exactly two jobs the scripts cannot:
 **write the content mapping** and **write real copy into block shapes**. You never write SQL —
 if you are about to, stop: either a script owns that step, or the step is wrong.
@@ -36,11 +36,26 @@ The full spec — including the trap list that every rule below comes from — i
    render preconditions), `sync-extensions.sh` (only ticked rows), `port-assets.sh` (demo
    image namespaces, never overwriting client files), then `fill-block.sh` per page — it takes
    a **job JSON** you write and verifies the render immediately after writing.
-4. **QA, looped until clean**: `design-qa.sh` (markers present, demo words absent, every
-   internal link and image answers), `visual-qa.sh` (headless-browser geometry: overlaps,
-   overflow, clipped labels, broken images — three viewports), and **your own eyes** on the
-   full-page screenshots it saves. A QA failure comes back to you to fix; it never ships as a
-   warning.
+4. **QA, looped until clean** — four machine gates plus your eyes, each answering a different
+   question. A failure comes back to you to fix; it never ships as a warning.
+   - `design-qa.sh` — the words and the wiring: markers present, demo copy absent, every
+     internal link and image answers.
+   - `visual-qa.sh` — collision geometry: nav items overlapping, edge bleed, clipped labels,
+     broken images. Saves full-page screenshots.
+   - `layout-qa.sh` — the page box model, in absolute terms: horizontal page overflow **with
+     the culprit elements named**, sections overlapping vertically, children escaping their
+     parent, collapsed sections, media taller than the viewport or upscaled past its natural
+     size, suspiciously short pages, and height/section drift against a saved baseline
+     (`--baseline write` once the page is right, `compare` after). `--crawl N` also measures
+     pages outside the mapping list, report-only — that is how a page nobody mapped gets seen.
+   - `responsive-qa.sh` — behaviour, judged **against the demo, not against absolute rules**.
+     Run `--mode reference` on the DEMO first (it records how each block type stacks at
+     375/768/1024/1440), then `--mode compare` on the dressed copy. It fails when a block
+     refuses to collapse the way the demo's does, when a block scrolls sideways where the
+     demo's doesn't, when the nav stays expanded where the demo folds it into a toggler, or
+     when `<meta viewport>` is missing.
+   - **Your own eyes** on the screenshots. Machines pass layouts that are *arranged but wrong*
+     — a block still wearing demo content, a logo that dwarfs its column. Look every round.
 5. **Rollback** when asked: `undress.sh` with the frozen inventory restores the client copy.
 
 ## Rules that are not negotiable
@@ -59,6 +74,15 @@ The full spec — including the trap list that every rule below comes from — i
   where a new page lives (a dropdown, the footer) — never append to the main menu by default.
 - **Same-framework templates share position names.** Old client modules will bleed into the
   new skin's positions — the mapping lists them, and keeps or unpublishes each one on purpose.
+- **Unmapped pages keep the old skin.** Flipping the default template style dresses *every*
+  page nobody pinned — including ones the mapping never considered, which then render new
+  chrome around raw component output. Decide each one: dress it, or pin it back to the old
+  style. Half-dressed is the worst of both.
+- **The demo defines "responsive correct", the client's data defines the counts.** Never judge
+  a block by its absolute column count — four real plans against the demo's three is data, not
+  a defect. Judge how it *collapses* relative to its own desktop layout.
+- **A gate you have never seen fail is not yet trusted.** Before relying on a new check, break
+  the page on purpose, watch it fail, then unbreak it.
 
 ## Writing a fill-block job
 
