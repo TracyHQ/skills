@@ -1,7 +1,7 @@
 ---
 name: reskin
-description: Dress a client site's working copy in a demo template's layout while keeping every word of the client's real content, then gate it on text, collision, box-model and responsive checks. Use when someone asks to reskin a site, apply a demo/template look to an existing site, try a new template with real content, check a dressed site's layout or mobile behaviour, or roll a reskin back.
-version: 1.8.0
+description: Dress a client site's working copy in a demo template's layout while keeping every word of the client's real content. The craft skill - scanning, mapping, building the frame and jobs, rolling back. Works inside a proposal (see the proposals skill); quality is judged by design-qa (absolute) and reskin-qa (against this dressing's own promises). Use when someone asks to reskin a site, apply a demo/template look to an existing site, or try a new template with real content.
+version: 2.0.0
 ---
 
 # Reskin — real copy, demo layout
@@ -10,8 +10,18 @@ You dress the **working copy** of a client site in the layout of a **demo** (a t
 quickstart), keeping the client's real content untouched. The demo lends its shape; it never
 lends its words. The live site is never touched.
 
-Everything mechanical is owned by twelve deterministic scripts, and they ship **with this
-skill** — `scripts/` beside this file. You do exactly two jobs the scripts cannot: **write the
+This skill is one of four that share the work — a change this size is not one job:
+
+- **`proposals`** — the contract: directory anatomy, branches, carries, Approve=merge.
+  Every reskin lives inside a proposal; open one first and record everything there.
+- **this skill** — the craft: scan, map, build the frame and jobs, roll back.
+- **`design-qa`** — is the page broken, by criteria true on any site.
+- **`reskin-qa`** — is the page what THIS dressing promised (ideally run by a second agent).
+
+Everything mechanical is owned by deterministic scripts shipping **with their skill** —
+`scripts/` beside each SKILL.md. Two more scripts (`make-variant.sh`,
+`rebuild-proposal.sh`) are fleet infrastructure in `tracy-fleet/reskin-host/`: the webhook
+and the app call them, you never do. You do exactly two jobs the scripts cannot: **write the
 content mapping** and **write real copy into block shapes**. You never write SQL — if you are
 about to, stop: either a script owns that step, or the step is wrong.
 
@@ -92,28 +102,11 @@ it: the client copy alone cannot tell you how the template is meant to look.
    render preconditions), `sync-extensions.sh` (only ticked rows), `port-assets.sh` (demo
    image namespaces, never overwriting client files), then `fill-block.sh` per page — it takes
    a **job JSON** you write and verifies the render immediately after writing.
-4. **QA, looped until clean** — four machine gates plus your eyes, each answering a different
-   question. A failure comes back to you to fix; it never ships as a warning.
-   - `design-qa.sh` — the words and the wiring: markers present, demo copy absent, every
-     internal link and image answers.
-   - `visual-qa.sh` — collision geometry plus behaviour: nav items overlapping, edge bleed,
-     clipped labels, broken images, **the mobile nav toggler actually revealing a menu**, an
-     `aria-expanded` control actually flipping, and **uncaught JS errors** from the page. A
-     page judged only at rest hides a menu that will not open. Saves full-page screenshots.
-   - `layout-qa.sh` — the page box model, in absolute terms: horizontal page overflow **with
-     the culprit elements named**, sections overlapping vertically, children escaping their
-     parent, collapsed sections, media taller than the viewport or upscaled past its natural
-     size, suspiciously short pages, and height/section drift against a saved baseline
-     (`--baseline write` once the page is right, `compare` after). `--crawl N` also measures
-     pages outside the mapping list, report-only — that is how a page nobody mapped gets seen.
-   - `responsive-qa.sh` — behaviour, judged **against the demo, not against absolute rules**.
-     Run `--mode reference` on the DEMO first (it records how each block type stacks at
-     375/768/1024/1440), then `--mode compare` on the dressed copy. It fails when a block
-     refuses to collapse the way the demo's does, when a block scrolls sideways where the
-     demo's doesn't, when the nav stays expanded where the demo folds it into a toggler, or
-     when `<meta viewport>` is missing.
-   - **Your own eyes** on the screenshots. Machines pass layouts that are *arranged but wrong*
-     — a block still wearing demo content, a logo that dwarfs its column. Look every round.
+4. **QA, looped until clean** — run `design-qa` (absolute: text tier, geometry tier, box
+   model) and `reskin-qa` (this dressing's promises: markers, deny-list, responsive vs the
+   demo's reference), then your own eyes on the screenshots. Every gate takes
+   `--variant <slug>`; every FAIL comes back here as a mapping decision, never as a patch
+   on the preview. Details and discipline live in those two skills.
 5. **Rollback** when asked: `undress.sh` restores the client copy from the snapshot. Pass
    `--keep-files` when another proposal of the same site is still standing: only the database is
    per-proposal, so stripping a stylesheet reaches every one of them.
@@ -125,12 +118,13 @@ mechanism is one schema per proposal beside the site's own, chosen by the `X-Tra
 header the edge derives from the hostname; files are shared, so a template lives on disk once
 and the database decides who wears it.
 
-- `make-variant.sh --slug <name>` builds the proposal's schema from the site's. It copies the
+- `make_proposal` (the app's tool — or `make-variant.sh` on the fleet) builds the proposal's
+  schema from the site's. It copies the
   structure of cache, log and submission tables without their rows — on a real site that is the
   difference between 748 MB and 43 MB, and it keeps other people's form submissions out of a
   copy that exists to be shown to people.
 - Then pass the same slug to the build and the gates: `install-demo-frame.sh --variant <name>`,
-  `"client": {"variant": "<name>"}` in every `fill-block` job, `visual-qa.sh --variant <name>`.
+  `"client": {"variant": "<name>"}` in every `fill-block` job, `--variant <name>` on every gate.
   Miss it on the gate and you grade the site while the proposal goes unlooked at.
 - `--unpin all` is usually right on a site that pins pages to template styles by habit: a pin
   outranks the default, so pinned pages keep wearing the old template inside the new one.
