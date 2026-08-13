@@ -159,6 +159,15 @@ for st in job.get("styles", []):
     for key, value in st["set"].items():
         sql(f"UPDATE {P}template_styles SET params=JSON_SET(params, '$.{key}', {q1(value)}) WHERE id={st['id']}")
 
+# ---------- bulk menu params (trap 37: layouts belong to their template family) ----------
+# One decision applied to many items: an article_layout naming the OLD template's override
+# loads helpers that only exist while that template is active — 500 on every route through it.
+for m in job.get("menus", []):
+    for key, value in (m.get("params") or {}).items():
+        sql(f"UPDATE {P}menu SET params=JSON_SET(params, '$.{key}', {q1(value)}) WHERE id={int(m['id'])}")
+if job.get("menus"):
+    print(f"[menus] params set on {len(job['menus'])} menu items")
+
 # ---------- modules ----------
 S = job.get("source")
 for mod in job.get("modules", []):
