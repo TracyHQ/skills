@@ -3,7 +3,7 @@ name: reskin
 description: Dress a client site's working copy in a demo template's layout while keeping every word of the client's real content. The craft skill - scanning, mapping, building the frame and jobs, rolling back. Works inside a proposal (see the proposals skill); quality is judged by design-qa (absolute) and reskin-qa (against this dressing's own promises). Use when someone asks to reskin a site, apply a demo/template look to an existing site, or try a new template with real content.
 version: 2.0.0
 platforms: joomla
-requiresMcp:
+requires-mcp:
   - tracy-reskin
 provenOn: joomlart.com x Stratum & Teline V; teline-v demo x Stratum (fixture 2)
 ---
