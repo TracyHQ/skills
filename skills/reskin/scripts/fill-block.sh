@@ -170,7 +170,18 @@ if job.get("menus"):
 
 # Layer 1 of trap 29: the layout can sit INSIDE the menu link itself (&layout=ja_v5:xblog).
 # One declared list of template families whose layouts must leave every link.
+# One decision, three layers (trap 29): a template family's layouts must leave the menu LINK,
+# the menu PARAMS and the article ATTRIBS together. Declared as a rule over families rather
+# than a list of ids — an id list is a photograph of one database at one moment, and it goes
+# stale the first time the site is restored or re-synced.
 strip = job.get("link_layouts_strip", [])
+if strip:
+    where_params = " OR ".join(
+        f"JSON_UNQUOTE(JSON_EXTRACT(params, '$.article_layout')) LIKE {q1(fam + ':%')}" for fam in strip
+    )
+    n_params = sql(f"SELECT COUNT(*) FROM {P}menu WHERE {where_params}")
+    sql(f"UPDATE {P}menu SET params=JSON_SET(params, '$.article_layout', '') WHERE {where_params}")
+    print(f"[menus] cleared article_layout on {n_params} menu items")
 if strip:
     pattern = "[&?]layout=(" + "|".join(strip) + "):[^&]*"
     n = sql(f"SELECT COUNT(*) FROM {P}menu WHERE link REGEXP {q1('layout=(' + '|'.join(strip) + '):')}")
