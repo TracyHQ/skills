@@ -168,6 +168,15 @@ for m in job.get("menus", []):
 if job.get("menus"):
     print(f"[menus] params set on {len(job['menus'])} menu items")
 
+# Layer 1 of trap 29: the layout can sit INSIDE the menu link itself (&layout=ja_v5:xblog).
+# One declared list of template families whose layouts must leave every link.
+strip = job.get("link_layouts_strip", [])
+if strip:
+    pattern = "[&?]layout=(" + "|".join(strip) + "):[^&]*"
+    n = sql(f"SELECT COUNT(*) FROM {P}menu WHERE link REGEXP {q1('layout=(' + '|'.join(strip) + '):')}")
+    sql(f"UPDATE {P}menu SET link=REGEXP_REPLACE(link, {q1(pattern)}, '') WHERE link REGEXP {q1('layout=(' + '|'.join(strip) + '):')}")
+    print(f"[menus] stripped {n} links of layouts from: {', '.join(strip)}")
+
 # ---------- modules ----------
 S = job.get("source")
 for mod in job.get("modules", []):
