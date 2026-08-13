@@ -1,0 +1,13 @@
+{
+  "$schema": "https://registry.tracy.ai/skills/schema/skill-record.schema.json",
+  "namespace": "tracyhq",
+  "slug": "design-qa",
+  "gitUrl": "https://github.com/TracyHQ/skills",
+  "ref": "main",
+  "skillPath": "skills/design-qa",
+  "platforms": [
+    "joomla",
+    "wordpress",
+    "shopify"
+  ]
+}
