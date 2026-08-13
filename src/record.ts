@@ -115,6 +115,13 @@ export const HydratedSkillSchema = SkillRecordSchema.omit({ $schema: true }).ext
   displayName: z.string(),
   description: z.string().nullable(),
   tags: z.array(z.string()).default([]),
+  /**
+   * Derived from `requires-mcp` in the skill's own `SKILL.md`, like `description` and `tags` —
+   * never declared in the record. Names the MCP servers the skill needs; an advisory
+   * dependency (Desk warns, never blocks), so clients may filter on it but must not
+   * validate-and-reject.
+   */
+  requiresMcp: z.array(z.string()).default([]),
   contentHash: z.string().length(64),
   externalStars: z.number().int().nonnegative(),
   lastCommitAt: z.string().nullable(),
