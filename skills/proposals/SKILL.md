@@ -2,6 +2,8 @@
 name: proposals
 description: The contract every site proposal follows (ADR 0045) - when to open one, what lives in its directory, how previews build from branches, who approves what, and why "rebuildable from the directory" is the definition of done. Use when starting, recording, or reviewing any proposed change to a site - a reskin, a content restructure, a code change.
 version: 1.0.0
+platforms: any
+provenOn: joomlart.com (TracyHQ/joomlart.com — teline & stratum rebuild from their directories)
 requiresMcp: tracy-reskin
 ---
 

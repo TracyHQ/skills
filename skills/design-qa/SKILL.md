@@ -2,6 +2,8 @@
 name: design-qa
 description: The absolute QA gates for any site change - what makes a page broken regardless of what anyone was building. Horizontal overflow, overlapping nav, elements escaping their parent, collapsed sections, giant media, broken images, a mobile menu that will not open, JS errors, PHP fatals, dead links. Use after ANY change to a site's pages - a reskin, a content edit, a CSS tweak, a new page.
 version: 1.0.0
+platforms: any
+provenOn: joomlart.com (caught the trap-37 blog 500 the homepage hid)
 ---
 
 # Design QA — the scale, not the expectation

@@ -2,6 +2,8 @@
 name: reskin-qa
 description: Judge a dressed site against what THAT dressing promised - the mapping's markers on every page, the branding deny-list, and responsive behaviour compared to the demo's own reference. Use after building or rebuilding a reskin proposal, and before showing it to anyone. Distinct from design-qa (absolute brokenness) - run both.
 version: 1.0.0
+platforms: any
+provenOn: joomlart.com (responsive reference vs ja_stratum demo)
 requiresMcp: tracy-reskin
 ---
 
