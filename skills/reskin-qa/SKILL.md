@@ -4,7 +4,8 @@ description: Judge a dressed site against what THAT dressing promised - the mapp
 version: 1.0.0
 platforms: any
 provenOn: joomlart.com (responsive reference vs ja_stratum demo)
-requiresMcp: tracy-reskin
+requiresMcp:
+  - tracy-reskin
 ---
 
 # Reskin QA — did we deliver what the mapping promised?

@@ -4,7 +4,8 @@ description: The contract every site proposal follows (ADR 0045) - when to open 
 version: 1.0.0
 platforms: any
 provenOn: joomlart.com (TracyHQ/joomlart.com — teline & stratum rebuild from their directories)
-requiresMcp: tracy-reskin
+requiresMcp:
+  - tracy-reskin
 ---
 
 # Proposals — a change the customer can walk through before agreeing to it
