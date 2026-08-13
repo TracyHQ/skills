@@ -177,6 +177,17 @@ if strip:
     sql(f"UPDATE {P}menu SET link=REGEXP_REPLACE(link, {q1(pattern)}, '') WHERE link REGEXP {q1('layout=(' + '|'.join(strip) + '):')}")
     print(f"[menus] stripped {n} links of layouts from: {', '.join(strip)}")
 
+# ---------- article-level layouts (trap 29 layer 3) --------------------------
+# The fourth place a template family hides: each ARTICLE can pin its own override in
+# `attribs.article_layout`. Menu links and menu params are the visible two; this one only
+# shows as a 500 on the article itself, long after the homepage looks finished.
+content_strip = job.get("content_layouts_strip", [])
+if content_strip:
+    like = " OR ".join(f"attribs LIKE {q1('%' + fam + ':%')}" for fam in content_strip)
+    n = sql(f"SELECT COUNT(*) FROM {P}content WHERE {like}")
+    sql(f"UPDATE {P}content SET attribs=JSON_SET(attribs, '$.article_layout', '') WHERE {like}")
+    print(f"[content] cleared article_layout on {n} articles pinned to: {', '.join(content_strip)}")
+
 # ---------- modules ----------
 S = job.get("source")
 for mod in job.get("modules", []):
