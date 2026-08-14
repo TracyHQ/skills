@@ -40,7 +40,12 @@ mkdir -p "$(dirname "$OUT")"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-sql() { docker exec "$DB" mariadb -uroot -p"$PASS" joomla -N -B -e "$1" 2>/dev/null; }
+# The site names its own database in configuration.php, exactly where $dbprefix already comes
+# from. This line used to say `joomla` — true of the fleet's own stacks, and silently wrong
+# anywhere else, which reads as "the script is broken" rather than "it asked the wrong database".
+DBNAME=$(docker exec "$WEB" grep -m1 "public .db = " /var/www/html/configuration.php | sed "s/.*= *'\\([^']*\\)'.*/\\1/")
+[ -n "$DBNAME" ] || { echo "could not read the database name from $WEB:/var/www/html/configuration.php" >&2; exit 1; }
+sql() { docker exec "$DB" mariadb -uroot -p"$PASS" "$DBNAME" -N -B -e "$1" 2>/dev/null; }
 B64="REPLACE(TO_BASE64(%s), CHAR(10), '')"
 
 sql "SELECT id, menutype, title, level, published, template_style_id, path, type, home, $(printf "$B64" link) FROM ${PREFIX}menu WHERE client_id=0 AND id>1" > "$TMP/menus.tsv"
