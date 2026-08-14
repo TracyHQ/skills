@@ -1,0 +1,9 @@
+{
+  "$schema": "https://registry.tracy.ai/skills/schema/skill-record.schema.json",
+  "namespace": "tracyhq",
+  "slug": "create-visibility-report",
+  "gitUrl": "https://github.com/TracyHQ/mention-network-skills",
+  "ref": "main",
+  "skillPath": "skills/create-visibility-report",
+  "platforms": ["shopify"]
+}
