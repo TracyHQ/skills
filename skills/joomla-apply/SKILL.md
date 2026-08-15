@@ -1,7 +1,7 @@
 ---
 name: joomla-apply
 description: Apply an approved deliverable to a client site's LIVE copy — update content (articles, modules, template styles), upload media, and install supporting extensions. The Apply direction of a site: the opposite of reskin, which only dresses the working copy on the fleet. Every change is grouped under one apply_id so the whole deliverable reverts to exactly what was there. Only Owner/Admin seats may apply, and the relay enforces it. Use when a deliverable has been approved and must land on the live site.
-version: 1.0.0
+version: 1.1.0
 platforms: joomla
 requires-mcp:
   - tracy-apply
@@ -15,10 +15,30 @@ direction from `reskin`, which dresses the *working copy* and never touches the 
 is the deliberate step that reaches the real one. It is always the customer's decision: only an
 **Owner** or **Admin** seat may apply, and the relay refuses anyone else.
 
+What counts as "approved" is not this skill's to define — `proposals` owns that contract: a
+proposal is approved by the customer's merge, a deliverable by the customer's explicit yes in its
+Task. This skill starts where that decision ends.
+
 You never reach the site directly — no SQL, no file edits, no admin login. Every tool below goes
 out through the relay, which is the one that checks the seat's role, holds the site's component
 token, forwards the change to the site's own component, and records what was applied (ADR 0051). If
 you find yourself about to touch the site any other way, stop: the tool is the only door.
+
+## Where things live
+
+Read in this order; stop as soon as you have what the step needs.
+
+1. **`deliverables/<task-slug>/`** — the thing being applied, and the only source of what to
+   write. If the change rode a proposal instead, its record is `proposals/<slug>/` and the
+   approval is the merge to `main`.
+2. **The approval itself** — the customer's yes, in the Task or as the merged proposal. No
+   approval on record, no Apply: ask, do not infer one from enthusiasm.
+3. **The workspace's local copy** (`surface/pages/`, `digest/content-map.md`) — to find the
+   article or module you are about to touch. It is **Observed** and may be stale: a wrong id is
+   answered by the component's own `{ok:false}`, which names the missing row — trust that answer
+   over the snapshot.
+
+Nothing else is input. In particular the live site's admin is not: you never sign in anywhere.
 
 ## The one rule that makes Apply safe: apply_id
 
@@ -27,6 +47,12 @@ one deliverable** — pick it once (the task or deliverable id is ideal) and reu
 is what lets `revert_apply` undo the *whole* deliverable back to exactly what was on the site
 before, to the byte. An Apply that cannot be reverted is one that cannot be guaranteed (ADR 0048),
 so this is required, not optional.
+
+**One applier per apply_id, and nothing enforces it but you.** The relay holds no lock: two agents
+writing under one id interleave their steps into one revert log, and the revert then restores a
+history neither of them made. Mint the id from the task or deliverable — something no second run
+would pick — and if an Apply may already be running on this site, ask before starting; `list_apply`
+on the id shows whether it has begun.
 
 ## The tools
 
@@ -62,3 +88,35 @@ A refusal is an answer, not a crash — read it and decide the next move:
 3. Apply each step — `update_content` / `upload_media` / `install_extension`.
 4. If anything is wrong, `revert_apply` the id and start over; the site returns to exactly what it
    was.
+
+## Being invoked bare
+
+`/joomla-apply` with nothing attached is **not** an instruction you can act on. This skill writes
+to a customer's production site, and it needs two facts nobody can infer: which deliverable, and
+where its approval is recorded. Say what is missing and offer `list_apply` to show what has already
+been applied. Never pick a deliverable yourself — an unasked-for write to a live site is the one
+mistake this skill exists to make impossible.
+
+## Reporting back
+
+The person cannot see the relay. When the run finishes, tell them: what landed (each step, in their
+words — "the meta description of the Admin template glossary page", not a row id), the `apply_id`
+that reverts all of it, and anything the component refused with what it said. **Answer in the
+language the person is writing in**; ids, field names and the `apply_id` stay as they are — they
+are addresses, not prose.
+
+Worked examples — a real run, step by step, and the mistakes that look right — ship with this skill
+in `examples/apply-run.md`. Read it before your first Apply.
+
+## When something breaks
+
+- **`NOT_SITE_ADMIN`** — stop; the change needs an authorised seat, and retrying cannot make one.
+- **`COMPONENT_NOT_REGISTERED`** — the site has no component credential at the relay. It arrives
+  with migrate/connect; nothing you do from here creates it.
+- **A step half-applied** — `revert_apply` the id, report what the component said, start over with
+  a fresh id. Never leave a deliverable partially on a live site while you investigate.
+- **The revert itself refused** — stop everything and say so plainly; that is the one state a
+  person must handle, because the guarantee (ADR 0048) rests on revert working.
+
+What you learn here belongs back in this file: a refusal that needed a rule nobody had written down
+is a rule this skill is missing, not a thing to remember.
