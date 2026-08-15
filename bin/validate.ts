@@ -2,7 +2,12 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 
 import { ownerOf, repoOf, SkillRecordSchema } from '../src/record'
-import { validateNumberedReference, validateRecordFile, validateSkillFrontmatter } from '../src/validate'
+import {
+  validateNoPrivateRepoReference,
+  validateNumberedReference,
+  validateRecordFile,
+  validateSkillFrontmatter
+} from '../src/validate'
 
 /** Same identity `bin/build-index.ts` uses to decide a skill's source is on this disk. */
 const SELF_REPO = 'tracyhq/skills'
@@ -44,6 +49,24 @@ async function checkNumberedReferences(absSkillDir: string, skillPath: string) {
   return out
 }
 
+/** Every text file a published skill ships. See {@link validateNoPrivateRepoReference}. */
+async function checkPrivateRepoReferences(absSkillDir: string, skillPath: string) {
+  const out: { code: string; message: string }[] = []
+  const walk = async (dir: string): Promise<void> => {
+    for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        await walk(full)
+      } else if (/\.(md|sh|mjs|js|ts|json|txt)$/.test(entry.name)) {
+        const rel = path.posix.join(skillPath, path.relative(absSkillDir, full).split(path.sep).join('/'))
+        out.push(...validateNoPrivateRepoReference(rel, await fs.readFile(full, 'utf8').catch(() => '')))
+      }
+    }
+  }
+  await walk(absSkillDir)
+  return out
+}
+
 const root = process.cwd()
 const registryDir = path.join(root, 'registry')
 let failed = 0
@@ -80,6 +103,7 @@ for (const namespace of namespaces.sort()) {
             ...validateSkillFrontmatter(path.posix.join(record.data.skillPath, 'SKILL.md'), source, record.data)
           )
           errors.push(...(await checkNumberedReferences(path.join(root, record.data.skillPath), record.data.skillPath)))
+          errors.push(...(await checkPrivateRepoReferences(path.join(root, record.data.skillPath), record.data.skillPath)))
         }
       }
     }

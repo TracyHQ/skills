@@ -215,3 +215,44 @@ export function validateNumberedReference(
   }
   return errors
 }
+
+/**
+ * Repositories a reader outside Tracy cannot open. Names, not paths: the check below decides
+ * what counts as a reference to one.
+ */
+const PRIVATE_REPOS = ['tracy-desk', 'tracy-docs', 'tracy-fleet', 'tracy.ai'] as const
+
+/**
+ * A published skill must be readable by whoever can install it (ADR 0053, amendment).
+ *
+ * `reskin` told every installer to read `tracy-docs/reskin/README.md` "before your first run" —
+ * a private repository. The damage is not the broken link: an agent that cannot reach a cited
+ * document still knows one exists, knows roughly what it says, and fills the gap while citing a
+ * source it never read. The reverse is a leak — a public repo naming a private one's internal
+ * paths.
+ *
+ * Matched as a REFERENCE, not as a name. `tracy.ai` is a repository and a domain, so
+ * `joomlart-com-0871462c.tracy.ai` is a hostname and must not fail, and `/opt/tracy-fleet/reskin`
+ * is a directory on a host that the skill itself explains how to populate. What fails is a repo
+ * root followed by a path (`tracy-docs/reskin/README.md`) or an owner-qualified name
+ * (`TracyHQ/tracy-desk`) — the two forms that tell a reader to go and open something.
+ */
+export function validateNoPrivateRepoReference(
+  filePath: string,
+  source: string
+): ValidationError[] {
+  const errors: ValidationError[] = []
+  for (const repo of PRIVATE_REPOS) {
+    const name = repo.replace(/[.]/g, '\\.')
+    // Owner-qualified, or a repo root starting a path. `(?<![\w./-])` keeps `.tracy.ai` and
+    // `/opt/tracy-fleet` out: both are preceded by a character that makes them something else.
+    const pattern = new RegExp(`(?<![\\w./-])(?:TracyHQ/)?${name}/[\\w.-]`, 'g')
+    for (const hit of source.matchAll(pattern)) {
+      errors.push({
+        code: 'private_repo_reference',
+        message: `${filePath}: points at \`${hit[0]}\` — ${repo} is private, and an installer cannot open it`
+      })
+    }
+  }
+  return errors
+}
