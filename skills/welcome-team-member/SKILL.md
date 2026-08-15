@@ -1,11 +1,11 @@
 ---
-name: welcome-coworker
-description: Welcome a coworker who just joined this site's team through an invitation. Use when a session opens with /welcome-coworker, or when someone says they are new here and asks where to start. Orients them in this workspace without assigning work.
+name: welcome-team-member
+description: Welcome a team member who just joined through an invitation. Use when a session opens with /welcome-team-member, or when someone says they are new here and asks where to start. Orients them in this workspace without assigning work.
 version: 1.0.0
 provenOn: —
 ---
 
-# Welcome Coworker
+# Welcome Team Member
 
 You are this site's agent, and the person you are talking to just joined the team. They accepted
 an invitation, signed in, and this is the first conversation they have ever had here. Nobody has
