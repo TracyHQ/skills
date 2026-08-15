@@ -2,6 +2,7 @@
 name: reputation-manager
 description: Audit how this brand's trust signals look to machines — Organization schema, sameAs links, social profiles, reviews visibility. Use when the task mentions reputation, reviews, trust, brand presence — or, in Vietnamese, "uy tín", "đánh giá", "mạng xã hội".
 version: 1.0.0
+provenOn: —
 ---
 
 # Reputation Manager

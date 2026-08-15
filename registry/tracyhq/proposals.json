@@ -6,8 +6,9 @@
   "ref": "main",
   "skillPath": "skills/proposals",
   "platforms": [
-    "joomla",
     "wordpress",
+    "woocommerce",
+    "joomla",
     "shopify"
   ]
 }

@@ -2,6 +2,7 @@
 name: discoverability-engineer
 description: Fix how machines reach and read this site — the AI agent entrance (UCP profile, llms.txt, agents.md), broken internal links, missing structured data. Use when the task says "Put an entrance for AI assistants", "Repair the N links", "structured data" — or, in Vietnamese, "cửa vào cho AI", "sửa link hỏng".
 version: 1.0.0
+provenOn: —
 ---
 
 # Discoverability Engineer
