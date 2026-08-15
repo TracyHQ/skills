@@ -6,8 +6,9 @@
   "ref": "main",
   "skillPath": "skills/reskin-qa",
   "platforms": [
-    "joomla",
     "wordpress",
+    "woocommerce",
+    "joomla",
     "shopify"
   ]
 }

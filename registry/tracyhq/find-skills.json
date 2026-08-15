@@ -4,5 +4,11 @@
   "slug": "find-skills",
   "gitUrl": "https://github.com/TracyHQ/skills",
   "ref": "main",
-  "skillPath": "skills/find-skills"
+  "skillPath": "skills/find-skills",
+  "platforms": [
+    "wordpress",
+    "woocommerce",
+    "joomla",
+    "shopify"
+  ]
 }

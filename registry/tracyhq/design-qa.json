@@ -6,8 +6,9 @@
   "ref": "main",
   "skillPath": "skills/design-qa",
   "platforms": [
-    "joomla",
     "wordpress",
+    "woocommerce",
+    "joomla",
     "shopify"
   ]
 }

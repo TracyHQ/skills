@@ -2,6 +2,7 @@
 name: welcome-coworker
 description: Welcome a coworker who just joined this site's team through an invitation. Use when a session opens with /welcome-coworker, or when someone says they are new here and asks where to start. Orients them in this workspace without assigning work.
 version: 1.0.0
+provenOn: —
 ---
 
 # Welcome Coworker

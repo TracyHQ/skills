@@ -4,5 +4,11 @@
   "slug": "welcome-coworker",
   "gitUrl": "https://github.com/TracyHQ/skills",
   "ref": "main",
-  "skillPath": "skills/welcome-coworker"
+  "skillPath": "skills/welcome-coworker",
+  "platforms": [
+    "wordpress",
+    "woocommerce",
+    "joomla",
+    "shopify"
+  ]
 }

@@ -4,5 +4,11 @@
   "slug": "skill-creator",
   "gitUrl": "https://github.com/TracyHQ/skills",
   "ref": "main",
-  "skillPath": "skills/skill-creator"
+  "skillPath": "skills/skill-creator",
+  "platforms": [
+    "wordpress",
+    "woocommerce",
+    "joomla",
+    "shopify"
+  ]
 }

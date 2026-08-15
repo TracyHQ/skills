@@ -1,7 +1,7 @@
 ---
 name: reskin
 description: Dress a client site's working copy in a demo template's layout while keeping every word of the client's real content. The craft skill - scanning, mapping, building the frame and jobs, rolling back. Works inside a proposal (see the proposals skill); quality is judged by design-qa (absolute) and reskin-qa (against this dressing's own promises). Use when someone asks to reskin a site, apply a demo/template look to an existing site, or try a new template with real content.
-version: 2.0.0
+version: 2.1.0
 platforms: joomla
 requires-mcp:
   - tracy-reskin
@@ -24,13 +24,37 @@ This skill is one of four that share the work — a change this size is not one 
 
 Everything mechanical is owned by deterministic scripts shipping **with their skill** —
 `scripts/` beside each SKILL.md. Two more scripts (`make-variant.sh`,
-`rebuild-proposal.sh`) are fleet infrastructure in `tracy-fleet/reskin-host/`: the webhook
+`rebuild-proposal.sh`) are fleet infrastructure and live on the host, not with this skill: the webhook
 and the app call them, you never do. You do exactly two jobs the scripts cannot: **write the
 content mapping** and **write real copy into block shapes**. You never write SQL — if you are
 about to, stop: either a script owns that step, or the step is wrong.
 
-The full spec — including the trap list that every rule below comes from — is
-`tracy-docs/reskin/README.md`. Read it before your first run.
+The full spec — including the trap list that every rule below comes from — ships with this
+skill at `references/spec.md`. Read it before your first run.
+
+## Where things live
+
+Read in this order; stop as soon as what you are about to do is answered. A dressing has more
+inputs than a person can hold, and re-reading all of them before every job is how a run runs out
+of room to think.
+
+1. **`proposals/<slug>/`** — the proposal's own directory, and the only thing that has to be
+   true: `mapping.md` (the decisions, and the gate `fill-block` checks), `proposal.json`,
+   `frame.json`, `jobs/NN-*.json` in replay order, `files/`. Anything you are about to decide
+   twice was probably decided here once. See the `proposals` skill for the contract.
+2. **`out/content-inventory.json`** — the client's own content, and **the snapshot**
+   `undress.sh` restores from. Read it; do not rewrite it (see the pipeline's step 1).
+3. **`out/pattern-library.json`** — the demo's block shapes with example values. This is what a
+   job's `set` fields are shaped against; open it before writing a job, not from memory.
+4. **`out/extension-diff.json`** — the three-column UI-relevant diff, when the question is
+   whether an extension has to travel.
+5. **The position bleed report** — printed by `install-demo-frame.sh`, **never written to a
+   file**. If you did not copy it into `mapping.md` when it scrolled past, it is gone and the
+   step has to run again.
+6. **`references/spec.md`** — the full spec and the numbered traps (1–51). Go here when something
+   breaks, not before: it is long, and the rule you need has usually already been folded into a
+   script. **`references/fixtures.md`** is the worked mapping table from the first fixture — read
+   it once before writing your first mapping, the way you read a job example before your first job.
 
 ## Reaching the scripts and the site
 
@@ -78,6 +102,17 @@ curl -s -o /dev/null -w '%{http_code}\n' -H "Host: <label>.tracy.ai" \
 
 The demo (the mold) is another stack on the same host, discovered the same way. Both scans need
 it: the client copy alone cannot tell you how the template is meant to look.
+
+## Being invoked bare
+
+`/reskin` with nothing attached is **not** a verb you can act on, and this is where this skill
+differs from a reading one on purpose. A dressing needs two facts nobody can infer — which
+proposal, and which demo lends its shape — so say what is missing and offer `list_proposals`.
+
+Do not "just take the scan while we decide". `scan-client-site.sh` writes the snapshot that
+`undress.sh` restores from, and running it over a dressing already in progress replaces a
+picture of the site before anything was touched with a picture of it half-dressed. The one
+read-only step that looks free is the one that costs the rollback.
 
 ## The pipeline, in order
 
@@ -160,6 +195,12 @@ and the database decides who wears it.
   a defect. Judge how it *collapses* relative to its own desktop layout.
 - **A gate you have never seen fail is not yet trusted.** Before relying on a new check, break
   the page on purpose, watch it fail, then unbreak it.
+- **One builder per proposal, and nothing enforces it but you.** A Scan coalesces and a Migrate
+  coalesces; a reskin job does not — neither the relay nor the fleet holds a lock, so two builds
+  on one slug interleave their writes into one schema and the loser is whichever job you cannot
+  see. `list_proposals` before you start, and say whose dressing you are about to touch. If a
+  build may still be running, ask rather than assume it finished: a half-replayed proposal looks
+  exactly like a finished one that came out wrong.
 
 ## Writing a fill-block job
 
@@ -190,6 +231,9 @@ now wear the new layout and which deliberately still wear the old one, what each
 what went into the customer report (parts of the site this CMS does not serve, defects that
 exist on the live site too), and what still carries demo content behind a placeholder flag.
 Screenshots from `visual-qa` are the fastest way to show it.
+
+**Answer in the language the person is writing in.** File names, script names, slugs and job
+keys stay as they are — they are addresses, not prose, and translating one makes it wrong.
 
 ## When something breaks
 

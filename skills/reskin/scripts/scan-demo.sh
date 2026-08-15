@@ -7,7 +7,7 @@
 # asset list, css libraries, chrome (header/menu/footer), and the branding
 # deny-list. Read-only: never writes to the site.
 #
-# Spec: tracy-docs/reskin/README.md
+# Spec: ../references/spec.md
 #
 # Usage:
 #   scan-demo.sh --db <db-container> --web <web-container> --prefix <tblprefix> \

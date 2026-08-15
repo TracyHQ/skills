@@ -40,4 +40,4 @@ Two edits were made outside fill-block and must be redone by hand (or folded int
 2. **Old-skin layout families** — menu items still pinned to a `ja_v5` style need their
    `article_layout` set from the style's own family (Portfolio → `ja_v5:portfolio`, Docs →
    `ja_v5:documentation`, T4 Builder → `ja_v5:t4-blocks`, everything else → `ja_v5:blog`).
-   See traps 37/39 in `tracy-docs/reskin/README.md`.
+   See traps 37/39 in `../../references/spec.md`.

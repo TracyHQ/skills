@@ -8,7 +8,7 @@
 # Nothing is installed on the client site; the browser runs in a throwaway
 # container and reaches the copy over loopback with a Host-header rewrite.
 #
-# Spec: tracy-docs/reskin/README.md (Accessibility & Link scan chapters' QA loop)
+# Spec: ../references/qa-scans.md (link scan, accessibility, and the geometry gate)
 #
 # Usage:
 #   visual-qa.sh --host <public-host> --port <loopback-port> \

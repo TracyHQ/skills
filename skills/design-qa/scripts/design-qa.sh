@@ -70,7 +70,8 @@ def fetch(path, timeout=40, hops=0):
     except Exception:
         return 0, ""
 
-# Warm forSEF once (trap 22c) before judging any route.
+# Warm forSEF once before judging any route: it only relearns a URL when another page builds
+# that link, so a fresh page 404s on its pretty path while its content answers 200.
 fetch("/")
 
 link_cache = {}

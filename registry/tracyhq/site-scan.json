@@ -4,5 +4,11 @@
   "slug": "site-scan",
   "gitUrl": "https://github.com/TracyHQ/skills",
   "ref": "main",
-  "skillPath": "skills/site-scan"
+  "skillPath": "skills/site-scan",
+  "platforms": [
+    "wordpress",
+    "woocommerce",
+    "joomla",
+    "shopify"
+  ]
 }

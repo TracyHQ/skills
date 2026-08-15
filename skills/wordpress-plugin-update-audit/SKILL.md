@@ -6,6 +6,8 @@ tags:
   - wp-cli
   - maintenance
   - security
+version: 1.0.0
+provenOn: —
 ---
 
 # Auditing a WordPress site before a plugin update

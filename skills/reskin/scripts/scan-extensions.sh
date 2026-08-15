@@ -10,7 +10,7 @@
 # The reverse direction (client has, demo lacks) is out of scope by spec:
 # we dress the client site, we never fix the demo.
 #
-# Spec: tracy-docs/reskin/README.md
+# Spec: ../references/spec.md
 #
 # Usage:
 #   scan-extensions.sh --demo pattern-library.json --client content-inventory.json \
