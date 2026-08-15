@@ -59,7 +59,7 @@ ride the same branch but live in their real homes (`.claude/skills/`, `_Settings
 | carries | who says yes | why |
 | --- | --- | --- |
 | look / content | the customer, on the preview | they can see it and compare two tabs |
-| skills | a Developer reviews scripts as code, an Admin accepts the capability | skill scripts run on coworkers' machines, outside the relay |
+| skills | a Developer reviews scripts as code, an Admin accepts the capability | skill scripts run on team members' machines, outside the relay |
 | mcp | an Admin, always | it changes what the agent can reach; secrets never enter git |
 
 ## Approve is a merge — and only a merge
