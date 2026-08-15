@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { validateNumberedReference, validateSkillFrontmatter } from '../validate'
+import { validateNoPrivateRepoReference, validateNumberedReference, validateSkillFrontmatter } from '../validate'
 
 const ALL = ['wordpress', 'woocommerce', 'joomla', 'shopify']
 
@@ -129,5 +129,40 @@ describe('validateNumberedReference', () => {
 
   it('says nothing about a file with no numbered list at all', () => {
     expect(validateNumberedReference('x.md', '# Heading\n\nProse only.\n', [])).toEqual([])
+  })
+})
+
+/**
+ * ADR 0053's amendment. The case that motivated it: `reskin` told every installer to read
+ * `tracy-docs/reskin/README.md` "before your first run", and `tracy-docs` is private.
+ */
+describe('validateNoPrivateRepoReference', () => {
+  const codes = (e: { code: string }[]) => e.map((x) => x.code)
+
+  it('refuses a path rooted at a private repository', () => {
+    const errors = validateNoPrivateRepoReference('SKILL.md', 'Read `tracy-docs/reskin/README.md` first.')
+    expect(codes(errors)).toEqual(['private_repo_reference'])
+    expect(errors[0]?.message).toContain('tracy-docs')
+  })
+
+  it('refuses an owner-qualified private repository', () => {
+    expect(codes(validateNoPrivateRepoReference('x.sh', '# see TracyHQ/tracy-desk/src'))).toEqual([
+      'private_repo_reference'
+    ])
+  })
+
+  it('leaves a hostname alone — tracy.ai is a repository AND a domain', () => {
+    // Every preview address a reskin skill prints would otherwise fail the gate.
+    const text = '`joomlart-com-0871462c.tracy.ai` names the stack. curl -H "Host: <label>.tracy.ai"'
+    expect(validateNoPrivateRepoReference('SKILL.md', text)).toEqual([])
+  })
+
+  it('leaves a path on the fleet host alone', () => {
+    // The skill explains how to populate this directory; it is not a repository reference.
+    expect(validateNoPrivateRepoReference('SKILL.md', 'scp scripts/* <host>:/opt/tracy-fleet/reskin/')).toEqual([])
+  })
+
+  it('says nothing about a public repository', () => {
+    expect(validateNoPrivateRepoReference('SKILL.md', 'pinned in `TracyHQ/skills` and `mcp/servers/`')).toEqual([])
   })
 })
