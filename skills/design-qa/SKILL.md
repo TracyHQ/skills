@@ -29,11 +29,18 @@ Three tiers, run in this order (cheap → expensive):
 All three take `--variant <slug>` to judge a proposal instead of the site — miss it and you
 grade the wrong thing, and it passes.
 
+**`references/qa-scans.md`** carries what each gate measures and why: the link taxonomy and probing
+rules, the accessibility catalogue with its demo-baseline method, what the machine eye can and
+cannot see, and how a threshold gets calibrated. Read the section for the gate you are about to
+argue with — every rule there was paid for by a real failure, and the reason is attached.
+
 ## Discipline that is not optional
 
 - **A gate that has never caught a real defect is not yet trustworthy.** Prove it negative:
-  inject a breaking style, watch the gate fail, remove it (trap 36).
-- Thresholds are calibrated against the origin site itself, not against taste (trap 40).
+  inject a breaking style, watch the gate fail, remove it — see "Trusting a gate" in
+  `references/qa-scans.md`.
+- Thresholds are calibrated against the origin site itself, not against taste: a gate the real
+  site fails is a gate nobody trusts.
 - Full-page screenshots ship with every visual run — machines pass layouts that are
   *arranged but wrong*; eyes catch those. Look every round.
 

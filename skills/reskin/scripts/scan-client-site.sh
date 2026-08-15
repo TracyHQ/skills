@@ -9,7 +9,7 @@
 # the canonical URL map), real-copy CSS vocabulary, branding facts, and render
 # config (sef/htaccess/cache/tz). Read-only: never writes to the site.
 #
-# Spec: tracy-docs/reskin/README.md
+# Spec: ../references/spec.md
 #
 # Usage:
 #   scan-client-site.sh --db <db-container> --web <web-container> --prefix <p> \

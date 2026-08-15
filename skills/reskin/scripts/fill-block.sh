@@ -4,7 +4,7 @@
 # working copy: page shell + menu item + ACM/module blocks with real copy.
 #
 # The agent never writes SQL. Every mechanical trap learned on the reference pair is
-# owned here (spec: tracy-docs/reskin/README.md, traps 8-10, 12, 16, 20, 22-25):
+# owned here (spec: ../references/spec.md, traps 8-10, 12, 16, 20, 22-25):
 #   - params written via FROM_BASE64, inner JSON serialized RAW UTF-8
 #   - article shells get publish_up NULL and an alias that IS the public URL
 #   - menu items: nested-set append, `layout=fullwidth` inside the LINK
