@@ -7,7 +7,7 @@ description: >-
   change is grouped under one apply_id so the whole deliverable reverts to exactly what was there.
   Only Owner/Admin seats may apply, and the relay enforces it. Use when a deliverable has been
   approved and must land on the live WordPress site.
-version: 1.1.0
+version: 1.1.1
 platforms: wordpress
 tags:
   - apply
@@ -17,7 +17,12 @@ tags:
   - seo
 requires-mcp:
   - tracy-apply
-provenOn: tracy.ai (WordPress 7.0.2) — post + postmeta + option + media round-trip, reverted exactly
+provenOn: >-
+  tracy.ai (WordPress 7.0.2), 2026-08-16. Through the relay, by a Site agent: post + postmeta,
+  list, then one revert that took both back (relay audit, 4 calls, one apply_id). Straight at the
+  plugin, same day: option and media as well, media reverted with its attachment. NOT yet run
+  live: install_plugin, activate_plugin, install_theme, activate_theme — unit-tested at the relay
+  and the desk only.
 ---
 
 # WordPress Apply — an approved deliverable, onto the live site
