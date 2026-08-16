@@ -1,7 +1,7 @@
 ---
 name: joomla-apply
 description: Apply an approved deliverable to a client site's LIVE copy — update content (articles, modules, template styles), upload media, and install supporting extensions. The Apply direction of a site: the opposite of reskin, which only dresses the working copy on the fleet. Every change is grouped under one apply_id so the whole deliverable reverts to exactly what was there. Only Owner/Admin seats may apply, and the relay enforces it. Use when a deliverable has been approved and must land on the live site.
-version: 1.1.0
+version: 1.2.0
 platforms: joomla
 requires-mcp:
   - tracy-apply
@@ -88,6 +88,31 @@ A refusal is an answer, not a crash — read it and decide the next move:
 3. Apply each step — `update_content` / `upload_media` / `install_extension`.
 4. If anything is wrong, `revert_apply` the id and start over; the site returns to exactly what it
    was.
+5. When the Apply landed, say so to the preview: `reload_preview`.
+
+## Telling the preview
+
+The customer is often watching their site inside Tracy while you work. What you just applied lives
+in the site's database — a template switched on, an article rewritten — and a database change
+produces no commit, so nothing outside the site can notice it. The preview watches the deployed
+commit and reloads on its own for anything that arrives through git; for your work it has nothing
+to watch. 🔒 Seen on 2026-08-15: a template installed through git appeared in five seconds, and
+then activating it changed nothing the customer could see until they reloaded by hand.
+
+So call **`reload_preview`** once, after the last successful step. It takes no arguments — the
+address is derived from the site you are already bound to, never passed in. If no preview is open
+it costs nothing and says so; that is not a failure and does not change how you report the run.
+
+**Call it only when the Apply actually landed.** A run you reverted, or one that stopped on a
+refusal, has nothing for the customer to look at, and reloading then shows them the old site with
+a fresh timestamp — which reads as "something happened" when nothing did.
+
+The tool reaches you from one of two places and you do not choose which: a Site agent inside Tracy
+Desk is handed it in-process, and an agent working outside Desk gets it from the `tracy-desk` MCP
+server if the person wired one up. It is therefore **optional by design** and deliberately absent
+from `requires-mcp`: an Apply that landed is a success whether or not anyone was watching, and a
+skill that refused to run without a screen would be wrong. If you do not have the tool, skip this
+step in silence — do not mention it, and do not ask the person to install anything.
 
 ## Being invoked bare
 
