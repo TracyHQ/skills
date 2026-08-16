@@ -33,27 +33,41 @@ their files, their extensions, their theme. It exists so an agent can be given r
 Without it, every useful thing an agent does would land on a live business — and no owner should
 be asked to accept that, however good the agent is.
 
+**The live site is the source of truth, and the working copy is disposable.** That is ADR 0051's
+host-in-place model, which is the only one built today: the customer's site stays on their own
+hosting, the copy is staging, Sync runs one way (live → copy), and the copy can be thrown away and
+rebuilt. Which is exactly what makes it safe to work in — a mistake here costs a rebuild, and a
+rebuild is a Tuesday.
+
 This skill only **builds and finds** the copy. Dressing it is `reskin`; showing the customer's
 content inside a template demo is `demo-try-on`; putting finished work onto the live site is an
-Apply (`joomla-apply` / `wordpress-apply`), always the customer's decision.
+Apply (`joomla-apply` / `wordpress-apply`), always the customer's decision and gated at the relay
+to Owner/Admin.
 
-## Building is not free on the customer's side. Say so first.
+## How a build reaches the live site
 
-🔒 The one thing to get right before running anything: **a build writes to the live site.** It is
-not the site's content that is written, but it is not nothing either.
+A build is a **Migrate** — the same run the setup wizard performs, reached from a conversation
+instead of a screen. It is the first automatic action a Site gets, and it is gated on an admin
+login the owner supplies themselves: without one, nothing runs at all.
 
-`build_working_copy` signs into the live site's admin with the credential its owner gave Tracy,
-and **installs Tracy's own migration component (Joomla) or plugin (WordPress)** on their site,
-writing its token through the site's own settings form. The export then reads through it.
+That credential does one job: **bootstrap**. Tracy signs in once, installs or refreshes its own
+component (Joomla) or plugin (WordPress), and mints the token everything afterwards uses. It is
+not the channel work travels on — writing content back to the live site is an Apply, and it goes
+through the relay with its own role gate.
+
+The install step is idempotent: a component already present and current is used as it stands
+rather than reinstalled. A fresh token is written into the site's settings on every run, which is
+the one thing that happens to their site each time.
 
 | On the live site | |
 |---|---|
-| **Written** | Tracy's migration component/plugin, and its token in the site's settings |
+| **Reached** | Tracy's own component/plugin — installed or refreshed if needed |
 | **Not touched** | articles, posts, pages, media, users, theme, settings, any file they wrote |
 
-So: never describe this as read-only, and tell the person what will be installed **before** you
-run it, not after. An owner who finds a new extension in their admin that nobody mentioned has
-been given a reason to distrust everything else the agent says it did.
+So do not call a build "read-only" — it does reach their site. But do not dress it up as a
+surprise either: it is the documented way a Site is connected, and the owner opened that door on
+purpose. Writing *content* back to the live site is an Apply, a separate act with its own skill
+and its own role gate at the relay.
 
 ## Called bare
 
@@ -127,14 +141,15 @@ Stop as soon as you can answer; each step costs more than the one above it.
 1. `facts/working-copy.json` in the workspace — the address, if any session wrote it.
 2. `find_working_copy` — the truth, one request, always available.
 3. `working_copy_status` — only when something just ran and you need to know how far it got.
-4. The person, in words — for the two questions no tool answers: whether they accept an extension
-   being installed on their live site, and whether they accept the copy being rebuilt over.
+4. The person, in words — for the question no tool answers: whether they accept the copy being
+   rebuilt over.
 
 ## Rules that are not negotiable
 
-- **Never call it read-only.** See the section above; it installs an extension on their site.
-- **Never build without saying what a build does.** Both costs — the install, and the rebuild —
-  are things the person learns from you or not at all.
+- **Never call a build read-only.** It reaches their site to install or refresh Tracy's component.
+  It changes nothing of theirs, and both halves of that sentence have to survive.
+- **Never rebuild an existing copy without asking.** It is the one cost a person cannot recover
+  from, and the one they learn from you or not at all.
 - **You never reach the live site yourself.** No SQL, no file edits, no admin login, no write of
   any kind of your own. If you are about to, stop: either a tool owns that step, or the step
   belongs to an Apply skill and is not yours.
@@ -151,13 +166,14 @@ The person who asked cannot see your terminal. When a build finishes, tell them,
 1. **The address**, or the reason there is none. A build that stood the copy up but published no
    address is not a success to report quietly — say the copy is standing and the login is not, so
    they know why there is nothing to click.
-2. **What was installed on their live site**, named. This is the part they cannot see coming and
-   the part they are entitled to know.
-3. **What a rebuild replaced**, if the copy already existed and somebody had work on it.
+2. **What a rebuild replaced**, if the copy already existed and somebody had work on it. This is
+   the only irreversible thing a build does.
+3. **What was installed**, when the build installed or updated the component. Not an alarm — a
+   line, because it is a change to their site and they should hear it from you first.
 
-> Your working copy is standing at `https://<label>.tracy.ai`, behind your Tracy login. Building
-> it installed the Tracy migration plugin on your live site; nothing of your content, media or
-> settings was changed.
+> Your working copy is standing at `https://<label>.tracy.ai`, behind your Tracy login. Nothing on
+> your live site changed; Tracy's plugin was already installed, so the export used the one that was
+> there.
 
 **The address is not optional in the report.** Reporting that the copy was built while staying
 quiet about a failed address reads as success — the failure is then discovered by the person who

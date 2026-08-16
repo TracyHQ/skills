@@ -5,5 +5,5 @@
   "gitUrl": "https://github.com/TracyHQ/skills",
   "ref": "main",
   "skillPath": "skills/working-copy",
-  "platforms": ["joomla", "wordpress", "woocommerce"]
+  "platforms": ["joomla", "wordpress"]
 }

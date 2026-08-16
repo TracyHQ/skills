@@ -63,19 +63,25 @@ word that could be either.
 > Done! Your working copy is ready at `https://<label>.tracy.ai`. Nothing on your live site was
 > touched — the whole process is read-only.
 
-The last sentence is false, and it is false in the direction that costs trust. Building signs into
-their admin and installs Tracy's migration component or plugin. The owner will see a new extension
-in their site's list. Finding it there, after being told nothing was touched, makes every other
-claim the agent made worth re-checking.
+"Read-only" is the false half. A build reaches their site: it signs into the admin and installs or
+refreshes Tracy's component, which is how the export reads anything at all. Said this way, an owner
+who later notices the extension has been given a reason to re-check every other claim.
+
+## Also fails, in the other direction
+
+> ⚠️ Warning: this installed a plugin on your live site that you did not have before.
+
+Overstated, and it frightens someone about the thing they already agreed to. Installing the
+component is how a Site is connected at all — the owner supplied the admin login for exactly this,
+through the setup wizard. Alarming them about the front door makes the real warnings harder to hear.
 
 ## Passes
 
-> Your working copy is standing at `https://<label>.tracy.ai`, behind your Tracy login.
->
-> Building it installed the Tracy migration plugin on your live site — that is how the export
-> reads it. None of your content, media, users or settings was changed.
+> Your working copy is standing at `https://<label>.tracy.ai`, behind your Tracy login. Nothing of
+> your content, media or settings changed — Tracy's plugin was already on the site, so the export
+> read through the one that was there.
 
-Both facts, in the order the person needs them: where it is, then what it cost.
+Where it is, then what actually happened. Neither claim bigger than the facts.
 
 ## Fails — the quiet half-success
 
