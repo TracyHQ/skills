@@ -4,8 +4,8 @@ description: >-
   Build and find a Site's working copy, the running copy of the customer's site on Tracy's own
   infrastructure that all agent work happens on. Exports the live site's database and webroot,
   builds them into a running site at the site's own fleet address behind a login, and writes the
-  address into the workspace. Reads the live site, never writes to it. Use before any work that
-  would otherwise touch a customer's site, and whenever anyone asks where this site's copy lives.
+  address into the workspace. Use before any work that would otherwise touch a customer's site,
+  and whenever anyone asks where this site's copy lives.
 version: 1.0.0
 platforms: joomla, wordpress
 tags:
@@ -20,21 +20,40 @@ provenOn: —
 
 # Working copy — the site the agent is allowed to touch
 
-A Site in Tracy has two copies, and every rule in this skill follows from telling them apart:
+A Site in Tracy has two copies, and every rule below follows from telling them apart:
 
-| | Where | What it is for |
-| --- | --- | --- |
-| **Local copy** | in the workspace, on disk | reading — read-only, refreshed by Sync |
-| **Working copy** | running on the fleet, at its own address | **working** — this is where changes are made |
+| | Where | For | Cost of a mistake |
+|---|---|---|---|
+| **Local copy** | in the workspace, on disk | **reading** — read-only, refreshed by Sync | re-Sync it |
+| **Working copy** | running on the fleet, at its own address | **working** — changes are made here | rebuild it, and lose whatever was done on it |
+| the **live site** | the customer's own hosting | their business | there is no undo |
 
 The working copy is the customer's whole site standing on Tracy's infrastructure: their database,
-their files, their extensions, their theme. It exists so that an agent can be given real work to
-do. Without it, every useful thing an agent does would land on a live business — and no owner
-should be asked to accept that, however good the agent is.
+their files, their extensions, their theme. It exists so an agent can be given real work to do.
+Without it, every useful thing an agent does would land on a live business — and no owner should
+be asked to accept that, however good the agent is.
 
-So the direction is fixed, and it is the reason this skill is safe to run: **the live site is
-read, never written.** Getting work back onto the live site is an Apply, it is a different skill,
-and it is always the customer's decision.
+This skill only **builds and finds** the copy. Dressing it is `reskin`; showing the customer's
+content inside a template demo is `demo-try-on`; putting finished work onto the live site is an
+Apply (`joomla-apply` / `wordpress-apply`), always the customer's decision.
+
+## Building is not free on the customer's side. Say so first.
+
+🔒 The one thing to get right before running anything: **a build writes to the live site.** It is
+not the site's content that is written, but it is not nothing either.
+
+`build_working_copy` signs into the live site's admin with the credential its owner gave Tracy,
+and **installs Tracy's own migration component (Joomla) or plugin (WordPress)** on their site,
+writing its token through the site's own settings form. The export then reads through it.
+
+| On the live site | |
+|---|---|
+| **Written** | Tracy's migration component/plugin, and its token in the site's settings |
+| **Not touched** | articles, posts, pages, media, users, theme, settings, any file they wrote |
+
+So: never describe this as read-only, and tell the person what will be installed **before** you
+run it, not after. An owner who finds a new extension in their admin that nobody mentioned has
+been given a reason to distrust everything else the agent says it did.
 
 ## Called bare
 
@@ -47,7 +66,8 @@ anyone changed on the copy is overwritten with the live site's current state, si
 diff and no prompt. So the cheap read comes first, and building is something a person asks for.
 
 Build when nothing is standing and there is work to do, or when the copy is known to be stale and
-whoever is asking understands what a rebuild discards.
+whoever is asking understands what a rebuild discards — including any `reskin` proposal standing
+on that copy.
 
 ## The three tools
 
@@ -55,11 +75,12 @@ whoever is asking understands what a rebuild discards.
 | --- | --- | --- |
 | `find_working_copy` | one HTTP request | Where the working copy is, and whether it is standing |
 | `working_copy_status` | nothing | How the last build went, step by step |
-| `build_working_copy` | minutes, and traffic on the live site | Builds it, and returns the address |
+| `build_working_copy` | minutes, an install on the live site, and a rebuild if one exists | Builds it, returns the address |
 
-Never assemble an address yourself and never go looking for one. It is derived from the site's own
-hostname on the app's side of the wire, so `find_working_copy` is both cheaper and more correct
-than anything you could put together.
+None of them take arguments — the site is the one you belong to. Never assemble an address
+yourself and never go looking for one: it is derived from the site's own hostname on the app's
+side of the wire, so `find_working_copy` is both cheaper and more correct than anything you could
+put together.
 
 ## The address is derivable, and that is exactly why it goes missing
 
@@ -67,10 +88,11 @@ Every Site has **one** working copy at **one** address, forever — the label is
 the site's hostname. There is no list to search, no name to choose, and no way to end up with two
 differently-addressed copies of one site.
 
-Which produced a failure worth naming, because it happened (2026-08-16). Asked where a site's copy
-lived, an agent with no record of it searched the workspace, found the one file whose name looked
-close, and answered — confidently, with a file path — about an unrelated database dump. Nothing
-was broken. The address had simply never been written down, and *derivable* is not *written down*.
+Which produced a failure worth naming, 🔒 because it happened (2026-08-16). Asked where a site's
+copy lived, an agent with no record of it searched the workspace, found the one file whose name
+looked close, and answered — confidently, with a file path — about an unrelated database dump.
+Nothing was broken. The address had simply never been written down, and *derivable* is not
+*written down*.
 
 So `build_working_copy` writes `facts/working-copy.json` into the workspace on success, and that
 file is the answer in any later session. If you find the copy by some other route, put it there. A
@@ -94,8 +116,9 @@ succeeded and the build did not, which is Tracy's infrastructure and not somethi
 can fix. Report the code you were given rather than a guess at its cause.
 
 **Two builds of one site cannot run at once.** Calling `build_working_copy` while one is running
-joins the run in progress instead of starting a second — the app holds that lock, and this is one
-of the few places where it does. Do not write a waiting loop around it.
+joins the run in progress instead of starting a second — the app holds that lock. Do not write a
+waiting loop around it. 🔒 Do not carry that reassurance into `reskin`: nothing locks a reskin
+job, and that skill says so itself.
 
 ## Where to look, in order
 
@@ -104,17 +127,60 @@ Stop as soon as you can answer; each step costs more than the one above it.
 1. `facts/working-copy.json` in the workspace — the address, if any session wrote it.
 2. `find_working_copy` — the truth, one request, always available.
 3. `working_copy_status` — only when something just ran and you need to know how far it got.
-4. The person, in words — only for the question no tool answers: whether they accept the copy
-   being rebuilt over.
+4. The person, in words — for the two questions no tool answers: whether they accept an extension
+   being installed on their live site, and whether they accept the copy being rebuilt over.
 
-## What this skill does not do
+## Rules that are not negotiable
 
-- **It does not reach the live site.** No SQL, no file edits, no admin login, no write of any
-  kind. If you are about to do one of those, you are in the wrong skill.
-- **It does not choose infrastructure.** Hosts, ports, object store keys, DNS and the login are
-  resolved from the site key by the app. There is nothing to configure and no host to name.
-- **It does not decide whether a rebuild is acceptable.** That is a person's call, because it is
-  their work on the copy that a rebuild discards.
+- **Never call it read-only.** See the section above; it installs an extension on their site.
+- **Never build without saying what a build does.** Both costs — the install, and the rebuild —
+  are things the person learns from you or not at all.
+- **You never reach the live site yourself.** No SQL, no file edits, no admin login, no write of
+  any kind of your own. If you are about to, stop: either a tool owns that step, or the step
+  belongs to an Apply skill and is not yours.
+- **You never choose infrastructure.** Hosts, ports, object store keys, DNS and the login are
+  resolved from the site key by the app. There is nothing to configure and no host to name; if you
+  find yourself looking for one, you are working around a tool instead of using it.
+- **You never decide that a rebuild is acceptable.** That is a person's call, because it is their
+  work on the copy that a rebuild discards.
+
+## Reporting back
+
+The person who asked cannot see your terminal. When a build finishes, tell them, in this order:
+
+1. **The address**, or the reason there is none. A build that stood the copy up but published no
+   address is not a success to report quietly — say the copy is standing and the login is not, so
+   they know why there is nothing to click.
+2. **What was installed on their live site**, named. This is the part they cannot see coming and
+   the part they are entitled to know.
+3. **What a rebuild replaced**, if the copy already existed and somebody had work on it.
+
+> Your working copy is standing at `https://<label>.tracy.ai`, behind your Tracy login. Building
+> it installed the Tracy migration plugin on your live site; nothing of your content, media or
+> settings was changed.
+
+**The address is not optional in the report.** Reporting that the copy was built while staying
+quiet about a failed address reads as success — the failure is then discovered by the person who
+clicks nothing.
+
+**Answer in the language the person is writing in** (ADR 0053 §7). Addresses, labels, file names
+and error codes stay verbatim — they are addresses, not prose, and translating one makes it wrong.
+
+## When something breaks
+
+Two failures account for most of them; check these before anything else.
+
+- **`no_admin_login`.** Tracy has no working admin credential for the site, or the one it has
+  stopped working. This is not something you can fix and not something to retry — a person opens
+  Site Configuration and supplies one. Say which site, and stop.
+- **`provision_failed`.** The export finished and the build did not, which is Tracy's own
+  infrastructure. `working_copy_status` names the step it died on; report that step rather than
+  the generic code, and do not re-run more than once — a second identical failure is news for a
+  person, not for another attempt.
+
+A build that never answers is a third case and it is the one to be careful with: the tool gives up
+reporting after 30 minutes, but **the build has not been cancelled and is still running**. Read
+`working_copy_status`; do not start another.
 
 ## Keeping this skill honest
 
@@ -122,3 +188,5 @@ Every build that surprises you becomes a line in this file. If you needed a hedg
 written here — a state one of the three tools reports that this document does not describe, or a
 question you had to put to a person because no tool answered it — that is a rule this skill is
 missing, not a one-off. Add it, raise the version, and name the site it happened on in `provenOn`.
+Once this file holds enough of them to cite by number, they move to `references/spec.md`, the way
+`reskin` and `demo-try-on` keep theirs.

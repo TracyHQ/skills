@@ -53,3 +53,37 @@ one). "Live copy" collapses the two in the one place where confusing them is exp
 reading that sentence may believe a change landed on the customer's real site, or that it is safe
 to make one because "it is only the copy". Name the working copy, or name the live site. Never a
 word that could be either.
+
+---
+
+# Example — reporting a build
+
+## Fails
+
+> Done! Your working copy is ready at `https://<label>.tracy.ai`. Nothing on your live site was
+> touched — the whole process is read-only.
+
+The last sentence is false, and it is false in the direction that costs trust. Building signs into
+their admin and installs Tracy's migration component or plugin. The owner will see a new extension
+in their site's list. Finding it there, after being told nothing was touched, makes every other
+claim the agent made worth re-checking.
+
+## Passes
+
+> Your working copy is standing at `https://<label>.tracy.ai`, behind your Tracy login.
+>
+> Building it installed the Tracy migration plugin on your live site — that is how the export
+> reads it. None of your content, media, users or settings was changed.
+
+Both facts, in the order the person needs them: where it is, then what it cost.
+
+## Fails — the quiet half-success
+
+> Your working copy has been built.
+
+Said when the build stood the copy up but published no address. Every word is true and the person
+learns nothing about why there is no link. They go looking for one, find nothing, and the failure
+surfaces as confusion rather than as the sentence it should have been:
+
+> The copy is standing, but the login in front of it could not be published, so it has no address
+> yet. It holds your whole user table, so it stays unreachable until that door is up.
