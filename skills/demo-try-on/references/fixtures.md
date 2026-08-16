@@ -93,3 +93,27 @@ take-off.sh --demo …                                                 # always,
 
 The demo runs behind Cloudflare Access, so read it through the container
 (`-H 'X-Forwarded-Proto: https'`) and never through the public URL. See trap 3.
+
+---
+
+## Not Teline V only
+
+The skill reads the demo it is pointed at; nothing in it is tied to one template. Measured on a
+second one without changing a line:
+
+| | Teline V | JA Stratum |
+|---|---|---|
+| Content slots | 19 | 24 |
+| Article seats | 208 | 8 |
+| Table prefix | `jos_` | `stratum_` |
+
+The prefixes differ completely, which is why trap 13 matters: a guessed prefix happens to work on
+one demo and breaks the moment somebody tries another.
+
+Two things still lean on Teline V, and both are known:
+
+- **`verify`'s 50KB floor** is taken from Teline V's 320KB front page. A lighter template could
+  fail that check while rendering perfectly. It should measure the demo rather than hold a number.
+- **The content-module list** (`mod_ja_acm`, `mod_articles_*`) covers what JoomlArt builds with.
+  A demo assembled from another vendor's modules would report no slots at all.
+

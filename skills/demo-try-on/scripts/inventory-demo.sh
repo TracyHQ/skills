@@ -118,7 +118,14 @@ def wants(node, depth=0):
 
 # Which ACM block a module runs — the demo names it in `jatools-config[":type"]`, e.g.
 # "ja_teline_v:news-featured". Worth carrying: it is the name of the shape the content lands in.
-def block_of(params):
+def block_of(params, module=""):
+    """Tên kiểu block, hoặc tên module khi khe không do ACM dựng.
+
+    🔒 Trả None là để lại một trường mà mọi người đọc phải tự đoán nghĩa. Khe của
+    `mod_articles_popular` hay `mod_articles_news` vẫn là khe thật, chỉ không phải ACM — và trên
+    JA Stratum có 3 khe như thế trong 24. Một `null` ở đó làm hỏng mọi thứ in ra bảng, mà điều
+    nó muốn nói chỉ là "khe này không phải block ACM".
+    """
     cfg = params.get("jatools-config")
     if isinstance(cfg, str):
         try:
@@ -129,7 +136,8 @@ def block_of(params):
         t = cfg.get(":type")
         if isinstance(t, str) and ":" in t:
             return t.split(":", 1)[1]
-    return None
+    # Không phải ACM: tên module là câu trả lời đọc được nhất cho "khe này là gì".
+    return module or "unknown"
 
 slots, seen = [], {}
 for line in open(os.path.join(work, "rows")):
@@ -152,7 +160,7 @@ for line in open(os.path.join(work, "rows")):
     slots.append({
         "position": position,
         "module": module,
-        "block": block_of(params),
+        "block": block_of(params, module),
         "title": title,
         "wants": n,
         "modules": 1,
