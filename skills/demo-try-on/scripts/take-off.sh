@@ -20,10 +20,12 @@
 set -euo pipefail
 
 OFFSET=900000
+VARIANT=""
 DEMO=""; FORCE=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --demo) DEMO="$2"; shift 2 ;;
+    --variant) VARIANT="$2"; shift 2 ;;
     --force) FORCE=1; shift ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
@@ -31,13 +33,42 @@ done
 [ -n "$DEMO" ] || { echo "need --demo <label>" >&2; exit 2; }
 
 ROOT="/srv/tracy/$DEMO/webroot"
-SNAP="/srv/tracy/$DEMO/try-on-snapshot.json"
+# 🔒 Một file cho mỗi bản thử, không phải một file cho mỗi bản demo. Dùng chung đường dẫn thì
+# lượt mặc lên MỘT schema ghi đè bản chụp của schema khác, và lượt cởi sau đó khôi phục nhầm
+# params: bản demo gốc còn 8 module trỏ vào chuyên mục đã bị xoá, mọi block ấy rỗng, và trang
+# tụt từ 320KB xuống 159KB mà không có lỗi nào ở đâu cả.
+SNAP="/srv/tracy/$DEMO/try-on-snapshot${VARIANT:+-$VARIANT}.json"
 [ -d "$ROOT" ] || { echo "no demo at $ROOT" >&2; exit 1; }
 
 PASS=$(grep -m1 '^DB_PASSWORD=' "/srv/tracy/$DEMO/.env" | cut -d= -f2-)
 PREFIX=$(grep -m1 'dbprefix' "$ROOT/configuration.php" | sed "s/.*= *'\([^']*\)'.*/\1/")
 DBNAME=$(grep -m1 'public \$db ' "$ROOT/configuration.php" | sed "s/.*= *'\([^']*\)'.*/\1/")
+# Schema của bản thử: gạch ngang trong hostname, gạch dưới trong tên schema — cùng phép đổi
+# make-variant.sh làm. Không có --variant thì đây là database chính, đúng như trước.
+[ -n "$VARIANT" ] && DBNAME="${DBNAME}_$(printf '%s' "$VARIANT" | tr '-' '_')"
 dq() { docker exec "${DEMO}-db-1" mariadb -uroot -p"$PASS" -N -B -r "$DBNAME" -e "$1" 2>/dev/null; }
+
+# Bản thử sống trong schema RIÊNG thì cởi ra là xoá cả schema — không snapshot, không dải id,
+# không sót bảng phụ. Cả trap 10 biến mất cùng nó: những bảng hàng-treo-theo-bài không còn chỗ để
+# sống sót.
+#
+# Chỉ làm khi có `--variant`. Không có nó nghĩa là bản thử nằm trong database chính của bản demo,
+# và ở đó xoá theo id range là cách duy nhất không mang bản demo đi cùng.
+if [ -n "$VARIANT" ]; then
+  echo "════ TAKE OFF — $DEMO (variant $VARIANT)"
+  echo
+  arts=$(dq "select count(*) from ${PREFIX}content;")
+  echo "  articles in the variant: ${arts:-0}"
+  docker exec "${DEMO}-db-1" mariadb -uroot -p"$PASS" -e "drop database \`${DBNAME}\`;" 2>/dev/null || {
+    echo "  ✗ could not drop ${DBNAME}" >&2; exit 1; }
+  left=$(docker exec "${DEMO}-db-1" mariadb -uroot -p"$PASS" -N -B -e \
+    "select count(*) from information_schema.schemata where schema_name='${DBNAME}';" 2>/dev/null)
+  docker exec "${DEMO}-web-1" sh -c 'rm -rf /var/www/html/images/_try-on' 2>/dev/null || true
+  docker exec "${DEMO}-web-1" sh -c 'rm -rf /var/www/html/cache/* /var/www/html/administrator/cache/*' 2>/dev/null || true
+  [ "${left:-1}" = "0" ] && echo "  ✓ schema ${DBNAME} dropped" || {
+    echo "  ✗ ${DBNAME} still there" >&2; exit 1; }
+  exit 0
+fi
 
 arts=$(dq "select count(*) from ${PREFIX}content where id >= $OFFSET;")
 cats=$(dq "select count(*) from ${PREFIX}categories where id >= $OFFSET;")

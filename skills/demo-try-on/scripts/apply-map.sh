@@ -24,10 +24,12 @@ set -euo pipefail
 OFFSET=900000
 # How many articles per created category get marked featured. See the frontpage insert below.
 FEATURED_PER_CATEGORY=4
+VARIANT=""
 DEMO=""; CLIENT=""; MAP=""; DRY=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --demo) DEMO="$2"; shift 2 ;;
+    --variant) VARIANT="$2"; shift 2 ;;
     --client) CLIENT="$2"; shift 2 ;;
     --map) MAP="$2"; shift 2 ;;
     --dry-run) DRY=1; shift ;;
@@ -46,6 +48,10 @@ conn() {  # label → "pass|prefix|db"
     "$(grep -m1 'public \$db ' "$root/configuration.php" | sed "s/.*= *'\([^']*\)'.*/\1/")"
 }
 IFS='|' read -r DPASS DPREFIX DDB <<< "$(conn "$DEMO")"
+# Schema của bản thử: gạch ngang trong hostname, gạch dưới trong tên schema — cùng phép đổi
+# make-variant.sh làm. Mọi lượt ghi của script này rơi vào đây, nên bản demo gốc không bị đụng
+# và hai khách thử cùng template không đè lên nhau.
+[ -n "$VARIANT" ] && DDB="${DDB}_$(printf '%s' "$VARIANT" | tr '-' '_')"
 IFS='|' read -r CPASS CPREFIX CDB <<< "$(conn "$CLIENT")"
 
 dq() { docker exec "${DEMO}-db-1"   mariadb -uroot -p"$DPASS" -N -B -r "$DDB" -e "$1" 2>/dev/null; }
@@ -95,7 +101,11 @@ LANG=$(python3 -c "import base64,json,sys; print(json.load(open(sys.argv[1]))['l
 
 # ── Snapshot before touching anything. `take-off.sh` restores module params from this file; if it
 # is not written, the run is not reversible and must not proceed.
-SNAP="/srv/tracy/$DEMO/try-on-snapshot.json"
+# 🔒 Một file cho mỗi bản thử, không phải một file cho mỗi bản demo. Dùng chung đường dẫn thì
+# lượt mặc lên MỘT schema ghi đè bản chụp của schema khác, và lượt cởi sau đó khôi phục nhầm
+# params: bản demo gốc còn 8 module trỏ vào chuyên mục đã bị xoá, mọi block ấy rỗng, và trang
+# tụt từ 320KB xuống 159KB mà không có lỗi nào ở đâu cả.
+SNAP="/srv/tracy/$DEMO/try-on-snapshot${VARIANT:+-$VARIANT}.json"
 if [ "$DRY" = 0 ]; then
   dq "select concat(id,'|',replace(replace(to_base64(params),'\n',''),'\r','')) from ${DPREFIX}modules
        where published=1 and client_id=0 and position <> '';" \

@@ -142,6 +142,40 @@ count all five when reporting what is left.
 
 ---
 
+## 11 · A demo wears one try-on per schema, and the schema is the whole mechanism
+
+**Cost:** three consecutive runs that collided with each other, one of them stopping halfway with
+`could not copy article 3`.
+
+Everything here writes above one ID offset. In a single database that means the second run finds
+the category it wants to create already there, the article ids taken, and stops — leaving a demo
+that is neither the old try-on nor the new one.
+
+The fix is not coordination, it is **a schema per try-on** (ADR 0044): `joomla_<slug>` beside the
+demo's own, same webroot, same container, different data. `configuration.php` grows a constructor
+that reads `X-Tracy-Variant` and points `$db` at it; with no header nothing changes, so the site
+runs exactly as before and the mechanism fails safe.
+
+Then one demo serves several try-ons at once, `take-off` is `drop database`, and traps 7, 8 and 10
+stop being reachable at all — there is no shared row left to collide over.
+
+---
+
+## 12 · One snapshot file per demo is one file too few
+
+**Cost:** the original demo silently lost 9 modules' worth of settings — front page down from
+320KB to 159KB, no error anywhere.
+
+`try-on-snapshot.json` was keyed by demo. The moment a second try-on ran on a different schema of
+the same demo, it overwrote the first one's snapshot, and the take-off that followed restored the
+wrong module params. The modules kept pointing at categories that had been deleted, so every block
+they fed rendered empty.
+
+Key it by try-on: `try-on-snapshot-<variant>.json`. And when a snapshot is already lost, a clean
+variant schema of the same demo is the way back — its `#__modules` still hold the original params.
+
+---
+
 ## Known limit — not a bug
 
 A try-on covers the slots the client has content for. The fixture: **3 of 19**. Teline V has 19

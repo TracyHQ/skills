@@ -18,10 +18,12 @@
 set -euo pipefail
 
 OFFSET=900000
+VARIANT=""
 DEMO=""; MAP=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --demo) DEMO="$2"; shift 2 ;;
+    --variant) VARIANT="$2"; shift 2 ;;
     # Optional: with the map, check 3 can name the slots that were promised and are still empty,
     # instead of only counting categories.
     --map) MAP="$2"; shift 2 ;;
@@ -34,6 +36,9 @@ ROOT="/srv/tracy/$DEMO/webroot"
 PASS=$(grep -m1 '^DB_PASSWORD=' "/srv/tracy/$DEMO/.env" | cut -d= -f2-)
 PREFIX=$(grep -m1 'dbprefix' "$ROOT/configuration.php" | sed "s/.*= *'\([^']*\)'.*/\1/")
 DBNAME=$(grep -m1 'public \$db ' "$ROOT/configuration.php" | sed "s/.*= *'\([^']*\)'.*/\1/")
+# Schema của bản thử: gạch ngang trong hostname, gạch dưới trong tên schema — cùng phép đổi
+# make-variant.sh làm. Không có --variant thì đây là database chính, đúng như trước.
+[ -n "$VARIANT" ] && DBNAME="${DBNAME}_$(printf '%s' "$VARIANT" | tr '-' '_')"
 PORT=$(grep -m1 '^HOST_PORT=' "/srv/tracy/$DEMO/.env" | cut -d= -f2- || echo "")
 dq() { docker exec "${DEMO}-db-1" mariadb -uroot -p"$PASS" -N -B -r "$DBNAME" -e "$1" 2>/dev/null; }
 
@@ -50,8 +55,12 @@ if [ -n "$PORT" ]; then
   # a 33KB document that passes a size check and contains none of the demo's articles — so checks
   # 1 and 2 both silently graded the wrong page. `X-Forwarded-Proto` tells Joomla the hop it cares
   # about already happened, and the request stays inside the container. Never add `-L` here.
+  # 🔒 Với `--variant`, cùng một URL phục vụ HAI trang: không header là bản demo gốc, có header là
+  # bản thử. Kiểm mà quên header là chấm điểm bản demo — nó luôn đẹp, và bản thử hỏng thế nào cũng
+  # không ai biết.
   code=$(curl -s -o /tmp/try-on-page.html -w '%{http_code}' --max-time 20 \
     -H "Host: ${DEMO}.tracy.ai" -H 'X-Forwarded-Proto: https' \
+    ${VARIANT:+-H "X-Tracy-Variant: $VARIANT"} \
     "http://127.0.0.1:${PORT}/" || echo 000)
   bytes=$(wc -c < /tmp/try-on-page.html 2>/dev/null || echo 0)
   echo "   HTTP $code · $bytes bytes"
