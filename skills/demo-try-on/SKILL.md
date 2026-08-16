@@ -216,6 +216,10 @@ person reading it is deciding whether to buy a template, so the honest shape of 
 Never present a try-on as if it were the client's site fully rendered. It is a fitting room
 mirror, and saying so is what makes it useful.
 
+**Answer in the language the person is writing in** (ADR 0053 §7). Template names, fleet labels,
+slugs, position names and file names stay as they are — they are addresses, not prose, and
+translating one makes it wrong. The address you hand back is one of those: print it verbatim.
+
 ## When something breaks
 
 `references/spec.md` has the trap list. Before going there, check the two failures that account
@@ -226,3 +230,7 @@ for most of them:
 - **A block renders empty.** The generation step was skipped for a slot the map marked
   `generate`, or the client category it points at has fewer articles than the block wants. The
   count is in `inventory-demo.json`; the map is where the fix goes.
+
+Every failure that surprised you becomes a numbered trap in `references/spec.md`, with the fix
+folded into the script that owns the step — the way `reskin` grew its 51. A trap that stays in the
+transcript dies with the session, and the next person pays for it again.
