@@ -1,7 +1,7 @@
 ---
 name: demo-try-on
 description: Put a client's real content INTO a template demo's working copy, so they can see their own site wearing that template without anything being built. The mirror of reskin - here the demo is the destination and the client site is read-only reference (content, images, logo). Gaps the client cannot fill are generated and marked as generated. Use when someone asks what their site would look like in a template, wants to preview a template with their own content, or is choosing between templates.
-version: 0.3.0
+version: 0.3.1
 platforms: joomla
 requires-mcp:
   - tracy-demo-try-on

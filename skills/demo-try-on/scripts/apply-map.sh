@@ -65,15 +65,26 @@ for row in m.get("slots", []):
         problems.append(f"{where}: empty `why` — a row nobody could explain is a row nobody checked")
     fill, src, gen = row.get("fill"), row.get("source"), row.get("generate", 0)
     if fill in ("client", "mixed") and not src:
-        problems.append(f"{where}: fill={fill} but no source")
+        problems.append(f"{where}: fill={fill} needs a `source` naming the client category to copy from")
     if fill == "client" and src and src.get("articles", 0) < row.get("wants", 0):
-        problems.append(f"{where}: fill=client but category has {src['articles']} for {row['wants']}")
+        problems.append(
+            f"{where}: fill=client, but the category has {src['articles']} usable articles and the block "
+            f"wants {row['wants']} — either set fill=mixed with generate={row['wants'] - src['articles']}, "
+            f"or lower `wants`"
+        )
     if fill == "mixed" and src and gen != row.get("wants", 0) - src.get("articles", 0):
-        problems.append(f"{where}: generate={gen} does not close the gap")
+        need = row.get("wants", 0) - src.get("articles", 0)
+        problems.append(
+            f"{where}: fill=mixed wants {row.get('wants', 0)} and the category gives "
+            f"{src.get('articles', 0)}, so generate must be {need} — it is {gen}"
+        )
     if fill in ("client", "empty") and gen:
-        problems.append(f"{where}: fill={fill} must not generate")
+        problems.append(
+            f"{where}: fill={fill} must have generate=0 — it is {gen}. Use fill=mixed if this block "
+            f"should carry generated articles"
+        )
 if problems:
-    print("map rejected:", file=sys.stderr)
+    print("map rejected — fix these in artifact-map.json and call try_on again:", file=sys.stderr)
     for p in problems:
         print("  ✗", p, file=sys.stderr)
     sys.exit(1)
@@ -105,6 +116,20 @@ fi
 echo
 # 🔒 Not `${DRY:+ (dry-run)}`: that expands whenever DRY is non-empty, and DRY is "0" on a real
 # run — so the header announced a dry run while the script was writing.
+# 🔒 A demo wears one try-on at a time — everything this skill writes lives above a single ID
+# offset, so a second run collides with the first: the category it creates already exists, the
+# article ids are taken, and the run stops halfway with a demo that is neither the old try-on nor
+# the new one. Refuse instead, and name the way out. Not an automatic take-off: somebody may be
+# looking at the try-on that is already on.
+if [ "$DRY" != 1 ]; then
+  worn=$(dq "select count(*) from ${DPREFIX}content where id >= $OFFSET;")
+  if [ "${worn:-0}" != "0" ]; then
+    echo "✗ this demo is already wearing a try-on (${worn} rows above the offset)" >&2
+    echo "  take-off.sh --demo $DEMO   removes it, then run this again" >&2
+    exit 1
+  fi
+fi
+
 DRY_LABEL=""; [ "$DRY" = 1 ] && DRY_LABEL=" (dry-run)"
 echo "════ APPLY MAP${DRY_LABEL}"
 echo
