@@ -6,7 +6,7 @@ description: >-
   builds them into a running site at the site's own fleet address behind a login, and writes the
   address into the workspace. Use before any work that would otherwise touch a customer's site,
   and whenever anyone asks where this site's copy lives.
-version: 1.0.0
+version: 1.1.0
 platforms: joomla, wordpress
 tags:
   - working-copy
@@ -80,8 +80,30 @@ anyone changed on the copy is overwritten with the live site's current state, si
 diff and no prompt. So the cheap read comes first, and building is something a person asks for.
 
 Build when nothing is standing and there is work to do, or when the copy is known to be stale and
-whoever is asking understands what a rebuild discards — including any `reskin` proposal standing
-on that copy.
+whoever is asking understands what a rebuild discards.
+
+### What a rebuild actually replaces
+
+Nothing refuses a second build — not this tool, not the relay, and least of all the fleet, whose
+provision script is written to be re-run (it keeps the copy's existing port and database password
+on purpose). The limit of "one working copy per Site" is structural: the address is derived from
+the hostname, so you cannot end up with two. It is not a guard against rebuilding the one.
+
+So know what changes before you ask for it:
+
+| | On a rebuild |
+|---|---|
+| **Database tables in the export** | dropped and recreated from the live site |
+| **Database tables not in the export** | survive — including every `reskin` proposal's own schema |
+| **Files** | the archive is unpacked *over* the webroot; it never wipes first, so a file only the copy had stays |
+| **Address, port, login** | unchanged, deliberately |
+| **What is exported** | fresh every time; a previous run's artifacts are reused only after a *failed* build |
+
+The trap is in rows two and three together. A `reskin` proposal keeps its own database schema but
+**shares the webroot files** with the site — one template on disk, the database deciding who wears
+it. A rebuild therefore leaves every standing proposal listed, addressed, and wearing the live
+site's files again: half-restored, and it looks finished. Run `list_proposals` before rebuilding a
+site that has any, and say what will happen to them.
 
 ## The three tools
 
@@ -141,7 +163,9 @@ Stop as soon as you can answer; each step costs more than the one above it.
 1. `facts/working-copy.json` in the workspace — the address, if any session wrote it.
 2. `find_working_copy` — the truth, one request, always available.
 3. `working_copy_status` — only when something just ran and you need to know how far it got.
-4. The person, in words — for the question no tool answers: whether they accept the copy being
+4. `list_proposals` (the `reskin` tool) — before any rebuild, on a site that may have proposals.
+   It is the only way to know whose work a rebuild is about to half-undo.
+5. The person, in words — for the question no tool answers: whether they accept the copy being
    rebuilt over.
 
 ## Rules that are not negotiable
