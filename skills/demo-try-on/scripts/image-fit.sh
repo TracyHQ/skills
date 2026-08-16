@@ -117,7 +117,7 @@ printf '%s\n' "$site_rows" | TARGET="${TARGET:-1.5}" MINW="${MINW:-0}" awk -F'\t
 
 if [ "$CROP" = 1 ]; then
   echo
-  echo "════ CẮT VỀ TỈ LỆ ${TARGET:-?}"
+  echo "════ CROPPING TO RATIO ${TARGET:-?}"
   echo "  Crops are written to images/_transplant/ — the originals are never touched."
   docker exec "${SITE}-web-1" php -r '
     $root = "/var/www/html/";
