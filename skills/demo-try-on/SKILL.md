@@ -1,10 +1,10 @@
 ---
 name: demo-try-on
 description: Put a client's real content INTO a template demo's working copy, so they can see their own site wearing that template without anything being built. The mirror of reskin - here the demo is the destination and the client site is read-only reference (content, images, logo). Gaps the client cannot fill are generated and marked as generated. Use when someone asks what their site would look like in a template, wants to preview a template with their own content, or is choosing between templates.
-version: 0.1.0
+version: 0.2.0
 platforms: joomla
 requires-mcp:
-  - tracy-site
+  - tracy-demo-try-on
 provenOn: a training marketplace x JA Teline V — full run, en-GB: 3 of 19 slots sourced, 26 client articles seated, 64 generated, 8 images cropped, taken off back to the byte
 ---
 
@@ -73,103 +73,116 @@ Read in this order, and stop when what you are about to do is answered.
    **`examples/fixture-1-training-marketplace/`** holds the real artefacts from that run — read them rather
    than guessing at the formats.
 
-## Reaching the scripts and the site
+## How you reach the two sides
 
-The scripts run on the **fleet host** and act on the working copies' containers. They never
-touch a live site — and in this skill they never touch the client's copy either, in any
-direction. If a script here is about to write to the client side, that is a bug, not a decision.
+Through the **`tracy-demo-try-on` tools**. Not ssh, not a shell recipe — and the reason is
+narrower than "tools are tidier".
 
-Deploy the toolkit before the first run:
+This skill writes to a working copy that **is not the site you belong to**. Tracy authorises your
+seat against your own site and fills that label in itself; the destination is a separate argument.
+So you never name a destination label at all. You name a **template** — `ja-teline-v` — the desk
+turns that into a host and then a label, and the fleet refuses any destination that is not a
+JoomlArt demo copy. Three narrowings, in three places, because the obvious version of this feature
+would let one customer's agent write into another customer's copy.
 
-```
-ssh <host> 'mkdir -p /opt/tracy-fleet/demo-try-on'
-scp <skill-dir>/scripts/* <host>:/opt/tracy-fleet/demo-try-on/
-ssh <host> 'chmod +x /opt/tracy-fleet/demo-try-on/*.sh'
-```
+Everything else follows from the same rule: container names, table prefix and database password
+are read on the fleet from the stack that is actually running. You hold decisions; you never hold
+credentials, and you never learn a host name.
 
-Both sides are Sites in Tracy, so their labels come from `tools/fleet-map.sh`. You need two:
-`--client <label>` and `--demo <label>`. Everything else — container names, table prefix,
-database password — the scripts read from the stack that is actually running, never from a
-remembered value.
+Two scripts stay on your side because they touch no database and need no secret:
+`propose-map.mjs` and `generate-fill.mjs`. Run them locally, feed their output to the tools.
 
 ## The pipeline, in order
 
-**1 · Inventory both sides.**
+**1 · Read both sides.**
 ```
-inventory-client.sh --client <label> > out/inventory-client.json
-inventory-demo.sh   --demo <label>   > out/inventory-demo.json
+read_sites(template: "ja-teline-v")
 ```
-Read both before mapping. The client inventory is the snapshot `take-off.sh` restores against;
-do not rewrite it.
+Save what comes back as `out/inventory-client.json` and `out/inventory-demo.json` — the later
+steps read files, and the client inventory is the snapshot `take_off` restores against. Read both
+before mapping anything.
 
 **2 · Measure the images.**
 ```
-image-fit.sh --site <client> --demo <demo>          # and --crop when it says to
+fit_images(template: "ja-teline-v", map: <the draft map>, apply: false)
 ```
-Do this before mapping, not after. Whether the client's images survive changes which blocks are
-worth filling with their content and which are better generated.
+Before mapping, not after: whether the client's photographs survive the demo's frames changes
+which blocks are worth filling with their content and which are better generated. Come back with
+`apply: true` once the map is settled.
 
 **3 · Draft the mapping.**
 ```
 propose-map.mjs --client out/inventory-client.json --demo out/inventory-demo.json \
-                > out/artifact-map.json
+                --language <the language you are shipping> > out/artifact-map.json
 ```
-The draft is mechanical: biggest category into the block that wants the most articles. It says so
+Runs on your side — it reads two files and writes a third, and needs nothing from the fleet. The
+draft is mechanical: biggest category into the block that wants the most articles, and it says so
 on every row. 🔒 A name-based pairing matched **0 of 5** on the first fixture — a template says
 `news-health`, a site says `Learner Stories`, and nothing but a reader connects them.
 
 **4 · Correct the mapping. This is your job.**
 Open `out/artifact-map.json`, read it against the client's `digest/`, and move rows. You decide
-which category belongs where, which language ships, and which slots get generated content. The
-script cannot know that "Learner Stories" is the heart of a training site and "Others" is a
-dumping ground.
+which category belongs where, which language ships, and which slots get generated content. No
+script knows that "Learner Stories" is the heart of a training site and "Others" is a dumping
+ground.
 
 **5 · Put it on.**
 ```
-apply-map.sh --demo <label> --client <label> --map out/artifact-map.json --dry-run
-apply-map.sh --demo <label> --client <label> --map out/artifact-map.json
+try_on(template: "ja-teline-v", map: <map>, dry_run: true)     ← read this first
+try_on(template: "ja-teline-v", map: <map>)
 ```
-Read the dry run first — it names every position it will touch and every count it will act on.
-Writes to the demo copy only. Every row it creates sits above this skill's ID offset, a different
-offset from `reskin`'s, so two skills on one host never erase each other.
+The dry run names every position it will touch and every count it will act on. A count that
+disagrees with the map stops the run rather than filling a block with nothing.
 
-It also writes `/srv/tracy/<demo>/try-on-categories.tsv`, mapping each position to the category id
-it created. Step 7 cannot run without it, and that is deliberate — see spec §9.
+Writes to the demo copy only. Every row sits above this skill's ID offset — a different offset
+from `reskin`'s, so two skills on one host never erase each other.
 
-**6 · Crop the client's photos.**
-```
-build-image-set.sh --client <label> --demo <label> --map out/artifact-map.json --apply
-```
-Two halves. The client's real photos are cropped to the demo's measured ratio and land in
-`images/_try-on/`. The images that must be generated get a brief instead — they cannot be made
-before the article they sit beside exists, and the brief asks for a bounded pool per category
-rather than one image per article. 🔒 One-to-one would have meant 74 pictures for 24 seats.
+**Keep the `position → category id` table it prints.** Step 6 cannot run without it, and that is
+deliberate: the obvious category id to use is the client's, which on the demo names something
+else entirely (spec §9).
 
-**7 · Write what is missing.**
+**6 · Write what is missing.**
 
-Two passes, because a script cannot write the prose.
+Two passes, because no script can write the prose.
 ```
-generate-fill.mjs --map out/artifact-map.json --client out/inventory-client.json   # the brief
-#   you write fill.json against that brief
-generate-fill.mjs --map … --client … --fill fill.json \
-                  --categories /srv/tracy/<demo>/try-on-categories.tsv \
-                  --emit sql --prefix <demo prefix> | mariadb …
+generate-fill.mjs --map out/artifact-map.json --client out/inventory-client.json
+#   ↑ the brief: how many articles per slot, in what subject, at what length
+#   you write out/fill.json against it
+generate-fill.mjs --map … --client … --fill out/fill.json \
+                  --categories out/try-on-categories.tsv \
+                  --emit sql --prefix <the demo's table prefix> > out/fill.sql
+
+write_missing(template: "ja-teline-v", sql: <contents of out/fill.sql>)
 ```
+Write the table you kept from step 5 into `out/try-on-categories.tsv` first.
+
 The brief subtracts what the client already wrote: prose recovered from their custom modules is
-seated first, and only the remainder is yours to write. On the first fixture that was 74 → 64.
-Every generated row carries its marker. See `references/generation-rules.md`.
+seated before anything is generated, and only the remainder is yours. On the first fixture that
+was 74 → 64. Every generated row carries its marker — see `references/generation-rules.md`.
+
+**7 · Crop the photographs.**
+```
+fit_images(template: "ja-teline-v", map: <map>, apply: true)
+```
+Now, not earlier: the images that have to be *generated* must match articles that now exist. The
+client's real photos are cropped to the demo's measured ratio and land in `images/_try-on/`; the
+rest come back as a brief asking for a bounded pool per category. 🔒 One image per article would
+have meant 74 pictures for 24 seats.
 
 **8 · Look at it, against the demo.**
 ```
-verify-try-on.sh --demo <label> --map out/artifact-map.json
+check_try_on(template: "ja-teline-v", map: <map>)
 ```
 The question is "does it still look like this template", so the comparison is with the demo as it
 shipped — not with the client's old site. A try-on that ends up looking like the site they
 already have has failed at the only thing it was for.
 
+Then look at the page yourself. The check cannot tell you whether it is *good*.
+
 **9 · Take it off.**
 ```
-take-off.sh --demo <label>
+take_off(template: "ja-teline-v")
+```
 ```
 Everything above the offset goes. Cheap by design, and it has to stay cheap: a fitting room where
 clothes cannot come off is a shop that has sold you something.

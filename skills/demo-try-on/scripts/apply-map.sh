@@ -234,5 +234,12 @@ if [ "$DRY" = 0 ]; then
   echo
   echo "  clearing cache so the page re-renders:"
   docker exec "${DEMO}-web-1" sh -c 'rm -rf /var/www/html/cache/* /var/www/html/administrator/cache/*' 2>/dev/null || true
+  # Printed, not only written. 🔒 When this runs through the `tracy-demo-try-on` tools the caller
+  # is on another machine and cannot read the file — and without this bridge the next step
+  # attaches its articles to client category ids. See spec §9.
+  echo
+  echo "  position → category id (generate-fill.mjs --categories needs this):"
+  sed 's/^/    /' "$CATMAP" 2>/dev/null || true
+  echo
   echo "  done. Review with verify-try-on.sh, remove with take-off.sh"
 fi
