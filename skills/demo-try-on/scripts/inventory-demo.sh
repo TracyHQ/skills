@@ -119,12 +119,12 @@ def wants(node, depth=0):
 # Which ACM block a module runs — the demo names it in `jatools-config[":type"]`, e.g.
 # "ja_teline_v:news-featured". Worth carrying: it is the name of the shape the content lands in.
 def block_of(params, module=""):
-    """Tên kiểu block, hoặc tên module khi khe không do ACM dựng.
+    """The block type, or the module name when the slot was not built by ACM.
 
-    🔒 Trả None là để lại một trường mà mọi người đọc phải tự đoán nghĩa. Khe của
-    `mod_articles_popular` hay `mod_articles_news` vẫn là khe thật, chỉ không phải ACM — và trên
-    JA Stratum có 3 khe như thế trong 24. Một `null` ở đó làm hỏng mọi thứ in ra bảng, mà điều
-    nó muốn nói chỉ là "khe này không phải block ACM".
+    🔒 Returning None leaves a field whose meaning every reader has to work out. A slot fed by
+    `mod_articles_popular` or `mod_articles_news` is still a real slot, it simply is not ACM — on
+    JA Stratum that is 3 of 24. A null there breaks anything printing a table of slots, while all
+    it wanted to say was "this slot is not an ACM block".
     """
     cfg = params.get("jatools-config")
     if isinstance(cfg, str):
@@ -136,7 +136,7 @@ def block_of(params, module=""):
         t = cfg.get(":type")
         if isinstance(t, str) and ":" in t:
             return t.split(":", 1)[1]
-    # Không phải ACM: tên module là câu trả lời đọc được nhất cho "khe này là gì".
+    # Not ACM: the module name is the most readable answer to "what is this slot".
     return module or "unknown"
 
 slots, seen = [], {}
