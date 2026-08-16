@@ -6,7 +6,7 @@ description: >-
   builds them into a running site at the site's own fleet address behind a login, and writes the
   address into the workspace. Use before any work that would otherwise touch a customer's site,
   and whenever anyone asks where this site's copy lives.
-version: 1.2.0
+version: 1.3.0
 platforms: joomla, wordpress
 tags:
   - working-copy
@@ -129,20 +129,29 @@ from the site's own hostname on the app's side of the wire.
 
 ### What is knowable about a copy that exists, and what is not
 
-`find_working_copy` reports three things, and there is no fourth to ask for:
+`find_working_copy` reports three things, and there is no fourth to ask for. They do not travel
+equally, which matters the moment more than one person works on a Site:
 
-- **It is answering** — from one HTTP request. Anything below a 500 means something is standing
-  there; an Access login page answers 302.
-- **The proposals on it** — from the relay. This is what a rebuild would half-undo.
-- **When this Desk last built it** — from `facts/working-copy.json`, if a session wrote one.
+| | Where it comes from | Reaches a coworker who did not build it |
+|---|---|---|
+| **It is answering** | one HTTP request to an address derived from the site's own hostname | **always** — nothing is shared or looked up, the address is computed the same way on every Desk |
+| **The proposals on it** | the relay, using that person's seat | **yes**, if their seat is on the site |
+| **When it was last built** | `facts/working-copy.json` in the workspace | **only after a Sync**, and only if the workspace is a repo with a remote |
 
-Nothing reports how old the copy is otherwise, what content it holds, whether it has drifted from
-the live site, or who built it. No route exists for any of that. So when the local record is
-absent, that means *nobody wrote one down here* — a copy built from a coworker's Desk leaves no
-note in this workspace. It never means the copy is new.
+So the first question — *does this site have a working copy, and where* — is answerable by anyone,
+on a Desk that has never seen the site before. That is deliberate: the address is a pure function
+of the hostname, so there is no record to miss.
 
-Say that limit out loud rather than describing a copy you have not seen. To know what is on it,
-open the address.
+The third is the weak one, and its absence must never be read as an answer. A missing local note
+means *nobody wrote one down in this workspace* — a coworker who built the copy leaves that note in
+theirs, and it arrives here only once a Sync carries it. It never means the copy is new.
+
+An empty proposal list carries the same trap in a different shape: the relay answers `[]` when
+there are none, when the seat is not authorised, and when it cannot be reached. Never report that
+as "there are no proposals".
+
+Nothing at all reports what content the copy holds, how far it has drifted from the live site, or
+who built it. No route exists. Say the limit rather than describing a copy you have not opened.
 
 ## The address is derivable, and that is exactly why it goes missing
 
