@@ -75,9 +75,10 @@ and its own role gate at the relay.
 
 That answer is this skill's own and must not be copied from another: building is not additive. A
 site that already has a working copy is **rebuilt in place** — same address, same database name —
-by extracting the archive over the webroot and importing the dump over the database. Anything
-anyone changed on the copy is overwritten with the live site's current state, silently, with no
-diff and no prompt. So the cheap read comes first, and building is something a person asks for.
+by unpacking the archive over the webroot and importing the dump over the database. Work done on
+the copy is replaced by the live site's current state, silently, with no diff and no prompt. What
+exactly goes and what stays is below, and the difference matters. So the cheap read comes first,
+and building is something a person asks for.
 
 Build when nothing is standing and there is work to do, or when the copy is known to be stale and
 whoever is asking understands what a rebuild discards.
