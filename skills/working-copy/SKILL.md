@@ -6,7 +6,7 @@ description: >-
   builds them into a running site at the site's own fleet address behind a login, and writes the
   address into the workspace. Use before any work that would otherwise touch a customer's site,
   and whenever anyone asks where this site's copy lives.
-version: 1.1.0
+version: 1.2.0
 platforms: joomla, wordpress
 tags:
   - working-copy
@@ -83,14 +83,23 @@ and building is something a person asks for.
 Build when nothing is standing and there is work to do, or when the copy is known to be stale and
 whoever is asking understands what a rebuild discards.
 
+### The rebuild gate
+
+**`build_working_copy` looks for a standing copy every time, and refuses to replace one unless you
+pass `confirm_rebuild: true`.** You do not have to remember to check, and you cannot skip the
+check — it is not advice in this document, it is the tool's first action.
+
+Nothing else in the system refuses a second build: not the relay, which checks the seat and the
+artifact keys and nothing more, and least of all the fleet, whose provision script is *written* to
+be re-run (it keeps the copy's port and database password on purpose). The limit of "one working
+copy per Site" is structural — the address derives from the hostname, so you cannot end up with
+two — not a guard against rebuilding the one. This gate is the only guard there is.
+
+When it refuses, it hands you what it found: the address, the proposals standing on the copy, and
+when this Desk last built it. Take that to the person. `confirm_rebuild: true` is the answer to
+someone saying "yes, replace it" — never your own conclusion, and never a way to retry a refusal.
+
 ### What a rebuild actually replaces
-
-Nothing refuses a second build — not this tool, not the relay, and least of all the fleet, whose
-provision script is written to be re-run (it keeps the copy's existing port and database password
-on purpose). The limit of "one working copy per Site" is structural: the address is derived from
-the hostname, so you cannot end up with two. It is not a guard against rebuilding the one.
-
-So know what changes before you ask for it:
 
 | | On a rebuild |
 |---|---|
@@ -103,21 +112,37 @@ So know what changes before you ask for it:
 The trap is in rows two and three together. A `reskin` proposal keeps its own database schema but
 **shares the webroot files** with the site — one template on disk, the database deciding who wears
 it. A rebuild therefore leaves every standing proposal listed, addressed, and wearing the live
-site's files again: half-restored, and it looks finished. Run `list_proposals` before rebuilding a
-site that has any, and say what will happen to them.
+site's files again: half-restored, and it looks finished. This is why the gate names them for you;
+put that list in front of the person before anyone confirms.
 
 ## The three tools
 
 | Tool | What it costs | What it answers |
 | --- | --- | --- |
-| `find_working_copy` | one HTTP request | Where the working copy is, and whether it is standing |
+| `find_working_copy` | two quick calls | Where the copy is, whether it is standing, what stands on it |
 | `working_copy_status` | nothing | How the last build went, step by step |
-| `build_working_copy` | minutes, an install on the live site, and a rebuild if one exists | Builds it, returns the address |
+| `build_working_copy` | minutes — or nothing, when it refuses | Builds it, returns the address |
 
-None of them take arguments — the site is the one you belong to. Never assemble an address
-yourself and never go looking for one: it is derived from the site's own hostname on the app's
-side of the wire, so `find_working_copy` is both cheaper and more correct than anything you could
-put together.
+Only `build_working_copy` takes an argument, and only `confirm_rebuild`. The site is the one you
+belong to: never assemble an address yourself and never go looking for one, because it is derived
+from the site's own hostname on the app's side of the wire.
+
+### What is knowable about a copy that exists, and what is not
+
+`find_working_copy` reports three things, and there is no fourth to ask for:
+
+- **It is answering** — from one HTTP request. Anything below a 500 means something is standing
+  there; an Access login page answers 302.
+- **The proposals on it** — from the relay. This is what a rebuild would half-undo.
+- **When this Desk last built it** — from `facts/working-copy.json`, if a session wrote one.
+
+Nothing reports how old the copy is otherwise, what content it holds, whether it has drifted from
+the live site, or who built it. No route exists for any of that. So when the local record is
+absent, that means *nobody wrote one down here* — a copy built from a coworker's Desk leaves no
+note in this workspace. It never means the copy is new.
+
+Say that limit out loud rather than describing a copy you have not seen. To know what is on it,
+open the address.
 
 ## The address is derivable, and that is exactly why it goes missing
 
@@ -164,17 +189,18 @@ Stop as soon as you can answer; each step costs more than the one above it.
 1. `facts/working-copy.json` in the workspace — the address, if any session wrote it.
 2. `find_working_copy` — the truth, one request, always available.
 3. `working_copy_status` — only when something just ran and you need to know how far it got.
-4. `list_proposals` (the `reskin` tool) — before any rebuild, on a site that may have proposals.
-   It is the only way to know whose work a rebuild is about to half-undo.
-5. The person, in words — for the question no tool answers: whether they accept the copy being
-   rebuilt over.
+4. The person, in words — for the question no tool answers: whether they accept the copy being
+   rebuilt over. You will not have to remember this step; the refusal puts you here.
 
 ## Rules that are not negotiable
 
 - **Never call a build read-only.** It reaches their site to install or refresh Tracy's component.
   It changes nothing of theirs, and both halves of that sentence have to survive.
-- **Never rebuild an existing copy without asking.** It is the one cost a person cannot recover
-  from, and the one they learn from you or not at all.
+- **`confirm_rebuild: true` reports a decision, it does not make one.** Pass it only after a person
+  has been shown what is standing and has said to replace it. Passing it to get past a refusal is
+  the failure the gate exists to make impossible, done by hand.
+- **Never describe a copy you have not opened.** Three facts are knowable and the rest is not; a
+  fluent guess about what is on it is the same failure as the one that started this skill.
 - **You never reach the live site yourself.** No SQL, no file edits, no admin login, no write of
   any kind of your own. If you are about to, stop: either a tool owns that step, or the step
   belongs to an Apply skill and is not yours.
