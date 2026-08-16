@@ -176,6 +176,22 @@ variant schema of the same demo is the way back — its `#__modules` still hold 
 
 ---
 
+## 13 · A parameter with no stated source is a parameter that gets guessed
+
+**Cost:** a finished try-on with nothing generated — the page kept the demo's own articles in 16
+of 19 slots, and looked like the skill had simply done a bad job.
+
+`SKILL.md` asked for `--prefix <the demo's table prefix>` without saying where to read it.
+`inventory-demo.sh` knew it and did not report it, so the agent supplied `j4_demo` against a demo
+running `jos_`. The SQL failed on `Table 'j4_demotags' doesn't exist` — after `apply` had already
+run, which is the worst ordering: the client's articles were in, the generated ones never came,
+and nothing in the result said why.
+
+Every value a step needs comes out of a step before it. If a script knows something the agent must
+pass on, it prints it.
+
+---
+
 ## Known limit — not a bug
 
 A try-on covers the slots the client has content for. The fixture: **3 of 19**. Teline V has 19

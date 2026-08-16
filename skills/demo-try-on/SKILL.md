@@ -1,7 +1,7 @@
 ---
 name: demo-try-on
 description: Put a client's real content INTO a template demo's working copy, so they can see their own site wearing that template without anything being built. The mirror of reskin - here the demo is the destination and the client site is read-only reference (content, images, logo). Gaps the client cannot fill are generated and marked as generated. Use when someone asks what their site would look like in a template, wants to preview a template with their own content, or is choosing between templates.
-version: 0.5.0
+version: 0.6.0
 platforms: joomla
 requires-mcp:
   - tracy-demo-try-on
@@ -150,11 +150,16 @@ generate-fill.mjs --map out/artifact-map.json --client out/inventory-client.json
 #   you write out/fill.json against it
 generate-fill.mjs --map … --client … --fill out/fill.json \
                   --categories out/try-on-categories.tsv \
-                  --emit sql --prefix <the demo's table prefix> > out/fill.sql
+                  --emit sql --prefix <inventory-demo.json → prefix> > out/fill.sql
 
 write_missing(template: "ja-teline-v", sql: <contents of out/fill.sql>)
 ```
 Write the table you kept from step 5 into `out/try-on-categories.tsv` first.
+
+🔒 `--prefix` comes from `inventory-demo.json`, never from guessing. Guessed once as `j4_demo`
+against a demo running `jos_`, and the SQL died on `Table 'j4_demotags' doesn't exist` — after the
+try-on was already on, so the run ended with the client's articles in place and nothing generated
+to fill the rest of the page.
 
 The brief subtracts what the client already wrote: prose recovered from their custom modules is
 seated before anything is generated, and only the remainder is yours. On the first fixture that

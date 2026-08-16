@@ -66,10 +66,11 @@ q "select concat(position, '|', module, '|', replace(title,'|','/'), '|', replac
 q "select concat(id, '|', coalesce(title,''), '|', coalesce(home,'0'))
      from ${PREFIX}template_styles order by id;" > "$WORK/styles" || true
 
-python3 - "$WORK" "$DEMO" "$PRETTY" <<'PY'
+python3 - "$WORK" "$DEMO" "$PRETTY" "$PREFIX" <<'PY'
 import base64, json, os, re, sys
 
 work, demo, pretty = sys.argv[1], sys.argv[2], sys.argv[3] == "1"
+prefix = sys.argv[4] if len(sys.argv) > 4 else ""
 
 def decode(b64):
     try:
@@ -167,6 +168,11 @@ for line in open(os.path.join(work, "styles")):
 
 out = {
     "demo": demo,
+    # 🔒 The table prefix, because generate-fill needs it and nothing else tells the agent what it
+    # is. Left out once: the agent guessed `j4_demo`, the real one was `jos_`, and the SQL died on
+    # "Table 'j4_demotags' doesn't exist" AFTER the try-on was already on the demo — so the run
+    # ended with client articles in place and nothing generated to fill the rest.
+    "prefix": prefix,
     "slots": sorted(slots, key=lambda s: (-s["wants"], s["position"])),
     "styles": styles,
     "totals": {
