@@ -5,7 +5,7 @@ version: 1.0.0
 platforms: wordpress
 requires-mcp:
   - tracy-apply
-provenOn: "—"
+provenOn: tracy.ai (WordPress 7.0.2) — post + postmeta + option + media round-trip, reverted exactly
 ---
 
 # WordPress Apply — an approved deliverable, onto the live site
@@ -122,6 +122,11 @@ A refusal is an answer, not a crash — read it and decide the next move:
 - The plugin's own `{ok:false, error, message}` — the site refused the specific change (a field
   outside the whitelist, a protected option, a post id that is not there). Fix what it names and
   try that step again under the same `apply_id`.
+- `write_failed: could not write wp-content/uploads/…` — nothing is wrong with the file or the
+  path: that folder is not writable on this site. 🔒 Seen on tracy.ai, 2026-08-16: `uploads/` was
+  left read-only (mode 555) after a security cleanup, so every upload failed while every content
+  edit succeeded. Report it and carry on with the rest of the deliverable; whether uploads should
+  be writable is the site owner's decision, not a step to retry.
 
 ## The shape of a run
 
