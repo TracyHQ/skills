@@ -1,8 +1,14 @@
 ---
 name: wordpress-apply
 description: Apply an approved deliverable to a WordPress site's LIVE copy — edit a post, one of its meta values or an option, add a file to the Media Library, and install or activate a plugin or theme. The Apply direction of a site: the opposite of reskin, which only dresses the working copy on the fleet. Every change is grouped under one apply_id so the whole deliverable reverts to exactly what was there. Only Owner/Admin seats may apply, and the relay enforces it. Use when a deliverable has been approved and must land on the live WordPress site.
-version: 1.0.0
+version: 1.1.0
 platforms: wordpress
+tags:
+  - apply
+  - wordpress
+  - content
+  - media
+  - seo
 requires-mcp:
   - tracy-apply
 provenOn: tracy.ai (WordPress 7.0.2) — post + postmeta + option + media round-trip, reverted exactly
@@ -43,6 +49,12 @@ Read in this order; stop as soon as you have what the step needs.
 
 Nothing else is input. In particular the live site's admin is not: you never sign in anywhere.
 
+**One thing you need is in no file at all.** `install_plugin` answers with the plugin file it just
+installed (`wordpress-seo/wp-seo.php`) — that string exists only in that reply, and
+`activate_plugin` is the only thing that takes it. Lose it and you are back to listing the site's
+plugins to work out which one arrived. Write it down as it goes past, in the Task, before the next
+step.
+
 ## The one rule that makes Apply safe: apply_id
 
 Every content update and media upload carries an **`apply_id`**. Use **the same id for every step of
@@ -51,11 +63,24 @@ is what lets `revert_apply` undo the *whole* deliverable back to exactly what wa
 before, to the byte. An Apply that cannot be reverted is one that cannot be guaranteed (ADR 0048),
 so this is required, not optional.
 
-**One applier per apply_id, and nothing enforces it but you.** The relay holds no lock: two agents
-writing under one id interleave their steps into one revert log, and the revert then restores a
-history neither of them made. Mint the id from the task or deliverable — something no second run
-would pick — and if an Apply may already be running on this site, ask before starting; `list_apply`
-on the id shows whether it has begun.
+**One applier per apply_id, and nothing enforces it but you.** Checked, not assumed: the relay
+holds no lock, and the plugin's log numbers each step with `MAX(seq) + 1` read a moment before it
+writes — so two agents under one id interleave into one revert log, and can even land on the same
+sequence number. The revert then replays a history neither of them made. Mint the id from the task
+or deliverable — something no second run would pick — and if an Apply may already be running on
+this site, ask before starting; `list_apply` on the id shows whether it has begun.
+
+**What "exactly what was there" covers, and what it does not.** A revert restores the *values*: a
+post's words, a meta, an option, a file's bytes. It does not rewind WordPress's own bookkeeping —
+the edit filed a revision and moved `post_modified`, and putting the old text back files another
+revision on top. The page reads as it did; its history shows both moves. Say so when a customer
+asks whether the site is "back to normal", because the front end and the revisions screen give
+different answers.
+
+**Undoing a create deletes for real.** A post this Apply inserted is removed with force, not sent
+to the trash — a customer must not be left holding something they never approved, waiting in a bin
+for someone to notice. There is no undo for the undo: what protects you is that the revert only
+ever removes what this same Apply created.
 
 ## Where a page's fields actually live
 
@@ -87,13 +112,19 @@ host or hold a credential.
     `post_type` on insert only. **Any other field is refused**, with both lists named — it is not
     dropped silently.
   - `postmeta`: `id` is the **post** the value hangs off, `key` is the meta key, `fields` is
-    `{ "value": … }`.
+    `{ "value": … }`. Writing the value it already holds answers `ok` — WordPress reports "nothing
+    stored" for an unchanged value and a no-op is not a failure, so do not read success as proof
+    the value changed. `list_apply` and the site itself are what prove that.
   - `option`: `key` is the option name, `fields` is `{ "value": … }`. A short list of options is
     refused outright (`siteurl`, `home`, `active_plugins`, `template`, `stylesheet`, `user_roles`,
     the plugin's own token, and transients): each of those takes the site away from whoever would
     have to fix it, and breaking one breaks the way back to the revert too.
 - **`upload_media`** — one file under `wp-content/uploads/` only (never code), carried as base64,
-  registered in the **Media Library** so a person can find it where they would look.
+  registered in the **Media Library** so a person can find it where they would look. **The ceiling
+  is 8 MiB of decoded bytes** (`MAX_MEDIA_BYTES` in the site plugin's engine); past that the answer
+  is `too_large` and the file needs the signed-URL path, which this skill does not have. Base64
+  inflates by about a third, so a 6 MB photo is near the line — check the file's size before
+  spending a call on it.
 - **`install_plugin`** / **`install_theme`** — from a public `https` `.zip` URL the site downloads
   itself. Neither turns anything on. Not part of the revert log: installing is additive and
   WordPress owns the uninstall.
@@ -122,6 +153,9 @@ A refusal is an answer, not a crash — read it and decide the next move:
 - The plugin's own `{ok:false, error, message}` — the site refused the specific change (a field
   outside the whitelist, a protected option, a post id that is not there). Fix what it names and
   try that step again under the same `apply_id`.
+- `bad_action: unknown action: content.update` — the site is running a plugin from before the write
+  side existed (anything under 0.3.0). It is not a refusal of *this* change and no retry helps: the
+  site needs its plugin brought up to date, which happens through Tracy, not from here.
 - `write_failed: could not write wp-content/uploads/…` — nothing is wrong with the file or the
   path: that folder is not writable on this site. 🔒 Seen on tracy.ai, 2026-08-16: `uploads/` was
   left read-only (mode 555) after a security cleanup, so every upload failed while every content
