@@ -1,7 +1,7 @@
 ---
 name: demo-try-on
 description: Put a client's real content INTO a template demo's working copy, so they can see their own site wearing that template without anything being built. The mirror of reskin - here the demo is the destination and the client site is read-only reference (content, images, logo). Gaps the client cannot fill are generated and marked as generated. Use when someone asks what their site would look like in a template, wants to preview a template with their own content, or is choosing between templates.
-version: 0.4.0
+version: 0.5.0
 platforms: joomla
 requires-mcp:
   - tracy-demo-try-on
@@ -215,6 +215,17 @@ person reading it is deciding whether to buy a template, so the honest shape of 
 
 Never present a try-on as if it were the client's site fully rendered. It is a fitting room
 mirror, and saying so is what makes it useful.
+
+**The address is not optional in the report.** `try_on` returns either `Xem tại: <url>` or a line
+saying why it could not publish; put whichever you got in front of the customer. A try-on nobody
+can open is not a result, and reporting the content while staying quiet about a failed address
+reads as success — the failure is discovered by the person who clicks nothing.
+
+If publishing failed, `share_try_on` retries it on its own, without touching the try-on.
+
+**Say it when you change the plan.** Deciding 146 generated articles is too many is a reasonable
+call; making it silently is not. Report the scope you actually delivered and the one you dropped,
+with both numbers.
 
 **Answer in the language the person is writing in** (ADR 0053 §7). Template names, fleet labels,
 slugs, position names and file names stay as they are — they are addresses, not prose, and
