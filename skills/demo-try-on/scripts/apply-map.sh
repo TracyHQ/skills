@@ -48,9 +48,9 @@ conn() {  # label → "pass|prefix|db"
     "$(grep -m1 'public \$db ' "$root/configuration.php" | sed "s/.*= *'\([^']*\)'.*/\1/")"
 }
 IFS='|' read -r DPASS DPREFIX DDB <<< "$(conn "$DEMO")"
-# Schema của bản thử: gạch ngang trong hostname, gạch dưới trong tên schema — cùng phép đổi
-# make-variant.sh làm. Mọi lượt ghi của script này rơi vào đây, nên bản demo gốc không bị đụng
-# và hai khách thử cùng template không đè lên nhau.
+# The try-on's schema: dashes in the hostname, underscores in the schema name — the same swap
+# make-variant.sh makes. Every write in this script lands there, so the demo's own database is
+# untouched and two customers trying the same template do not overwrite each other.
 [ -n "$VARIANT" ] && DDB="${DDB}_$(printf '%s' "$VARIANT" | tr '-' '_')"
 IFS='|' read -r CPASS CPREFIX CDB <<< "$(conn "$CLIENT")"
 
@@ -101,10 +101,10 @@ LANG=$(python3 -c "import base64,json,sys; print(json.load(open(sys.argv[1]))['l
 
 # ── Snapshot before touching anything. `take-off.sh` restores module params from this file; if it
 # is not written, the run is not reversible and must not proceed.
-# 🔒 Một file cho mỗi bản thử, không phải một file cho mỗi bản demo. Dùng chung đường dẫn thì
-# lượt mặc lên MỘT schema ghi đè bản chụp của schema khác, và lượt cởi sau đó khôi phục nhầm
-# params: bản demo gốc còn 8 module trỏ vào chuyên mục đã bị xoá, mọi block ấy rỗng, và trang
-# tụt từ 320KB xuống 159KB mà không có lỗi nào ở đâu cả.
+# 🔒 One file per try-on, not one per demo. Sharing the path means a run on ONE schema overwrites
+# another schema's snapshot, and the take-off after it restores the wrong params: the original
+# demo kept 8 modules pointing at deleted categories, every one of those blocks rendered empty,
+# and the front page fell from 320KB to 159KB with no error anywhere.
 SNAP="/srv/tracy/$DEMO/try-on-snapshot${VARIANT:+-$VARIANT}.json"
 if [ "$DRY" = 0 ]; then
   dq "select concat(id,'|',replace(replace(to_base64(params),'\n',''),'\r','')) from ${DPREFIX}modules

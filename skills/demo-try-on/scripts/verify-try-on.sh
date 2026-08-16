@@ -36,8 +36,8 @@ ROOT="/srv/tracy/$DEMO/webroot"
 PASS=$(grep -m1 '^DB_PASSWORD=' "/srv/tracy/$DEMO/.env" | cut -d= -f2-)
 PREFIX=$(grep -m1 'dbprefix' "$ROOT/configuration.php" | sed "s/.*= *'\([^']*\)'.*/\1/")
 DBNAME=$(grep -m1 'public \$db ' "$ROOT/configuration.php" | sed "s/.*= *'\([^']*\)'.*/\1/")
-# Schema của bản thử: gạch ngang trong hostname, gạch dưới trong tên schema — cùng phép đổi
-# make-variant.sh làm. Không có --variant thì đây là database chính, đúng như trước.
+# The try-on's schema: dashes in the hostname, underscores in the schema name — the same swap
+# make-variant.sh makes. Without --variant this is the demo's own database, exactly as before.
 [ -n "$VARIANT" ] && DBNAME="${DBNAME}_$(printf '%s' "$VARIANT" | tr '-' '_')"
 PORT=$(grep -m1 '^HOST_PORT=' "/srv/tracy/$DEMO/.env" | cut -d= -f2- || echo "")
 dq() { docker exec "${DEMO}-db-1" mariadb -uroot -p"$PASS" -N -B -r "$DBNAME" -e "$1" 2>/dev/null; }
@@ -55,9 +55,9 @@ if [ -n "$PORT" ]; then
   # a 33KB document that passes a size check and contains none of the demo's articles — so checks
   # 1 and 2 both silently graded the wrong page. `X-Forwarded-Proto` tells Joomla the hop it cares
   # about already happened, and the request stays inside the container. Never add `-L` here.
-  # 🔒 Với `--variant`, cùng một URL phục vụ HAI trang: không header là bản demo gốc, có header là
-  # bản thử. Kiểm mà quên header là chấm điểm bản demo — nó luôn đẹp, và bản thử hỏng thế nào cũng
-  # không ai biết.
+  # 🔒 With `--variant`, one URL serves TWO pages: no header is the demo itself, the header is
+  # the try-on. Checking without it grades the demo — which always looks good, however broken
+  # the try-on is.
   code=$(curl -s -o /tmp/try-on-page.html -w '%{http_code}' --max-time 20 \
     -H "Host: ${DEMO}.tracy.ai" -H 'X-Forwarded-Proto: https' \
     ${VARIANT:+-H "X-Tracy-Variant: $VARIANT"} \

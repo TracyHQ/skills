@@ -33,27 +33,27 @@ done
 [ -n "$DEMO" ] || { echo "need --demo <label>" >&2; exit 2; }
 
 ROOT="/srv/tracy/$DEMO/webroot"
-# 🔒 Một file cho mỗi bản thử, không phải một file cho mỗi bản demo. Dùng chung đường dẫn thì
-# lượt mặc lên MỘT schema ghi đè bản chụp của schema khác, và lượt cởi sau đó khôi phục nhầm
-# params: bản demo gốc còn 8 module trỏ vào chuyên mục đã bị xoá, mọi block ấy rỗng, và trang
-# tụt từ 320KB xuống 159KB mà không có lỗi nào ở đâu cả.
+# 🔒 One file per try-on, not one per demo. Sharing the path means a run on ONE schema overwrites
+# another schema's snapshot, and the take-off after it restores the wrong params: the original
+# demo kept 8 modules pointing at deleted categories, every one of those blocks rendered empty,
+# and the front page fell from 320KB to 159KB with no error anywhere.
 SNAP="/srv/tracy/$DEMO/try-on-snapshot${VARIANT:+-$VARIANT}.json"
 [ -d "$ROOT" ] || { echo "no demo at $ROOT" >&2; exit 1; }
 
 PASS=$(grep -m1 '^DB_PASSWORD=' "/srv/tracy/$DEMO/.env" | cut -d= -f2-)
 PREFIX=$(grep -m1 'dbprefix' "$ROOT/configuration.php" | sed "s/.*= *'\([^']*\)'.*/\1/")
 DBNAME=$(grep -m1 'public \$db ' "$ROOT/configuration.php" | sed "s/.*= *'\([^']*\)'.*/\1/")
-# Schema của bản thử: gạch ngang trong hostname, gạch dưới trong tên schema — cùng phép đổi
-# make-variant.sh làm. Không có --variant thì đây là database chính, đúng như trước.
+# The try-on's schema: dashes in the hostname, underscores in the schema name — the same swap
+# make-variant.sh makes. Without --variant this is the demo's own database, exactly as before.
 [ -n "$VARIANT" ] && DBNAME="${DBNAME}_$(printf '%s' "$VARIANT" | tr '-' '_')"
 dq() { docker exec "${DEMO}-db-1" mariadb -uroot -p"$PASS" -N -B -r "$DBNAME" -e "$1" 2>/dev/null; }
 
-# Bản thử sống trong schema RIÊNG thì cởi ra là xoá cả schema — không snapshot, không dải id,
-# không sót bảng phụ. Cả trap 10 biến mất cùng nó: những bảng hàng-treo-theo-bài không còn chỗ để
-# sống sót.
+# A try-on living in its OWN schema comes off by dropping the schema — no snapshot, no id range,
+# no dependent table left behind. Trap 10 disappears with it: the rows that hang off an article
+# have nowhere left to survive.
 #
-# Chỉ làm khi có `--variant`. Không có nó nghĩa là bản thử nằm trong database chính của bản demo,
-# và ở đó xoá theo id range là cách duy nhất không mang bản demo đi cùng.
+# Only with `--variant`. Without it the try-on sits in the demo's own database, and there deleting
+# by id range is the only way that does not take the demo with it.
 if [ -n "$VARIANT" ]; then
   echo "════ TAKE OFF — $DEMO (variant $VARIANT)"
   echo
