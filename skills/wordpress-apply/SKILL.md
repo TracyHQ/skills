@@ -1,6 +1,12 @@
 ---
 name: wordpress-apply
-description: Apply an approved deliverable to a WordPress site's LIVE copy — edit a post, one of its meta values or an option, add a file to the Media Library, and install or activate a plugin or theme. The Apply direction of a site: the opposite of reskin, which only dresses the working copy on the fleet. Every change is grouped under one apply_id so the whole deliverable reverts to exactly what was there. Only Owner/Admin seats may apply, and the relay enforces it. Use when a deliverable has been approved and must land on the live WordPress site.
+description: >-
+  Apply an approved deliverable to a WordPress site's LIVE copy — edit a post, one of its meta values
+  or an option, add a file to the Media Library, and install or activate a plugin or theme. The Apply
+  direction of a site: the opposite of reskin, which only dresses the working copy on the fleet. Every
+  change is grouped under one apply_id so the whole deliverable reverts to exactly what was there.
+  Only Owner/Admin seats may apply, and the relay enforces it. Use when a deliverable has been
+  approved and must land on the live WordPress site.
 version: 1.1.0
 platforms: wordpress
 tags:

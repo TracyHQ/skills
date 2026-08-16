@@ -21,6 +21,21 @@ describe('validateSkillFrontmatter', () => {
     expect(validateSkillFrontmatter('a/SKILL.md', skill(good), { platforms: ALL })).toEqual([])
   })
 
+  it('refuses a block the index cannot parse, before judging anything inside it', () => {
+    // 2026-08-16: three published skills carried a one-line description holding ": ", which YAML
+    // reads as a nested mapping and rejects. Every rule below this one is regex over raw text, so
+    // all four gates passed while the index Desk reads got description: null, tags: [] and
+    // requiresMcp: [] — the model picks skills BY the description, and requires-mcp is the
+    // pre-install warning. Silent both ways, which is why it survived three skills.
+    const broken = skill({ ...good, description: 'The Apply direction of a site: the opposite of reskin' })
+    const errors = validateSkillFrontmatter('a/SKILL.md', broken, { platforms: ALL })
+    expect(codes(errors)).toEqual(['frontmatter_unparseable'])
+
+    // The fix is a block scalar, and then the ordinary rules apply again.
+    const folded = `---\nname: x\ndescription: >-\n  The Apply direction of a site: the opposite of reskin\nversion: 1.0.0\nprovenOn: "—"\n---\n\nA skill.\n`
+    expect(validateSkillFrontmatter('a/SKILL.md', folded, { platforms: ALL })).toEqual([])
+  })
+
   it('refuses a skill that calls an mcp__ tool without naming the server', () => {
     // The real case: `site-scan` called mcp__tracy-site__scan_now for weeks, so Desk could not
     // warn a team the server was missing and the failure only surfaced after install.

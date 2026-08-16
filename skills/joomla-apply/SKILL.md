@@ -1,6 +1,12 @@
 ---
 name: joomla-apply
-description: Apply an approved deliverable to a client site's LIVE copy — update content (articles, modules, template styles), upload media, and install supporting extensions. The Apply direction of a site: the opposite of reskin, which only dresses the working copy on the fleet. Every change is grouped under one apply_id so the whole deliverable reverts to exactly what was there. Only Owner/Admin seats may apply, and the relay enforces it. Use when a deliverable has been approved and must land on the live site.
+description: >-
+  Apply an approved deliverable to a client site's LIVE copy — update content (articles, modules,
+  template styles), upload media, and install supporting extensions. The Apply direction of a site:
+  the opposite of reskin, which only dresses the working copy on the fleet. Every change is grouped
+  under one apply_id so the whole deliverable reverts to exactly what was there. Only Owner/Admin
+  seats may apply, and the relay enforces it. Use when a deliverable has been approved and must land
+  on the live site.
 version: 1.2.0
 platforms: joomla
 requires-mcp:

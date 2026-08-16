@@ -1,3 +1,5 @@
+import matter from 'gray-matter'
+
 import { ownerOf, PlatformSchema, SkillRecordSchema } from './record'
 
 const PLATFORM_VALUES = PlatformSchema.options as readonly string[]
@@ -87,6 +89,32 @@ export function validateSkillFrontmatter(
   }
   const body = source.slice(block[0].length)
   const front = block[1] ?? ''
+
+  // 0. The block has to be YAML the index can actually read, and this check has to come first
+  //    because every rule below is regex over the raw text — regex sees `requires-mcp:` whether or
+  //    not the document parses, so a broken block passed all four gates while the index that Desk
+  //    reads got nothing at all.
+  //
+  //    🔒 Found 2026-08-16, three skills deep: `demo-try-on`, `joomla-apply` and `wordpress-apply`
+  //    all shipped a one-line `description:` containing ": " (as in "the Apply direction of a
+  //    site: the opposite of reskin"), which YAML reads as a nested mapping and rejects. The
+  //    parser is written never to throw, so the build carried on and published each of them with
+  //    `description: null`, `tags: []` and `requiresMcp: []`. Two costs, both silent: the model
+  //    picks skills BY the description, and `requires-mcp` is what warns a team the site is
+  //    missing a server before they install. Use a `>-` block scalar for prose.
+  try {
+    matter(source)
+  } catch (error) {
+    return [
+      {
+        code: 'frontmatter_unparseable',
+        message: `${filePath}: frontmatter is not valid YAML, so the index reads none of it (${
+          (error as Error).message.split('\n')[0]
+        })`
+      }
+    ]
+  }
+
   const field = (name: string): string | null => {
     const m = front.match(new RegExp(`^${name}:[ \\t]*(.*)$`, 'm'))
     const value = m?.[1]?.trim()
