@@ -1,0 +1,11 @@
+{
+  "$schema": "https://registry.tracy.ai/skills/schema/skill-record.schema.json",
+  "namespace": "tracyhq",
+  "slug": "demo-try-on",
+  "gitUrl": "https://github.com/TracyHQ/skills",
+  "ref": "main",
+  "skillPath": "skills/demo-try-on",
+  "platforms": [
+    "joomla"
+  ]
+}

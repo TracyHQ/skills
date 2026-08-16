@@ -1,0 +1,225 @@
+{
+  "client": "fixture-1-client",
+  "demo": "fixture-1-demo",
+  "language": "en-GB",
+  "slots": [
+    {
+      "position": "news-home",
+      "module": "mod_ja_acm",
+      "block": "news-featured",
+      "wants": 42,
+      "fill": "mixed",
+      "source": {
+        "type": "category",
+        "id": 2,
+        "title": "General",
+        "articles": 11,
+        "articles_all_languages": 17
+      },
+      "generate": 31,
+      "why": "category #1 by size; block wants 42, category has 11 in en-GB"
+    },
+    {
+      "position": "news-travel",
+      "module": "mod_ja_acm",
+      "block": "news-featured",
+      "wants": 24,
+      "fill": "mixed",
+      "source": {
+        "type": "category",
+        "id": 10,
+        "title": "Learner Stories",
+        "articles": 4,
+        "articles_all_languages": 4
+      },
+      "generate": 20,
+      "why": "category #2 by size; block wants 24, category has 4 in en-GB"
+    },
+    {
+      "position": "whatsnew",
+      "module": "mod_ja_acm",
+      "block": "notification",
+      "wants": 24,
+      "fill": "mixed",
+      "source": {
+        "type": "category",
+        "id": 9,
+        "title": "Learner News (FR)",
+        "articles": 1,
+        "articles_all_languages": 1
+      },
+      "generate": 23,
+      "why": "category #3 by size; block wants 24, category has 1 in en-GB"
+    },
+    {
+      "position": "news-world",
+      "module": "mod_ja_acm",
+      "block": "news-featured",
+      "wants": 13,
+      "fill": "empty",
+      "source": null,
+      "generate": 0,
+      "why": "no client category left — decide: generate, or leave this block off"
+    },
+    {
+      "position": "news-art",
+      "module": "mod_ja_acm",
+      "block": "news-featured",
+      "wants": 12,
+      "fill": "empty",
+      "source": null,
+      "generate": 0,
+      "why": "no client category left — decide: generate, or leave this block off"
+    },
+    {
+      "position": "news-health",
+      "module": "mod_ja_acm",
+      "block": "news-featured",
+      "wants": 12,
+      "fill": "empty",
+      "source": null,
+      "generate": 0,
+      "why": "no client category left — decide: generate, or leave this block off"
+    },
+    {
+      "position": "news-science",
+      "module": "mod_ja_acm",
+      "block": "news-featured",
+      "wants": 12,
+      "fill": "empty",
+      "source": null,
+      "generate": 0,
+      "why": "no client category left — decide: generate, or leave this block off"
+    },
+    {
+      "position": "news-style",
+      "module": "mod_ja_acm",
+      "block": "news-featured",
+      "wants": 12,
+      "fill": "empty",
+      "source": null,
+      "generate": 0,
+      "why": "no client category left — decide: generate, or leave this block off"
+    },
+    {
+      "position": "news-tech",
+      "module": "mod_ja_acm",
+      "block": "news-featured",
+      "wants": 12,
+      "fill": "empty",
+      "source": null,
+      "generate": 0,
+      "why": "no client category left — decide: generate, or leave this block off"
+    },
+    {
+      "position": "news-entertainment",
+      "module": "mod_ja_acm",
+      "block": "news-featured",
+      "wants": 11,
+      "fill": "empty",
+      "source": null,
+      "generate": 0,
+      "why": "no client category left — decide: generate, or leave this block off"
+    },
+    {
+      "position": "news-sport",
+      "module": "mod_ja_acm",
+      "block": "news-featured",
+      "wants": 7,
+      "fill": "empty",
+      "source": null,
+      "generate": 0,
+      "why": "no client category left — decide: generate, or leave this block off"
+    },
+    {
+      "position": "media-home",
+      "module": "mod_ja_acm",
+      "block": "videos",
+      "wants": 5,
+      "fill": "empty",
+      "source": null,
+      "generate": 0,
+      "why": "no client category left — decide: generate, or leave this block off"
+    },
+    {
+      "position": "sidebar",
+      "module": "mod_articles_category",
+      "block": null,
+      "wants": 5,
+      "fill": "empty",
+      "source": null,
+      "generate": 0,
+      "why": "no client category left — decide: generate, or leave this block off"
+    },
+    {
+      "position": "tab-1",
+      "module": "mod_articles_category",
+      "block": null,
+      "wants": 5,
+      "fill": "empty",
+      "source": null,
+      "generate": 0,
+      "why": "no client category left — decide: generate, or leave this block off"
+    },
+    {
+      "position": "tab-2",
+      "module": "mod_articles_category",
+      "block": null,
+      "wants": 5,
+      "fill": "empty",
+      "source": null,
+      "generate": 0,
+      "why": "no client category left — decide: generate, or leave this block off"
+    },
+    {
+      "position": "sidebar-2",
+      "module": "mod_ja_acm",
+      "block": "events",
+      "wants": 4,
+      "fill": "empty",
+      "source": null,
+      "generate": 0,
+      "why": "no client category left — decide: generate, or leave this block off"
+    },
+    {
+      "position": "events-home",
+      "module": "mod_ja_acm",
+      "block": "events",
+      "wants": 3,
+      "fill": "empty",
+      "source": null,
+      "generate": 0,
+      "why": "no client category left — decide: generate, or leave this block off"
+    },
+    {
+      "position": "gallery-home",
+      "module": "mod_ja_acm",
+      "block": "gallery",
+      "wants": 0,
+      "fill": "empty",
+      "source": null,
+      "generate": 0,
+      "why": "no client category left — decide: generate, or leave this block off"
+    },
+    {
+      "position": "video-sidebar",
+      "module": "mod_ja_acm",
+      "block": "videos",
+      "wants": 0,
+      "fill": "empty",
+      "source": null,
+      "generate": 0,
+      "why": "no client category left — decide: generate, or leave this block off"
+    }
+  ],
+  "totals": {
+    "slots": 19,
+    "from_client": 0,
+    "mixed": 3,
+    "empty": 16,
+    "articles_to_generate": 74,
+    "client_images": 9,
+    "client_articles": 28
+  },
+  "note": "Draft. Every `why` is mechanical — read against the client digest and move rows before applying. `apply-map.sh` rejects a row with an empty `why`."
+}

@@ -1,0 +1,760 @@
+{
+  "client": "fixture-1",
+  "categories": [
+    {
+      "id": 2,
+      "title": "General",
+      "language": "*",
+      "articles": 17,
+      "by_language": {
+        "en-GB": 6,
+        "fr-FR": 6,
+        "*": 5
+      }
+    },
+    {
+      "id": 10,
+      "title": "Learner Stories",
+      "language": "*",
+      "articles": 4,
+      "by_language": {
+        "*": 4
+      }
+    },
+    {
+      "id": 8,
+      "title": "Blog (EN)",
+      "language": "en-GB",
+      "articles": 4,
+      "by_language": {
+        "fr-FR": 4
+      }
+    },
+    {
+      "id": 13,
+      "title": "Blog (FR)",
+      "language": "fr-FR",
+      "articles": 2,
+      "by_language": {
+        "*": 2
+      }
+    },
+    {
+      "id": 9,
+      "title": "Learner News (FR)",
+      "language": "*",
+      "articles": 1,
+      "by_language": {
+        "*": 1
+      }
+    }
+  ],
+  "languages": [
+    {
+      "language": "*",
+      "articles": 12
+    },
+    {
+      "language": "fr-FR",
+      "articles": 10
+    },
+    {
+      "language": "en-GB",
+      "articles": 6
+    }
+  ],
+  "menu": [
+    {
+      "id": 1,
+      "title": "Menu item 1",
+      "level": 0,
+      "link": ""
+    },
+    {
+      "id": 101,
+      "title": "Menu item 2",
+      "level": 1,
+      "link": "index.php?option=com_content&view=article&id=N"
+    },
+    {
+      "id": 122,
+      "title": "Menu item 3",
+      "level": 1,
+      "link": "index.php?Itemid="
+    },
+    {
+      "id": 262,
+      "title": "Menu item 4",
+      "level": 1,
+      "link": "index.php?Itemid="
+    },
+    {
+      "id": 124,
+      "title": "Menu item 5",
+      "level": 1,
+      "link": "index.php?option=com_guru&view=gurupcategs"
+    },
+    {
+      "id": 127,
+      "title": "Menu item 6",
+      "level": 1,
+      "link": "index.php?option=com_contact&view=contact&id=N"
+    },
+    {
+      "id": 264,
+      "title": "Menu item 7",
+      "level": 1,
+      "link": "index.php?option=com_guru&view=gurupcategs"
+    },
+    {
+      "id": 263,
+      "title": "Menu item 8",
+      "level": 1,
+      "link": "index.php?option=com_contact&view=contact&id=N"
+    },
+    {
+      "id": 217,
+      "title": "Menu item 9",
+      "level": 1,
+      "link": "index.php?option=com_content&view=article&id=N"
+    },
+    {
+      "id": 250,
+      "title": "Menu item 10",
+      "level": 1,
+      "link": "index.php?option=com_guru&view=guruauthor"
+    },
+    {
+      "id": 252,
+      "title": "Menu item 11",
+      "level": 2,
+      "link": "index.php?option=com_guru&view=guruauthor&layout=mystudents"
+    },
+    {
+      "id": 253,
+      "title": "Menu item 12",
+      "level": 2,
+      "link": "index.php?option=com_guru&view=guruauthor&layout=authormycourses"
+    },
+    {
+      "id": 257,
+      "title": "Menu item 13",
+      "level": 2,
+      "link": "index.php?option=com_guru&view=guruauthor&layout=authorprofile"
+    },
+    {
+      "id": 219,
+      "title": "Menu item 14",
+      "level": 1,
+      "link": "index.php?option=com_guru&view=guruauthor&layout=studentregistration"
+    },
+    {
+      "id": 226,
+      "title": "Menu item 15",
+      "level": 2,
+      "link": "index.php?option=com_guru&view=gurubuy"
+    },
+    {
+      "id": 227,
+      "title": "Menu item 16",
+      "level": 2,
+      "link": "index.php?option=com_guru&view=guruorders&layout=mycertificates"
+    },
+    {
+      "id": 228,
+      "title": "Menu item 17",
+      "level": 2,
+      "link": "index.php?option=com_guru&view=guruorders&layout=mycourses"
+    },
+    {
+      "id": 229,
+      "title": "Menu item 18",
+      "level": 2,
+      "link": "index.php?option=com_guru&view=guruorders&layout=myquizandfexam"
+    },
+    {
+      "id": 230,
+      "title": "Menu item 19",
+      "level": 2,
+      "link": "index.php?option=com_guru&view=guruorders&layout=myorders"
+    },
+    {
+      "id": 146,
+      "title": "Menu item 20",
+      "level": 1,
+      "link": "index.php?option=com_guru&view=gurupcategs"
+    },
+    {
+      "id": 149,
+      "title": "Menu item 21",
+      "level": 2,
+      "link": "index.php?option=com_guru&view=guruprograms&layout=view"
+    },
+    {
+      "id": 156,
+      "title": "Menu item 22",
+      "level": 2,
+      "link": "index.php?option=com_guru&view=gurupcategs"
+    },
+    {
+      "id": 158,
+      "title": "Menu item 23",
+      "level": 2,
+      "link": "index.php?option=com_guru&view=gurupcategs&layout=view"
+    },
+    {
+      "id": 114,
+      "title": "Menu item 24",
+      "level": 1,
+      "link": "index.php?option=com_content&view=category&layout=blog&id=N"
+    },
+    {
+      "id": 216,
+      "title": "Menu item 25",
+      "level": 1,
+      "link": "index.php?option=com_content&view=article&id=N"
+    },
+    {
+      "id": 254,
+      "title": "Menu item 26",
+      "level": 1,
+      "link": "index.php?option=com_guru&view=guruauthor"
+    },
+    {
+      "id": 258,
+      "title": "Menu item 27",
+      "level": 2,
+      "link": "index.php?option=com_guru&view=guruauthor&layout=mystudents"
+    },
+    {
+      "id": 259,
+      "title": "Menu item 28",
+      "level": 2,
+      "link": "index.php?option=com_guru&view=guruauthor&layout=authormycourses"
+    },
+    {
+      "id": 260,
+      "title": "Menu item 29",
+      "level": 2,
+      "link": "index.php?option=com_guru&view=guruauthor&layout=authorprofile"
+    },
+    {
+      "id": 238,
+      "title": "Menu item 30",
+      "level": 1,
+      "link": "index.php?option=com_guru&view=guruauthor&layout=studentregistration"
+    },
+    {
+      "id": 239,
+      "title": "Menu item 31",
+      "level": 2,
+      "link": "index.php?option=com_guru&view=gurubuy"
+    },
+    {
+      "id": 240,
+      "title": "Menu item 32",
+      "level": 2,
+      "link": "index.php?option=com_guru&view=guruorders&layout=mycertificates"
+    },
+    {
+      "id": 241,
+      "title": "Menu item 33",
+      "level": 2,
+      "link": "index.php?option=com_guru&view=guruorders&layout=mycourses"
+    },
+    {
+      "id": 242,
+      "title": "Menu item 34",
+      "level": 2,
+      "link": "index.php?option=com_guru&view=guruorders&layout=myquizandfexam"
+    },
+    {
+      "id": 243,
+      "title": "Menu item 35",
+      "level": 2,
+      "link": "index.php?option=com_guru&view=guruorders&layout=myorders"
+    },
+    {
+      "id": 234,
+      "title": "Menu item 36",
+      "level": 1,
+      "link": "index.php?option=com_guru&view=gurupcategs"
+    },
+    {
+      "id": 235,
+      "title": "Menu item 37",
+      "level": 2,
+      "link": "index.php?option=com_guru&view=guruprograms&layout=view"
+    },
+    {
+      "id": 236,
+      "title": "Menu item 38",
+      "level": 2,
+      "link": "index.php?option=com_guru&view=gurupcategs"
+    },
+    {
+      "id": 237,
+      "title": "Menu item 39",
+      "level": 2,
+      "link": "index.php?option=com_guru&view=gurupcategs&layout=view"
+    },
+    {
+      "id": 233,
+      "title": "Menu item 40",
+      "level": 1,
+      "link": "index.php?option=com_content&view=category&layout=blog&id=N"
+    },
+    {
+      "id": 213,
+      "title": "Menu item 41",
+      "level": 1,
+      "link": "index.php?option=com_users&view=login"
+    },
+    {
+      "id": 232,
+      "title": "Menu item 42",
+      "level": 1,
+      "link": "index.php?option=com_users&view=login"
+    },
+    {
+      "id": 231,
+      "title": "Menu item 43",
+      "level": 1,
+      "link": "index.php?option=com_contact&view=contact&id=N"
+    },
+    {
+      "id": 113,
+      "title": "Menu item 44",
+      "level": 1,
+      "link": "index.php?option=com_contact&view=contact&id=N"
+    },
+    {
+      "id": 177,
+      "title": "Menu item 45",
+      "level": 1,
+      "link": "index.php?option=com_content&view=article&id=N"
+    },
+    {
+      "id": 145,
+      "title": "Menu item 46",
+      "level": 1,
+      "link": "index.php?option=com_guru&view=gurupcategs&layout=view"
+    },
+    {
+      "id": 147,
+      "title": "Menu item 47",
+      "level": 1,
+      "link": "index.php?option=com_guru&view=gurupcategs&layout=view"
+    },
+    {
+      "id": 148,
+      "title": "Menu item 48",
+      "level": 1,
+      "link": "index.php?option=com_guru&view=gurupcategs&layout=view"
+    },
+    {
+      "id": 102,
+      "title": "Menu item 49",
+      "level": 1,
+      "link": "index.php?option=com_users&view=profile&layout=edit"
+    },
+    {
+      "id": 104,
+      "title": "Menu item 50",
+      "level": 1,
+      "link": "index.php?option=com_content&view=form&layout=edit"
+    },
+    {
+      "id": 103,
+      "title": "Menu item 51",
+      "level": 1,
+      "link": "administrator"
+    },
+    {
+      "id": 106,
+      "title": "Menu item 52",
+      "level": 1,
+      "link": "index.php?option=com_config&view=templates"
+    },
+    {
+      "id": 107,
+      "title": "Menu item 53",
+      "level": 1,
+      "link": "index.php?option=com_config&view=config"
+    },
+    {
+      "id": 128,
+      "title": "Menu item 54",
+      "level": 1,
+      "link": "#"
+    },
+    {
+      "id": 129,
+      "title": "Menu item 55",
+      "level": 1,
+      "link": "#"
+    },
+    {
+      "id": 130,
+      "title": "Menu item 56",
+      "level": 1,
+      "link": "#"
+    },
+    {
+      "id": 131,
+      "title": "Menu item 57",
+      "level": 1,
+      "link": "#"
+    },
+    {
+      "id": 132,
+      "title": "Menu item 58",
+      "level": 1,
+      "link": "#"
+    },
+    {
+      "id": 134,
+      "title": "Menu item 59",
+      "level": 1,
+      "link": "index.php?option=com_content&view=article&id=N"
+    },
+    {
+      "id": 137,
+      "title": "Menu item 60",
+      "level": 1,
+      "link": "index.php?option=com_content&view=article&id=N"
+    }
+  ],
+  "authors": [
+    {
+      "id": 42,
+      "name": "Author 1",
+      "articles": 18
+    },
+    {
+      "id": 67,
+      "name": "Author 2",
+      "articles": 3
+    },
+    {
+      "id": 65,
+      "name": "Author 3",
+      "articles": 2
+    },
+    {
+      "id": 64,
+      "name": "Author 4",
+      "articles": 2
+    },
+    {
+      "id": 66,
+      "name": "Author 5",
+      "articles": 1
+    },
+    {
+      "id": 57,
+      "name": "Author 6",
+      "articles": 1
+    },
+    {
+      "id": 59,
+      "name": "Author 7",
+      "articles": 1
+    }
+  ],
+  "custom_modules": [
+    {
+      "id": 145,
+      "title": "Custom module (home-sec-1)",
+      "position": "home-sec-1",
+      "language": "fr-FR",
+      "chars": 3249,
+      "blocks": [
+        {
+          "heading_chars": 14,
+          "body_chars": 0
+        },
+        {
+          "heading_chars": 50,
+          "body_chars": 0
+        },
+        {
+          "heading_chars": 44,
+          "body_chars": 75
+        },
+        {
+          "heading_chars": 34,
+          "body_chars": 66
+        },
+        {
+          "heading_chars": 54,
+          "body_chars": 92
+        },
+        {
+          "heading_chars": 27,
+          "body_chars": 76
+        },
+        {
+          "heading_chars": 47,
+          "body_chars": 277
+        }
+      ]
+    },
+    {
+      "id": 170,
+      "title": "Custom module (home-sec-1)",
+      "position": "home-sec-1",
+      "language": "en-GB",
+      "chars": 3145,
+      "blocks": [
+        {
+          "heading_chars": 17,
+          "body_chars": 0
+        },
+        {
+          "heading_chars": 44,
+          "body_chars": 0
+        },
+        {
+          "heading_chars": 26,
+          "body_chars": 59
+        },
+        {
+          "heading_chars": 25,
+          "body_chars": 65
+        },
+        {
+          "heading_chars": 52,
+          "body_chars": 82
+        },
+        {
+          "heading_chars": 23,
+          "body_chars": 108
+        },
+        {
+          "heading_chars": 40,
+          "body_chars": 226
+        }
+      ]
+    },
+    {
+      "id": 155,
+      "title": "Custom module (hero)",
+      "position": "hero",
+      "language": "fr-FR",
+      "chars": 2144,
+      "blocks": [
+        {
+          "heading_chars": 59,
+          "body_chars": 0
+        },
+        {
+          "heading_chars": 70,
+          "body_chars": 0
+        },
+        {
+          "heading_chars": 26,
+          "body_chars": 91
+        },
+        {
+          "heading_chars": 31,
+          "body_chars": 109
+        },
+        {
+          "heading_chars": 46,
+          "body_chars": 108
+        }
+      ]
+    },
+    {
+      "id": 144,
+      "title": "Custom module (hero)",
+      "position": "hero",
+      "language": "en-GB",
+      "chars": 2101,
+      "blocks": [
+        {
+          "heading_chars": 63,
+          "body_chars": 0
+        },
+        {
+          "heading_chars": 58,
+          "body_chars": 0
+        },
+        {
+          "heading_chars": 22,
+          "body_chars": 100
+        },
+        {
+          "heading_chars": 21,
+          "body_chars": 97
+        },
+        {
+          "heading_chars": 32,
+          "body_chars": 113
+        }
+      ]
+    },
+    {
+      "id": 173,
+      "title": "Custom module (footnav-1)",
+      "position": "footnav-1",
+      "language": "fr-FR",
+      "chars": 1110,
+      "blocks": []
+    },
+    {
+      "id": 148,
+      "title": "Custom module (footnav-1)",
+      "position": "footnav-1",
+      "language": "en-GB",
+      "chars": 1103,
+      "blocks": []
+    },
+    {
+      "id": 172,
+      "title": "Custom module (home-sec-3)",
+      "position": "home-sec-3",
+      "language": "fr-FR",
+      "chars": 644,
+      "blocks": [
+        {
+          "heading_chars": 31,
+          "body_chars": 0
+        },
+        {
+          "heading_chars": 44,
+          "body_chars": 113
+        }
+      ]
+    },
+    {
+      "id": 147,
+      "title": "Custom module (home-sec-3)",
+      "position": "home-sec-3",
+      "language": "en-GB",
+      "chars": 587,
+      "blocks": [
+        {
+          "heading_chars": 26,
+          "body_chars": 0
+        },
+        {
+          "heading_chars": 31,
+          "body_chars": 110
+        }
+      ]
+    },
+    {
+      "id": 171,
+      "title": "Custom module (home-sec-2)",
+      "position": "home-sec-2",
+      "language": "fr-FR",
+      "chars": 450,
+      "blocks": [
+        {
+          "heading_chars": 21,
+          "body_chars": 0
+        },
+        {
+          "heading_chars": 21,
+          "body_chars": 145
+        }
+      ]
+    },
+    {
+      "id": 119,
+      "title": "Custom module (topbar-right)",
+      "position": "topbar-right",
+      "language": "*",
+      "chars": 449,
+      "blocks": []
+    },
+    {
+      "id": 146,
+      "title": "Custom module (home-sec-2)",
+      "position": "home-sec-2",
+      "language": "en-GB",
+      "chars": 411,
+      "blocks": [
+        {
+          "heading_chars": 20,
+          "body_chars": 0
+        },
+        {
+          "heading_chars": 23,
+          "body_chars": 105
+        }
+      ]
+    },
+    {
+      "id": 107,
+      "title": "Custom module (section-bottom)",
+      "position": "section-bottom",
+      "language": "*",
+      "chars": 219,
+      "blocks": []
+    },
+    {
+      "id": 118,
+      "title": "Custom module (topbar-right)",
+      "position": "topbar-right",
+      "language": "*",
+      "chars": 147,
+      "blocks": []
+    },
+    {
+      "id": 108,
+      "title": "Custom module (footer-1)",
+      "position": "footer-1",
+      "language": "*",
+      "chars": 98,
+      "blocks": []
+    },
+    {
+      "id": 99,
+      "title": "Custom module (sidebar-2)",
+      "position": "sidebar-2",
+      "language": "*",
+      "chars": 75,
+      "blocks": []
+    },
+    {
+      "id": 96,
+      "title": "Custom module (topbar-left)",
+      "position": "topbar-left",
+      "language": "*",
+      "chars": 60,
+      "blocks": []
+    }
+  ],
+  "other_components": [
+    "mod_guru_courses            2",
+    "mod_articles_categories     1",
+    "mod_articles_latest         1",
+    "mod_guru_search             1"
+  ],
+  "logos": [
+    "images/logo-1.png",
+    "images/logo-2.png",
+    "images/logo-3.png",
+    "images/logo-4.png",
+    "images/logo-5.png",
+    "images/logo-6.png",
+    "images/logo-7.png",
+    "images/logo-8.png",
+    "images/logo-9.png",
+    "images/logo-10.png"
+  ],
+  "totals": {
+    "articles": 28,
+    "categories_with_articles": 5,
+    "articles_with_image": 28,
+    "distinct_images": 9,
+    "languages": 3,
+    "custom_modules": 16,
+    "custom_module_chars": 15992,
+    "custom_blocks": 32,
+    "custom_blocks_with_body": 20
+  }
+}

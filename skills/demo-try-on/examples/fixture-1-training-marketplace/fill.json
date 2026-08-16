@@ -1,0 +1,325 @@
+{
+  "language": "en-GB",
+  "articles": [
+    {
+      "position": "news-home",
+      "title": "Learning that fits around work",
+      "introtext": "Online study only helps if it survives contact with a working week. Short sessions, clear checkpoints and material that waits for you make the difference between a course finished and a course abandoned halfway through."
+    },
+    {
+      "position": "news-home",
+      "title": "What a mentor actually does",
+      "introtext": "A mentor is not a lecturer with a smaller audience. The work is reading where someone is stuck, deciding what to skip, and knowing when a learner needs a harder problem rather than another explanation of the same one."
+    },
+    {
+      "position": "news-home",
+      "title": "Choosing your first course",
+      "introtext": "The first course sets the habit, so pick the one you will actually open on a tired evening. Interest beats ambition here. A finished short course teaches more than an abandoned comprehensive one."
+    },
+    {
+      "position": "news-home",
+      "title": "Study time nobody plans for",
+      "introtext": "Most study happens in gaps: a commute, a quiet hour before the house wakes up. Courses that assume a clear desk and three uninterrupted hours are designed for a student who does not exist."
+    },
+    {
+      "position": "news-home",
+      "title": "Why lessons arrive gradually",
+      "introtext": "Releasing a course a piece at a time is not a way of holding material back. It gives each idea time to settle before the next one arrives, and it gives you a reason to return rather than a library to feel guilty about."
+    },
+    {
+      "position": "news-home",
+      "title": "Reading a course outline well",
+      "introtext": "An outline tells you what the course covers. Read it for what it does not cover. The gaps say more about who the course is for than the list of topics ever does."
+    },
+    {
+      "position": "news-home",
+      "title": "When to ask for help",
+      "introtext": "The useful moment is earlier than most people think. Twenty minutes of being stuck is productive. Two hours is usually a sign that something upstream was never explained, and no amount of persistence will supply it."
+    },
+    {
+      "position": "news-home",
+      "title": "Notes you will read again",
+      "introtext": "Notes written to be complete are rarely reread. Notes written to be useful are short, in your own words, and answer a question you actually had. Copying the slide does neither."
+    },
+    {
+      "position": "news-home",
+      "title": "Practice beats rereading",
+      "introtext": "Rereading feels like progress because the material gets easier to recognise. Recognition is not recall. Closing the page and trying to reconstruct the idea is uncomfortable, and it is the part that works."
+    },
+    {
+      "position": "news-home",
+      "title": "Building a study routine",
+      "introtext": "A routine survives on being small enough to keep on a bad week. Choose the time first and the length second, and let the length shrink rather than the routine break."
+    },
+    {
+      "position": "news-home",
+      "title": "Learning in a second language",
+      "introtext": "Studying in a language you are still learning costs attention that would otherwise go to the subject. Slower progress is expected, not a signal to give up, and rereading in your first language afterwards is a legitimate technique."
+    },
+    {
+      "position": "news-home",
+      "title": "The value of finishing badly",
+      "introtext": "A course finished imperfectly leaves you with the shape of the subject. A course abandoned at the halfway point leaves fragments. Push to the end even when the last modules are rushed."
+    },
+    {
+      "position": "news-home",
+      "title": "Feedback that changes something",
+      "introtext": "Useful feedback names one thing to do differently. Praise is pleasant and vague criticism is discouraging, but neither changes what you do on the next attempt."
+    },
+    {
+      "position": "news-home",
+      "title": "Working from real examples",
+      "introtext": "An exercise built from a real situation carries context that an invented one cannot. You learn the reasoning and the constraints together, which is how the skill will arrive when you need it."
+    },
+    {
+      "position": "news-home",
+      "title": "Courses that expect nothing",
+      "introtext": "A beginner course that assumes no background has to spend its first hours on ground you may already have. Skipping ahead is allowed, and often the right call, provided you are honest about what you skipped."
+    },
+    {
+      "position": "news-home",
+      "title": "Certificates and what they mean",
+      "introtext": "A certificate records that you completed something. What it means depends entirely on what completion required. Read the requirements before deciding how much weight to give it."
+    },
+    {
+      "position": "news-home",
+      "title": "Learning alone, together",
+      "introtext": "Studying at your own pace does not have to mean studying in isolation. A forum thread where someone asked your question two weeks ago is worth more than an hour of searching alone."
+    },
+    {
+      "position": "news-home",
+      "title": "How long a course should take",
+      "introtext": "Published durations assume a learner who never gets stuck. Yours will be longer, and that is not a failure of the estimate or of you. Plan against your own pace after the first module."
+    },
+    {
+      "position": "news-home",
+      "title": "Revisiting an early module",
+      "introtext": "Going back to module one after finishing module six is not lost time. The early material reads differently once you know where it was going, and the gaps you did not notice become visible."
+    },
+    {
+      "position": "news-home",
+      "title": "Downloads and offline study",
+      "introtext": "Material you can keep is material you can study without a connection. It also outlives the course, which matters more than it seems on the day you enrol."
+    },
+    {
+      "position": "news-home",
+      "title": "Switching subjects mid-course",
+      "introtext": "Changing direction is sometimes the right decision and sometimes avoidance wearing a disguise. The test is whether you are moving towards something specific or away from a difficult week."
+    },
+    {
+      "position": "news-home",
+      "title": "Questions worth asking a mentor",
+      "introtext": "The best questions describe what you tried and where it stopped making sense. They take longer to write and get answers that are worth reading, because they let the mentor see your reasoning."
+    },
+    {
+      "position": "news-home",
+      "title": "Study groups that work",
+      "introtext": "A group holds together when it has a reason to meet and something to produce. Without both, it becomes a calendar entry everyone quietly stops honouring."
+    },
+    {
+      "position": "news-home",
+      "title": "Reading before the lesson",
+      "introtext": "Ten minutes with the material before a session changes what you get from it. You arrive with questions instead of gathering them afterwards, and the session answers them while you are still there."
+    },
+    {
+      "position": "news-home",
+      "title": "When the subject stops making sense",
+      "introtext": "Confusion that arrives suddenly usually points backwards, not forwards. Something earlier was accepted rather than understood, and the fix is behind you rather than in the next module."
+    },
+    {
+      "position": "news-home",
+      "title": "Learning on a small screen",
+      "introtext": "Studying on a phone works for review and fails for anything requiring two things side by side. Knowing which parts of a course survive a small screen saves a lot of frustration."
+    },
+    {
+      "position": "news-home",
+      "title": "After the course ends",
+      "introtext": "Skills fade without use. The first weeks after finishing are when a small project matters most, because it converts what you covered into something you can still do months later."
+    },
+    {
+      "position": "news-travel",
+      "title": "Starting again after years away",
+      "introtext": "Returning to study after a long gap is less about remembering the material than about rebuilding the habit of sitting with something difficult. The first fortnight is the hardest and it does get easier."
+    },
+    {
+      "position": "news-travel",
+      "title": "From curiosity to a first course",
+      "introtext": "Most learners arrive with an interest rather than a plan. The interest is enough to begin with. A plan tends to form somewhere around the third module, once the shape of the subject is visible."
+    },
+    {
+      "position": "news-travel",
+      "title": "Studying while working full time",
+      "introtext": "The constraint is not motivation but recovery. Evening study competes with rest, and a schedule that ignores that lasts about three weeks before it collapses."
+    },
+    {
+      "position": "news-travel",
+      "title": "The module that nearly stopped it",
+      "introtext": "Almost every learner has one section that felt like a wall. Getting past it is rarely a matter of trying harder; more often it means finding a second explanation from a different angle."
+    },
+    {
+      "position": "news-travel",
+      "title": "Learning with a young family",
+      "introtext": "Study time exists in fragments and the fragments are unpredictable. Material that can be picked up and put down without losing the thread is worth more here than material that is merely thorough."
+    },
+    {
+      "position": "news-travel",
+      "title": "Changing career direction",
+      "introtext": "Moving into a new field means being a beginner again while holding experience that does transfer. Knowing which parts transfer takes a while to work out and saves months once you do."
+    },
+    {
+      "position": "news-travel",
+      "title": "What a first project taught",
+      "introtext": "The gap between following an exercise and building something unaided is where the real learning sits. It is uncomfortable, it takes longer than expected, and it is the part that sticks."
+    },
+    {
+      "position": "news-travel",
+      "title": "Studying in a rural area",
+      "introtext": "An unreliable connection changes what is practical. Downloadable material and sessions that tolerate being interrupted matter more than production quality."
+    },
+    {
+      "position": "news-travel",
+      "title": "Finding time nobody else wanted",
+      "introtext": "Early mornings are quiet in a way evenings are not. Learners who move their study to the start of the day often report the same thing: fewer interruptions and less negotiation with everyone else."
+    },
+    {
+      "position": "news-travel",
+      "title": "Learning without a clear goal",
+      "introtext": "Studying out of interest rather than for a qualification changes what good progress looks like. Coverage matters less; following the parts that hold your attention matters more."
+    },
+    {
+      "position": "news-travel",
+      "title": "When motivation runs out",
+      "introtext": "Motivation is not a reliable input. What carries a course to the end is usually a routine established while motivation was still high, doing its work after it has gone."
+    },
+    {
+      "position": "news-travel",
+      "title": "Studying alongside a friend",
+      "introtext": "Two people on the same course keep each other honest, provided they are genuinely at the same stage. Otherwise one waits and the other rushes, and both do worse than alone."
+    },
+    {
+      "position": "news-travel",
+      "title": "The first question in a forum",
+      "introtext": "Asking publicly feels exposing until you notice how many people had the same problem and never asked. The question you hesitate over is usually the one worth posting."
+    },
+    {
+      "position": "news-travel",
+      "title": "Coming back after dropping out",
+      "introtext": "Abandoning a course is common and returning to one is not shameful. Restarting a module you half-finished is faster than it looks, because recognition does some of the work."
+    },
+    {
+      "position": "news-travel",
+      "title": "Learning a subject you resisted",
+      "introtext": "Subjects avoided at school often turn out to be badly introduced rather than genuinely uninteresting. Meeting them again with a concrete purpose changes the experience entirely."
+    },
+    {
+      "position": "news-travel",
+      "title": "Study in a shared household",
+      "introtext": "Concentration in a busy home is a negotiation rather than a discipline problem. Agreeing a time with the people you live with does more than any amount of willpower."
+    },
+    {
+      "position": "news-travel",
+      "title": "Progress that is hard to see",
+      "introtext": "Improvement in a skill is invisible day to day and obvious across months. Keeping an early piece of work is the cheapest way to see the distance you have covered."
+    },
+    {
+      "position": "whatsnew",
+      "title": "How courses are structured",
+      "introtext": "Each course is built from modules that stand on their own where possible, so a missed week does not invalidate what comes next. Where a module genuinely depends on an earlier one, it says so at the start."
+    },
+    {
+      "position": "whatsnew",
+      "title": "Mentors and how they are matched",
+      "introtext": "Matching considers the subject, the language you want to work in, and the pace you have set. A poor match is worth raising early rather than working around."
+    },
+    {
+      "position": "whatsnew",
+      "title": "Working in more than one language",
+      "introtext": "Courses are offered in more than one language, and material does not always appear in all of them at the same time. Where a translation is pending, the original stays available."
+    },
+    {
+      "position": "whatsnew",
+      "title": "Discussion spaces for learners",
+      "introtext": "Every course has a space for questions, kept alongside the material rather than somewhere separate. Threads stay readable after a course ends, which is where much of their value is."
+    },
+    {
+      "position": "whatsnew",
+      "title": "What the platform expects of you",
+      "introtext": "There is no attendance requirement and no fixed schedule. What is expected is that work submitted is your own, and that questions asked of mentors describe what you already tried."
+    },
+    {
+      "position": "whatsnew",
+      "title": "Accessing material on any device",
+      "introtext": "Courses are readable on a phone, a tablet or a desktop machine. Some exercises need a larger screen to be practical, and those are marked so you can plan around them."
+    },
+    {
+      "position": "whatsnew",
+      "title": "How progress is recorded",
+      "introtext": "Progress is tracked per module rather than as a single percentage, so a course you dip in and out of still shows where you actually are rather than an average that hides it."
+    },
+    {
+      "position": "whatsnew",
+      "title": "Becoming a mentor",
+      "introtext": "Mentoring suits people who can explain a subject more than one way and who are patient with the second explanation. Subject knowledge is necessary and by itself is not enough."
+    },
+    {
+      "position": "whatsnew",
+      "title": "Choosing a course category",
+      "introtext": "Categories group courses by subject rather than by difficulty, so a category will hold both introductory and advanced material. The course description carries the level."
+    },
+    {
+      "position": "whatsnew",
+      "title": "Support outside course hours",
+      "introtext": "Questions can be posted at any time and are answered when a mentor is next available. Nothing depends on being online at a particular moment."
+    },
+    {
+      "position": "whatsnew",
+      "title": "Material that stays available",
+      "introtext": "Access to a course does not end the day you finish it. Coming back to a module months later is a normal way to use the platform rather than an exception."
+    },
+    {
+      "position": "whatsnew",
+      "title": "How exercises are marked",
+      "introtext": "Exercises are reviewed by a person rather than scored automatically wherever judgement is involved. That is slower and it produces feedback you can act on."
+    },
+    {
+      "position": "whatsnew",
+      "title": "Keeping a record of your work",
+      "introtext": "Submitted work stays in your account, which makes it possible to look back at an early attempt and see how your approach has changed."
+    },
+    {
+      "position": "whatsnew",
+      "title": "Study plans and how to use them",
+      "introtext": "A study plan is a starting estimate rather than a commitment. Adjusting it after the first module is expected, and a plan nobody adjusts is usually a plan nobody follows."
+    },
+    {
+      "position": "whatsnew",
+      "title": "Languages available for courses",
+      "introtext": "Course material and discussion may be in different languages, and mixing them is allowed. Asking a question in the language you think in usually produces a clearer question."
+    },
+    {
+      "position": "whatsnew",
+      "title": "What happens when you enrol",
+      "introtext": "Enrolment opens the first module and sets the pace you chose. Nothing else is scheduled on your behalf; the remaining modules open as you work through them."
+    },
+    {
+      "position": "whatsnew",
+      "title": "Reporting a problem with material",
+      "introtext": "Errors in course material are worth reporting even when you can work around them. A correction helps everyone who reaches that page afterwards."
+    },
+    {
+      "position": "whatsnew",
+      "title": "Course updates and revisions",
+      "introtext": "Material is revised as subjects change. Where a revision affects something you have already completed, the change is noted rather than applied silently."
+    },
+    {
+      "position": "whatsnew",
+      "title": "Working towards a qualification",
+      "introtext": "Some courses lead to a qualification and some do not, and both are legitimate uses of the platform. The distinction is stated on the course rather than implied."
+    },
+    {
+      "position": "whatsnew",
+      "title": "Getting the most from a mentor",
+      "introtext": "Mentor time is finite, so it is best spent on judgement rather than on facts you could look up. Bring the decision you are stuck on rather than the definition you are missing."
+    }
+  ]
+}

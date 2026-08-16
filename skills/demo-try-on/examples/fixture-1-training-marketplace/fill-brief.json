@@ -1,0 +1,65 @@
+{
+  "write_to": "fill.json",
+  "language": "en-GB",
+  "total_articles": 64,
+  "seated_from_client_modules": 10,
+  "client_blocks_available": 10,
+  "jobs": [
+    {
+      "position": "news-home",
+      "block": "news-featured",
+      "subject": "General",
+      "count": 27,
+      "from_client_modules": 4,
+      "language": "en-GB",
+      "title_chars": 31,
+      "intro_words": 45
+    },
+    {
+      "position": "news-travel",
+      "block": "news-featured",
+      "subject": "Learner Stories",
+      "count": 17,
+      "from_client_modules": 3,
+      "language": "en-GB",
+      "title_chars": 31,
+      "intro_words": 45
+    },
+    {
+      "position": "whatsnew",
+      "block": "notification",
+      "subject": "Learner News (FR)",
+      "count": 20,
+      "from_client_modules": 3,
+      "language": "en-GB",
+      "title_chars": 31,
+      "intro_words": 45
+    }
+  ],
+  "rules": {
+    "voice": "the client's own subject and register, read from digest/ — not a generic news voice",
+    "never_invent": [
+      "numbers presented as fact (enrolment, prices, dates, percentages)",
+      "named people — staff, customers, quoted experts",
+      "testimonials or reviews",
+      "credentials, awards, accreditations",
+      "contact details",
+      "events with a date and a place"
+    ],
+    "test": "If the client published this sentence unchanged, would it be false? If yes, do not write it.",
+    "shape": {
+      "title": "about 31 characters — the client's own average",
+      "introtext": "about 45 words, one paragraph, no heading",
+      "fulltext": "leave empty; a try-on renders listings, not article pages"
+    }
+  },
+  "return_shape": {
+    "articles": [
+      {
+        "position": "news-home",
+        "title": "…",
+        "introtext": "…"
+      }
+    ]
+  }
+}
