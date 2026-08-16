@@ -216,7 +216,7 @@ person reading it is deciding whether to buy a template, so the honest shape of 
 Never present a try-on as if it were the client's site fully rendered. It is a fitting room
 mirror, and saying so is what makes it useful.
 
-**The address is not optional in the report.** `try_on` returns either `Xem tại: <url>` or a line
+**The address is not optional in the report.** `try_on` returns either `See it at: <url>` or a line
 saying why it could not publish; put whichever you got in front of the customer. A try-on nobody
 can open is not a result, and reporting the content while staying quiet about a failed address
 reads as success — the failure is discovered by the person who clicks nothing.
