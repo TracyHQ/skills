@@ -1,0 +1,37 @@
+{
+ "articles": [
+  {
+   "title": "Checkliste für einen Website-Relaunch",
+   "alias": "checkliste-website-relaunch",
+   "catid": 42,
+   "language": "de-DE",
+   "created_by": 12,
+   "state": 1,
+   "publish_up": "2026-09-02 08:00:00",
+   "metadesc": "Die acht Punkte, die vor einem Relaunch feststehen müssen: Ziele, Inhalte, Redirects, Technik.",
+   "introtext": "<p>Ein Relaunch scheitert selten an der Technik. Er scheitert daran, dass vor dem Start niemand aufgeschrieben hat, was danach anders sein soll.</p>",
+   "fulltext": "<h2>1. Das Ziel steht vor dem Design</h2><p>...</p><h2>2. Die Inhalte werden gezählt, nicht geschätzt</h2><p>Wie viele Seiten hat die Website heute? <a href=\"/leistungen/relaunch\">Unsere Relaunch-Seite</a> beschreibt, wie wir das aufnehmen.</p>",
+   "images": {
+    "image_intro": "images/blog/2026-09/relaunch-intro.jpg"
+   },
+   "basedOn": "a1b2c3d",
+   "sources": [
+    {
+     "claim": "acht Punkte",
+     "from": "surface/pages/leistungen-relaunch.json"
+    }
+   ]
+  }
+ ],
+ "verify": {
+  "path": "/insights/checkliste-website-relaunch",
+  "markers": [
+   "Checkliste für einen Website-Relaunch",
+   "Das Ziel steht vor dem Design"
+  ],
+  "forbid": [
+   "Lorem ipsum",
+   "Woran es liegt, wenn die Seite langsam lädt"
+  ]
+ }
+}
