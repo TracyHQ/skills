@@ -86,7 +86,7 @@ describe('generateDigests', () => {
     for (const content of Object.values(digests)) {
       expect(Buffer.byteLength(content, 'utf8')).toBeLessThanOrEqual(DIGEST_BYTE_BUDGET)
     }
-    expect(digests['content-map.md']).toMatch(/xem surface\/pages\//)
+    expect(digests['content-map.md']).toMatch(/more URLs\. Read surface\/pages\//)
   })
 
   it('is deterministic for the same input', () => {

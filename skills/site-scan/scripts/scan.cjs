@@ -31070,7 +31070,7 @@ function contentMap({ pages }) {
   }
   if (pages.length > TOP_RECENT_PAGES) {
     lines.push("");
-    lines.push(`C\xF2n ${pages.length - TOP_RECENT_PAGES} URL \u2014 xem surface/pages/ \u0111\u1EC3 \u0111\xE0o s\xE2u t\u1EEBng trang.`);
+    lines.push(`${pages.length - TOP_RECENT_PAGES} more URLs. Read surface/pages/ for any page in full.`);
   }
   return lines;
 }
@@ -31107,9 +31107,11 @@ function fitBudget(lines) {
   let text4 = lines.join("\n");
   while (Buffer.byteLength(text4, "utf8") > DIGEST_BYTE_BUDGET && kept > 1) {
     kept = Math.max(1, Math.floor(kept * 0.9));
-    text4 = [...lines.slice(0, kept), "", `(b\u1ECB g\u1ECDn cho v\u1EEBa ${DIGEST_BYTE_BUDGET / 1024}KB \u2014 xem surface/ \u0111\u1EC3 \u0111\u1EE7)`].join(
-      "\n"
-    );
+    text4 = [
+      ...lines.slice(0, kept),
+      "",
+      `(trimmed to fit ${DIGEST_BYTE_BUDGET / 1024}KB. Read surface/ for the whole picture.)`
+    ].join("\n");
   }
   return text4;
 }
