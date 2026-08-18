@@ -47591,9 +47591,52 @@ ${STATE_FILE}
   }
 }
 
+// skills/site-scan/engine/probe.ts
+var PROBE_TIMEOUT_MS = 8e3;
+var EMPTY = {
+  robotsAnswered: false,
+  sitemapFound: false,
+  estimatedUrls: 0,
+  robotsBlocksAll: false
+};
+async function probeSite(url, opts) {
+  const fetchFn = opts?.fetchFn ?? fetch;
+  const origin = safeOrigin(url);
+  if (!origin) return EMPTY;
+  const grab = async (path2) => {
+    try {
+      const response = await fetchFn(new URL(path2, origin).toString(), {
+        redirect: "follow",
+        headers: { "user-agent": CRAWLER_USER_AGENT, accept: "text/plain,application/xml,*/*" },
+        signal: AbortSignal.timeout(PROBE_TIMEOUT_MS)
+      });
+      if (!response.ok) return void 0;
+      return await response.text();
+    } catch {
+      return void 0;
+    }
+  };
+  const [robotsText, sitemapXml] = await Promise.all([grab("/robots.txt"), grab("/sitemap.xml")]);
+  const robots = parseRobots(robotsText ?? "", "TracyBot");
+  const sitemap = sitemapXml === void 0 ? void 0 : parseSitemapXml(sitemapXml);
+  return {
+    robotsAnswered: robotsText !== void 0,
+    sitemapFound: sitemap !== void 0,
+    estimatedUrls: sitemap === void 0 ? 0 : sitemap.kind === "urlset" ? sitemap.entries.length : sitemap.sitemaps.length,
+    robotsBlocksAll: !robots.isAllowed("/")
+  };
+}
+function safeOrigin(url) {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return void 0;
+  }
+}
+
 // skills/site-scan/engine/cli.ts
 var PLATFORMS = ["wordpress", "shopify", "joomla"];
-var USAGE = "usage: scan --site <url> --workspace <path> [--platform wordpress|shopify|joomla]\n";
+var USAGE = "usage: scan --site <url> --workspace <path> [--platform wordpress|shopify|joomla]\n       scan --site <url> --probe\n";
 var arg = (name) => {
   const i = process.argv.indexOf(`--${name}`);
   return i >= 0 ? process.argv[i + 1] : void 0;
@@ -47607,13 +47650,18 @@ var fail = (message, code) => {
 };
 async function main() {
   const site = arg("site");
+  const probeOnly = process.argv.includes("--probe");
   const workspace = arg("workspace");
-  if (!site || !workspace) fail(USAGE, 2);
+  if (!site || !workspace && !probeOnly) fail(USAGE, 2);
   try {
     new URL(site);
   } catch {
     fail(`--site must be an absolute URL, got: ${site}
 ${USAGE}`, 2);
+  }
+  if (probeOnly) {
+    emit({ type: "probe", ...await probeSite(site) });
+    return;
   }
   const platformArg = arg("platform");
   if (platformArg !== void 0 && !PLATFORMS.includes(platformArg)) {
