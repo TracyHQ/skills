@@ -8,8 +8,8 @@ import { loggerService } from './logger'
 import { siteSlug } from './siteSlug'
 import { analyzeLinkGraph } from './analyze/linkGraph'
 import { MN_DISCOVERABILITY, runMnDiscoverability } from './analyze/mnDiscoverability'
-import { runSeoChecks } from './analyze/seoChecks'
-import { runUcpChecks } from './analyze/ucpChecks'
+import { runSeoChecks, SEO_CHECK_IDS } from './analyze/seoChecks'
+import { runUcpChecks, UCP_CHECK_IDS } from './analyze/ucpChecks'
 import { generateDigests } from './digest'
 import { createFetchQueue } from './fetchQueue'
 import { extractPage } from './harvest/pageExtract'
@@ -370,8 +370,10 @@ export async function runCrawl(input: CrawlInput): Promise<{ report: CrawlReport
   })
   progress('analyze', pages.length, pages.length, { step: 'checks' })
   const robotsText = robotsOutcome.ok ? robotsOutcome.text : ''
-  // 8 SEO + the pinned MN table + 4 agent-door checks when the door was probed.
-  const checksRun = 8 + Object.keys(MN_DISCOVERABILITY).length + (ucp ? 4 : 0)
+  // 8 SEO + the pinned MN table + 4 agent-door checks when the door was probed. Kept as the ids
+  // rather than their count: the count could only ever be shown, while the ids can be subtracted
+  // from the findings to say which checks the site actually passed.
+  const checksRun = [...SEO_CHECK_IDS, ...Object.keys(MN_DISCOVERABILITY), ...(ucp ? UCP_CHECK_IDS : [])]
   const findings = [
     ...runSeoChecks(pages, graph),
     ...runMnDiscoverability(pages, robotsText, input.siteKey),
@@ -390,7 +392,7 @@ export async function runCrawl(input: CrawlInput): Promise<{ report: CrawlReport
   progress('analyze', pages.length, pages.length, {
     stepIo: {
       key: 'analyze.checks',
-      read: { pages: pages.length, checks: checksRun },
+      read: { pages: pages.length, checks: checksRun.length },
       found: {
         findings: findings.map((f) => ({ checkId: f.checkId, count: f.count, priority: f.priority })),
         savedTo: 'surface/seo/findings.json'
@@ -420,7 +422,9 @@ export async function runCrawl(input: CrawlInput): Promise<{ report: CrawlReport
     robotsBlocked,
     errors,
     cappedHtml,
-    cappedStructured: (wpItems?.capped ?? 0) + (shopify?.capped ?? 0)
+    cappedStructured: (wpItems?.capped ?? 0) + (shopify?.capped ?? 0),
+    skipped: { linkChecks: graph.headChecksSkipped, pages: cappedHtml },
+    checksPassed: checksRun.filter((id) => !findings.some((f) => f.checkId === id))
   }
   const digests = generateDigests({
     siteKey: input.siteKey,

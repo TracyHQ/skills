@@ -63,6 +63,9 @@ const CHECKS: UcpCheck[] = [
   }
 ]
 
+/** The ids of the four agent-door checks, in the order they run. See {@link SEO_CHECK_IDS}. */
+export const UCP_CHECK_IDS: string[] = CHECKS.map((check) => check.id)
+
 export function runUcpChecks(surface: UcpSurface): Finding[] {
   const findings: Finding[] = []
   for (const check of CHECKS) {

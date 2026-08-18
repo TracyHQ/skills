@@ -30811,6 +30811,7 @@ var CHECKS = [
     affected: (pages) => pages.filter((p) => !p.canonical).map((p) => p.url)
   }
 ];
+var SEO_CHECK_IDS = CHECKS.map((check) => check.id);
 function runSeoChecks(allPages, graph) {
   const pages = allPages.filter((p) => !p.redirectStub);
   const findings = [];
@@ -30965,6 +30966,7 @@ var CHECKS2 = [
     }
   }
 ];
+var UCP_CHECK_IDS = CHECKS2.map((check) => check.id);
 function runUcpChecks(surface) {
   const findings = [];
   for (const check of CHECKS2) {
@@ -47411,7 +47413,7 @@ async function runCrawl(input) {
   });
   progress("analyze", pages.length, pages.length, { step: "checks" });
   const robotsText = robotsOutcome.ok ? robotsOutcome.text : "";
-  const checksRun = 8 + Object.keys(MN_DISCOVERABILITY).length + (ucp ? 4 : 0);
+  const checksRun = [...SEO_CHECK_IDS, ...Object.keys(MN_DISCOVERABILITY), ...ucp ? UCP_CHECK_IDS : []];
   const findings = [
     ...runSeoChecks(pages, graph),
     ...runMnDiscoverability(pages, robotsText, input.siteKey),
@@ -47422,7 +47424,7 @@ async function runCrawl(input) {
   progress("analyze", pages.length, pages.length, {
     stepIo: {
       key: "analyze.checks",
-      read: { pages: pages.length, checks: checksRun },
+      read: { pages: pages.length, checks: checksRun.length },
       found: {
         findings: findings.map((f) => ({ checkId: f.checkId, count: f.count, priority: f.priority })),
         savedTo: "surface/seo/findings.json"
@@ -47450,7 +47452,9 @@ async function runCrawl(input) {
     robotsBlocked,
     errors: errors2,
     cappedHtml,
-    cappedStructured: (wpItems?.capped ?? 0) + (shopify?.capped ?? 0)
+    cappedStructured: (wpItems?.capped ?? 0) + (shopify?.capped ?? 0),
+    skipped: { linkChecks: graph.headChecksSkipped, pages: cappedHtml },
+    checksPassed: checksRun.filter((id) => !findings.some((f) => f.checkId === id))
   };
   const digests = generateDigests({
     siteKey: input.siteKey,
