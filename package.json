@@ -9,7 +9,7 @@
     "build-index": "tsx bin/build-index.ts",
     "emit-schema": "tsx bin/emit-schema.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.engine.json"
   },
   "keywords": [],
   "author": "",
@@ -17,11 +17,14 @@
   "//license": "Code is MIT. Data under registry/, curation/ and dist/skills/ is CC BY 4.0 — see LICENSE-DATA.",
   "type": "module",
   "dependencies": {
+    "cheerio": "^1.1.2",
     "gray-matter": "^4.0.3",
+    "htmlparser2": "^10.0.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",
+    "esbuild": "^0.28.2",
     "tsx": "^4.23.1",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
