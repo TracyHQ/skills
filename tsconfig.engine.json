@@ -1,0 +1,9 @@
+{
+  "//": "The measuring engine typechecks under the rules it was written against, not this repo's.",
+  "//why": "The engine moved here from tracy-desk unchanged, on purpose: stage 1 of the site-scan plan is a change of address, and its acceptance test is that findings.json still matches the previous run number for number. tracy-desk does not set `noUncheckedIndexedAccess`; this repo does. Tightening the rule would mean editing the engine, and every `!` or `?? ''` added to satisfy a compiler is a place behaviour can quietly differ. So the flag relaxes for this directory alone, and tightening it becomes its own task with the golden comparison already in place as a net.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noUncheckedIndexedAccess": false
+  },
+  "include": ["skills/site-scan/engine"]
+}
