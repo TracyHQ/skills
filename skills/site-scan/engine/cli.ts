@@ -1,4 +1,5 @@
 import { runCrawl } from './crawler'
+import { probeSite } from './probe'
 
 /**
  * The one door into the measuring engine from outside the desktop app.
@@ -15,7 +16,8 @@ type Platform = 'wordpress' | 'shopify' | 'joomla'
 const PLATFORMS: Platform[] = ['wordpress', 'shopify', 'joomla']
 
 const USAGE =
-  'usage: scan --site <url> --workspace <path> [--platform wordpress|shopify|joomla]\n'
+  'usage: scan --site <url> --workspace <path> [--platform wordpress|shopify|joomla]\n' +
+  '       scan --site <url> --probe\n'
 
 const arg = (name: string): string | undefined => {
   const i = process.argv.indexOf(`--${name}`)
@@ -31,8 +33,9 @@ const fail = (message: string, code: number): never => {
 
 async function main() {
   const site = arg('site')
+  const probeOnly = process.argv.includes('--probe')
   const workspace = arg('workspace')
-  if (!site || !workspace) fail(USAGE, 2)
+  if (!site || (!workspace && !probeOnly)) fail(USAGE, 2)
 
   // The crawler builds every address off this one, so a bad value must fail here with a sentence
   // the caller can act on, not three phases later inside a fetch.
@@ -40,6 +43,15 @@ async function main() {
     new URL(site!)
   } catch {
     fail(`--site must be an absolute URL, got: ${site}\n${USAGE}`, 2)
+  }
+
+  // The first look at an address, for the moment somebody has just typed one: two public files,
+  // no workspace, one line out. It answers here rather than in a second script because the parsers
+  // it needs are the crawl's own, and two copies of a robots parser is how two answers to the same
+  // question start.
+  if (probeOnly) {
+    emit({ type: 'probe', ...(await probeSite(site!)) })
+    return
   }
 
   const platformArg = arg('platform')
