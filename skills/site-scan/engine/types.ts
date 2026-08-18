@@ -90,6 +90,16 @@ export type CrawlReport = {
    * a failure leaves a trace there.
    */
   checksPassed: string[]
+  /**
+   * Checks that ran, raised nothing, and still cannot be called passed, because the population they
+   * measure is not one this run can vouch for. Nine checks read only product pages, recognised by a
+   * path convention that belongs to Shopify; elsewhere the set is wrong, and an empty set is
+   * vacuous on any platform. Silence was already misleading — silence relabelled as a pass would be
+   * a claim, so these are named separately instead.
+   */
+  checksInconclusive: string[]
+  /** How many pages the product-scoped checks were measured over. The denominator behind the split. */
+  productPages: number
   marketAgeDays?: number
   vitalsAgeDays?: number
 }

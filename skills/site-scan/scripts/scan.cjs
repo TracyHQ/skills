@@ -30608,6 +30608,17 @@ var MAX_SAMPLE_URLS = 20;
 var FILENAME_RE = /^(img[_-]|dsc[_-]?\d)|\.(jpe?g|png|gif|webp|svg|bmp|avif)$/i;
 var CRAWLABLE_MIN_WORDS = 30;
 var isProductPage = (page) => !page.redirectStub && page.url.includes("/products/");
+var PRODUCT_SCOPED_CHECK_IDS = [
+  "brand-in-title",
+  "internal-linking",
+  "product-schema",
+  "product-schema-rich",
+  "review-schema",
+  "shipping-schema",
+  "faq-schema",
+  "breadcrumb-schema",
+  "video-schema"
+];
 function altPasses(alt, counts) {
   const trimmed = alt.trim();
   if (!trimmed || FILENAME_RE.test(trimmed)) return false;
@@ -47177,6 +47188,16 @@ var CrawlCancelled = class extends Error {
     super("crawl cancelled");
   }
 };
+function splitSilentChecks(checksRun, findings, productPages, platform) {
+  const trustedProductSet = platform === "shopify" && productPages > 0;
+  const silent = checksRun.filter((id) => !findings.some((f) => f.checkId === id));
+  const shaky = (id) => !trustedProductSet && PRODUCT_SCOPED_CHECK_IDS.includes(id);
+  return {
+    checksPassed: silent.filter((id) => !shaky(id)),
+    checksInconclusive: silent.filter(shaky),
+    productPages
+  };
+}
 async function runCrawl(input) {
   const startedAt = (/* @__PURE__ */ new Date()).toISOString();
   const origin = new URL(input.siteKey).origin;
@@ -47454,7 +47475,7 @@ async function runCrawl(input) {
     cappedHtml,
     cappedStructured: (wpItems?.capped ?? 0) + (shopify?.capped ?? 0),
     skipped: { linkChecks: graph.headChecksSkipped, pages: cappedHtml },
-    checksPassed: checksRun.filter((id) => !findings.some((f) => f.checkId === id))
+    ...splitSilentChecks(checksRun, findings, pages.filter(isProductPage).length, input.platform)
   };
   const digests = generateDigests({
     siteKey: input.siteKey,

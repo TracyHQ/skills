@@ -36,7 +36,9 @@ const report: CrawlReport = {
   cappedHtml: 0,
   cappedStructured: 0,
   skipped: { linkChecks: 0, pages: 0 },
-  checksPassed: []
+  checksPassed: [],
+  checksInconclusive: [],
+  productPages: 0
 }
 
 const findings: Finding[] = [

@@ -7,7 +7,12 @@ import { loggerService } from './logger'
 
 import { siteSlug } from './siteSlug'
 import { analyzeLinkGraph } from './analyze/linkGraph'
-import { MN_DISCOVERABILITY, runMnDiscoverability } from './analyze/mnDiscoverability'
+import {
+  isProductPage,
+  MN_DISCOVERABILITY,
+  PRODUCT_SCOPED_CHECK_IDS,
+  runMnDiscoverability
+} from './analyze/mnDiscoverability'
 import { runSeoChecks, SEO_CHECK_IDS } from './analyze/seoChecks'
 import { runUcpChecks, UCP_CHECK_IDS } from './analyze/ucpChecks'
 import { generateDigests } from './digest'
@@ -87,6 +92,33 @@ export type CrawlInput = {
   shouldStop?: () => boolean
   /** Test seam: politeness stays on in production, tests turn the pacing off. */
   tuning?: { minIntervalMs?: number }
+}
+
+/**
+ * A check that raised nothing either passed or was never really asked, and the report has to say
+ * which. Nine of the twenty-six read only product pages, and a product page is recognised by
+ * Shopify's `/products/` convention (see {@link isProductPage}), so two facts decide it:
+ *
+ * - not a Shopify store, and the set is derived by the wrong rule for this platform
+ * - an empty set, and the verdict is vacuous on any platform
+ *
+ * Either way the answer is "not established", never "passed". No threshold is invented here and no
+ * finding changes: this only splits the silence into two honest halves.
+ */
+function splitSilentChecks(
+  checksRun: string[],
+  findings: Finding[],
+  productPages: number,
+  platform: CrawlInput['platform']
+): { checksPassed: string[]; checksInconclusive: string[]; productPages: number } {
+  const trustedProductSet = platform === 'shopify' && productPages > 0
+  const silent = checksRun.filter((id) => !findings.some((f) => f.checkId === id))
+  const shaky = (id: string) => !trustedProductSet && PRODUCT_SCOPED_CHECK_IDS.includes(id)
+  return {
+    checksPassed: silent.filter((id) => !shaky(id)),
+    checksInconclusive: silent.filter(shaky),
+    productPages
+  }
 }
 
 /**
@@ -424,7 +456,7 @@ export async function runCrawl(input: CrawlInput): Promise<{ report: CrawlReport
     cappedHtml,
     cappedStructured: (wpItems?.capped ?? 0) + (shopify?.capped ?? 0),
     skipped: { linkChecks: graph.headChecksSkipped, pages: cappedHtml },
-    checksPassed: checksRun.filter((id) => !findings.some((f) => f.checkId === id))
+    ...splitSilentChecks(checksRun, findings, pages.filter(isProductPage).length, input.platform)
   }
   const digests = generateDigests({
     siteKey: input.siteKey,

@@ -46,7 +46,28 @@ const FILENAME_RE = /^(img[_-]|dsc[_-]?\d)|\.(jpe?g|png|gif|webp|svg|bmp|avif)$/
 /** Adapted crawlable-text: below this many words of raw text, the page is invisible without JS. */
 const CRAWLABLE_MIN_WORDS = 30
 
-const isProductPage = (page: PageRecord): boolean => !page.redirectStub && page.url.includes('/products/')
+/**
+ * A product page is one whose path contains `/products/` — Shopify's convention, and the source of
+ * the largest known measuring error in this engine: WooCommerce uses `/san-pham/`, Joomla uses
+ * something else again, so on those platforms this finds almost nothing. Fixing the recognition is
+ * stage 4's work; until then the crawl at least refuses to report a product check as passed on a
+ * set it knows it got wrong.
+ */
+export const isProductPage = (page: PageRecord): boolean =>
+  !page.redirectStub && page.url.includes('/products/')
+
+/** The nine checks whose verdict is only as good as {@link isProductPage}. */
+export const PRODUCT_SCOPED_CHECK_IDS: string[] = [
+  'brand-in-title',
+  'internal-linking',
+  'product-schema',
+  'product-schema-rich',
+  'review-schema',
+  'shipping-schema',
+  'faq-schema',
+  'breadcrumb-schema',
+  'video-schema'
+]
 
 /** MN alt rules verbatim: non-empty, not a filename, ≥4 words, ≤125 chars, unique on the page. */
 function altPasses(alt: string, counts: Map<string, number>): boolean {
