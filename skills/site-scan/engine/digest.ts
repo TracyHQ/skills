@@ -88,7 +88,7 @@ function contentMap({ pages }: DigestInput): string[] {
   }
   if (pages.length > TOP_RECENT_PAGES) {
     lines.push('')
-    lines.push(`Còn ${pages.length - TOP_RECENT_PAGES} URL — xem surface/pages/ để đào sâu từng trang.`)
+    lines.push(`${pages.length - TOP_RECENT_PAGES} more URLs. Read surface/pages/ for any page in full.`)
   }
   return lines
 }
@@ -129,9 +129,11 @@ function fitBudget(lines: string[]): string {
   let text = lines.join('\n')
   while (Buffer.byteLength(text, 'utf8') > DIGEST_BYTE_BUDGET && kept > 1) {
     kept = Math.max(1, Math.floor(kept * 0.9))
-    text = [...lines.slice(0, kept), '', `(bị gọn cho vừa ${DIGEST_BYTE_BUDGET / 1024}KB — xem surface/ để đủ)`].join(
-      '\n'
-    )
+    text = [
+      ...lines.slice(0, kept),
+      '',
+      `(trimmed to fit ${DIGEST_BYTE_BUDGET / 1024}KB. Read surface/ for the whole picture.)`
+    ].join('\n')
   }
   return text
 }
