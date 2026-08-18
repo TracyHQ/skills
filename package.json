@@ -9,7 +9,8 @@
     "build-index": "tsx bin/build-index.ts",
     "emit-schema": "tsx bin/emit-schema.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.engine.json"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.engine.json",
+    "build:site-scan": "esbuild skills/site-scan/engine/cli.ts --bundle --platform=node --target=node22 --format=cjs --outfile=skills/site-scan/scripts/scan.cjs"
   },
   "keywords": [],
   "author": "",
