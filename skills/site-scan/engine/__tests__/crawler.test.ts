@@ -209,6 +209,22 @@ describe('runCrawl', () => {
     expect(notes).toContain('checks-closed')
   })
 
+  it('names what it skipped and what it passed, not only what it failed', async () => {
+    const { report } = await runCrawl(input(fakeFetch(wpRoutes())))
+
+    // findings.json only ever recorded failures, so a screen showing fourteen problems could not
+    // say out of how many, and a hundred skipped link checks were never mentioned at all.
+    expect(report.checksPassed.length).toBeGreaterThan(0)
+    // Every id is a check that ran and found nothing — so none of them may also be a finding.
+    const raised = JSON.parse(
+      readFileSync(join(workspacePath, 'surface', 'seo', 'findings.json'), 'utf8')
+    ) as { checkId: string }[]
+    for (const id of report.checksPassed) {
+      expect(raised.some((f) => f.checkId === id)).toBe(false)
+    }
+    expect(report.skipped).toEqual({ linkChecks: expect.any(Number), pages: expect.any(Number) })
+  })
+
   it('reports progress phases', async () => {
     const phases: string[] = []
     await runCrawl({ ...input(fakeFetch(wpRoutes())), onProgress: (p) => phases.push(p.phase) })

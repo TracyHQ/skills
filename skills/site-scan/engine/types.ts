@@ -75,6 +75,21 @@ export type CrawlReport = {
   /** URLs dropped by the 500 HTML-fetch cap. */
   cappedHtml: number
   cappedStructured: number
+  /**
+   * What this run deliberately did not read, said out loud instead of left for the reader to infer.
+   * A silent screen reads as "nothing wrong here", which is a different claim from "not checked".
+   */
+  skipped: {
+    /** Internal links whose destination was never asked about, capped at 100 HEAD requests. */
+    linkChecks: number
+    /** Pages named by the sitemap that fell outside the 500-page ceiling. */
+    pages: number
+  }
+  /**
+   * Every check that ran and found nothing — the denominator `findings.json` never had, since only
+   * a failure leaves a trace there.
+   */
+  checksPassed: string[]
   marketAgeDays?: number
   vitalsAgeDays?: number
 }

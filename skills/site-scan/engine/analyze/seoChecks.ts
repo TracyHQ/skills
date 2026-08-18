@@ -70,6 +70,15 @@ const CHECKS: CheckDef[] = [
   }
 ]
 
+/**
+ * The ids of every check in this file, in the order they run.
+ *
+ * A finding is only ever written when a check FAILS, so this list is the denominator: subtract the
+ * findings from it and what remains is what the site passed. Without it, "fourteen problems" has
+ * nothing to be fourteen out of.
+ */
+export const SEO_CHECK_IDS: string[] = CHECKS.map((check) => check.id)
+
 export function runSeoChecks(allPages: PageRecord[], graph: LinkGraph): Finding[] {
   // Hop pages are 200s with nothing on them; every check would fire on one and
   // report a page the merchant cannot visit. They stay in the surface, not here.
