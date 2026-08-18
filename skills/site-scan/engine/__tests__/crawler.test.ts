@@ -225,6 +225,37 @@ describe('runCrawl', () => {
     expect(report.skipped).toEqual({ linkChecks: expect.any(Number), pages: expect.any(Number) })
   })
 
+  it('will not call a product check passed when the product set is not to be trusted', async () => {
+    const { report } = await runCrawl(input(fakeFetch(wpRoutes())))
+
+    // Nine checks measure only product pages, and a product page is recognised by `/products/` in
+    // the path — Shopify's convention. On anything else the set is wrong (one page instead of 175
+    // on the WooCommerce shop this was measured against), so silence from those checks is not a
+    // pass, and saying it is would be worse than the old silence.
+    expect(report.checksInconclusive).toContain('brand-in-title')
+    expect(report.checksInconclusive).toContain('internal-linking')
+    expect(report.checksPassed).not.toContain('brand-in-title')
+    expect(report.checksPassed).not.toContain('internal-linking')
+  })
+
+  it('does call a product check passed on Shopify, whose convention the path rule actually is', async () => {
+    const product = 'https://a.com/products/rose'
+    const routes = wpRoutes({
+      'https://a.com/sitemap.xml': {
+        status: 200,
+        body: sitemap([...Object.values(PAGES), { url: product, lastmod: '2026-07-04' }])
+      },
+      [product]: { status: 200, body: html('Rose') }
+    })
+
+    const { report } = await runCrawl({ ...input(fakeFetch(routes)), platform: 'shopify' })
+
+    // The set is derived by the store's own rule and is not empty, so silence here is a real pass
+    // and withholding it would be its own kind of dishonesty.
+    expect(report.productPages).toBe(1)
+    expect(report.checksInconclusive).toEqual([])
+  })
+
   it('reports progress phases', async () => {
     const phases: string[] = []
     await runCrawl({ ...input(fakeFetch(wpRoutes())), onProgress: (p) => phases.push(p.phase) })
