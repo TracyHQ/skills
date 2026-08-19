@@ -30547,8 +30547,8 @@ function parseRobots(text4, userAgent) {
 }
 
 // skills/site-scan/engine/analyze/aiReadiness.ts
-var ANSWER_BOTS = ["googlebot", "bingbot", "coccocbot", "oai-searchbot", "perplexitybot"];
-var TRAINING_BOTS = ["gptbot", "claudebot", "google-extended"];
+var ANSWER_BOTS = ["googlebot", "bingbot", "applebot", "oai-searchbot", "perplexitybot"];
+var TRAINING_BOTS = ["gptbot", "claudebot", "google-extended", "applebot-extended"];
 var MAX_SAMPLE_URLS = 20;
 var CRAWL_DELAY_HARSH_S = 10;
 var CRAWL_DELAY_NOTABLE_S = 5;

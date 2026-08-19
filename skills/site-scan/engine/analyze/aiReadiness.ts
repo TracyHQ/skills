@@ -12,26 +12,30 @@ import type { Finding, PageRecord } from '../types'
 
 /**
  * Bots that decide whether a site can be FOUND — search indexes and answer engines alike.
+ * The list stays global on purpose. A regional crawler matters enormously in its own market and
+ * not at all outside it, and a scan that ships one country's search engine is a scan built for one
+ * country. The bar for entry is an assistant people everywhere actually ask.
+ *
  * `ChatGPT-User` and `Perplexity-User` are deliberately absent: both vendors document that
  * robots.txt may not apply to them, because those fetches are triggered by a person asking a
  * question rather than by bulk crawling. Grading a rule with no force would send merchants to
  * edit a file that changes nothing. Whether those two actually get in is measured by asking the
  * site directly — see `ai-bots-reachable`.
  */
-const ANSWER_BOTS = ['googlebot', 'bingbot', 'coccocbot', 'oai-searchbot', 'perplexitybot']
+const ANSWER_BOTS = ['googlebot', 'bingbot', 'applebot', 'oai-searchbot', 'perplexitybot']
 
 /**
  * Bots that only gather material to train a model. Blocking these costs long-term familiarity,
  * never today's customer, and plenty of sites block them on purpose — so this is the softest
  * finding the engine can raise, and it says so in its own title.
  */
-const TRAINING_BOTS = ['gptbot', 'claudebot', 'google-extended']
+const TRAINING_BOTS = ['gptbot', 'claudebot', 'google-extended', 'applebot-extended']
 
 const MAX_SAMPLE_URLS = 20
 
 /**
  * Crawl-Delay thresholds, in seconds. Google ignores the directive outright, so this is squarely
- * an AI-and-second-tier-engine problem: Bing, CocCocBot, GPTBot, ClaudeBot and PerplexityBot honour
+ * an AI-and-second-tier-engine problem: Bing, Applebot, GPTBot, ClaudeBot and PerplexityBot honour
  * it, and at twenty seconds a four-hundred-product catalogue takes over two hours to read once.
  * That is not a block, it is a chokehold, and the outcome is the same.
  */
