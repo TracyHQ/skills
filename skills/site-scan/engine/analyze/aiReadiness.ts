@@ -91,7 +91,8 @@ export const AI_READINESS_CHECK_IDS: string[] = [
   'ai-training-bots-blocked',
   'crawl-delay-punitive',
   'ai-bots-reachable',
-  'sitemap-noindex-conflict'
+  'sitemap-noindex-conflict',
+  'utility-page-indexable'
 ]
 
 export function runAiReadiness(input: {
@@ -206,6 +207,24 @@ export function runAiReadiness(input: {
       count: noindexed.length,
       priority: 3,
       urls: noindexed.slice(0, MAX_SAMPLE_URLS)
+    })
+  }
+
+  // utility-page-indexable — the other half of the same problem, and the worse half. A cart,
+  // checkout or account page that never asked to be hidden is open to every crawler: it burns the
+  // crawl budget that should reach the catalogue, it puts an empty basket in front of a shopper
+  // who searched for a product, and an assistant reading the shop learns from a login form.
+  //
+  // Told apart from an ordinary page by what the platform stamped on it, never by the url — see
+  // `harvest/pageKind.ts` for why that distinction is the whole design.
+  const exposed = input.pages.filter((p) => !p.redirectStub && p.pageKind && !isNoindex(p))
+  if (exposed.length > 0) {
+    findings.push({
+      checkId: 'utility-page-indexable',
+      title: 'Cart, checkout and account pages are open to search engines',
+      count: exposed.length,
+      priority: 2,
+      urls: exposed.map((p) => `${p.url} → ${p.pageKind}, indexable`).slice(0, MAX_SAMPLE_URLS)
     })
   }
 

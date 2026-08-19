@@ -30589,7 +30589,8 @@ var AI_READINESS_CHECK_IDS = [
   "ai-training-bots-blocked",
   "crawl-delay-punitive",
   "ai-bots-reachable",
-  "sitemap-noindex-conflict"
+  "sitemap-noindex-conflict",
+  "utility-page-indexable"
 ];
 function runAiReadiness(input) {
   const findings = [];
@@ -30656,6 +30657,16 @@ function runAiReadiness(input) {
       count: noindexed.length,
       priority: 3,
       urls: noindexed.slice(0, MAX_SAMPLE_URLS)
+    });
+  }
+  const exposed = input.pages.filter((p) => !p.redirectStub && p.pageKind && !isNoindex(p));
+  if (exposed.length > 0) {
+    findings.push({
+      checkId: "utility-page-indexable",
+      title: "Cart, checkout and account pages are open to search engines",
+      count: exposed.length,
+      priority: 2,
+      urls: exposed.map((p) => `${p.url} \u2192 ${p.pageKind}, indexable`).slice(0, MAX_SAMPLE_URLS)
     });
   }
   return findings;
@@ -45832,10 +45843,42 @@ var STRINGS = {
 var undici = __toESM(require_undici(), 1);
 var import_whatwg_mimetype = __toESM(require_mime_type(), 1);
 
+// skills/site-scan/engine/harvest/pageKind.ts
+var CLASS_MARKERS = [
+  { marker: "woocommerce-checkout", kind: "checkout" },
+  { marker: "woocommerce-cart", kind: "cart" },
+  { marker: "woocommerce-account", kind: "account" },
+  { marker: "template-customers", kind: "account" },
+  { marker: "template-checkout", kind: "checkout" },
+  { marker: "template-cart", kind: "cart" },
+  { marker: "template-search", kind: "search" },
+  { marker: "search-results", kind: "search" },
+  { marker: "search-no-results", kind: "search" }
+];
+var SHOPIFY_ROUTES = [
+  { prefix: "/cart", kind: "cart" },
+  { prefix: "/checkout", kind: "checkout" },
+  { prefix: "/account", kind: "account" },
+  { prefix: "/search", kind: "search" }
+];
+function recognisePageKind(bodyClass, url, platform) {
+  const classes = bodyClass.toLowerCase();
+  for (const { marker, kind } of CLASS_MARKERS) {
+    if (classes.includes(marker)) return kind;
+  }
+  if (platform !== "shopify") return void 0;
+  try {
+    const { pathname } = new URL(url);
+    return SHOPIFY_ROUTES.find((route) => pathname === route.prefix || pathname.startsWith(`${route.prefix}/`))?.kind;
+  } catch {
+    return void 0;
+  }
+}
+
 // skills/site-scan/engine/harvest/pageExtract.ts
 var TEXT_SAMPLE_LENGTH = 2e3;
 var STUB_MAX_WORDS = 50;
-function extractPage(url, html3, origin) {
+function extractPage(url, html3, origin, platform = null) {
   const $2 = load(html3);
   const headings = [];
   for (let level = 1; level <= 6; level++) {
@@ -45900,6 +45943,7 @@ function extractPage(url, html3, origin) {
   const metaRobots = $2('meta[name="robots"]').attr("content")?.trim();
   const h1 = headings.filter((h) => h.level === 1).map((h) => h.text);
   const wordCount = bodyText ? bodyText.split(" ").length : 0;
+  const pageKind = recognisePageKind($2("body").attr("class") ?? "", url, platform);
   return {
     url,
     status: 200,
@@ -45913,6 +45957,7 @@ function extractPage(url, html3, origin) {
     ...videoFacts ? { videoSchema: videoFacts } : {},
     h1,
     headings,
+    ...pageKind ? { pageKind } : {},
     wordCount,
     textSample: bodyText.slice(0, TEXT_SAMPLE_LENGTH),
     images,
@@ -47543,7 +47588,7 @@ async function runCrawl(input) {
       return page2;
     }
     const pageUrl = outcome.finalUrl || url;
-    const page = extractPage(pageUrl, outcome.text, origin);
+    const page = extractPage(pageUrl, outcome.text, origin, input.platform);
     const stubNote = noteStub(page);
     if (stubNote) progress("harvest", htmlFetched, 0, { note: stubNote });
     state.pages[url] = { lastmod, etag: outcome.etag, contentHash: page.contentHash };

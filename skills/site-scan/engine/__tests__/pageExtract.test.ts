@@ -114,3 +114,19 @@ describe('extractPage — redirect stubs', () => {
     ).toBeUndefined()
   })
 })
+
+describe('what the platform says a page is for', () => {
+  it('carries the kind through when the body class names it', () => {
+    const cart =
+      '<html><head><title>Gio hang</title></head><body class="page-template-default woocommerce-cart woocommerce-page">' +
+      '<h1>Gio hang</h1></body></html>'
+    expect(extractPage('https://juneflower.vn/gio-hang/', cart, 'https://juneflower.vn').pageKind).toBe('cart')
+  })
+
+  it('leaves an ordinary page without a kind', () => {
+    const product =
+      '<html><head><title>Hoa bo</title></head><body class="woocommerce-page"><h1>Hoa bo</h1></body></html>'
+    expect(extractPage('https://juneflower.vn/san-pham/hoa-bo/', product, 'https://juneflower.vn').pageKind)
+      .toBeUndefined()
+  })
+})

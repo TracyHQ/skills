@@ -328,7 +328,7 @@ export async function runCrawl(input: CrawlInput): Promise<{ report: CrawlReport
       return page
     }
     const pageUrl = outcome.finalUrl || url
-    const page = extractPage(pageUrl, outcome.text, origin)
+    const page = extractPage(pageUrl, outcome.text, origin, input.platform)
     const stubNote = noteStub(page)
     if (stubNote) progress('harvest', htmlFetched, 0, { note: stubNote })
     state.pages[url] = { lastmod, etag: outcome.etag, contentHash: page.contentHash }

@@ -4,6 +4,7 @@ import * as cheerio from 'cheerio'
 
 import { isSameSite } from '../sameSite'
 import type { PageRecord } from '../types'
+import { recognisePageKind } from './pageKind'
 
 const TEXT_SAMPLE_LENGTH = 2000
 /** Above this, a cross-site canonical is a syndication choice rather than a hop page. */
@@ -15,7 +16,12 @@ const STUB_MAX_WORDS = 50
  * including ones whose content came from REST — because only the real HTML has
  * the title tag, canonical and structured data the site actually serves.
  */
-export function extractPage(url: string, html: string, origin: string): PageRecord {
+export function extractPage(
+  url: string,
+  html: string,
+  origin: string,
+  platform: 'wordpress' | 'shopify' | 'joomla' | null = null
+): PageRecord {
   const $ = cheerio.load(html)
 
   const headings: { level: number; text: string }[] = []
@@ -90,6 +96,7 @@ export function extractPage(url: string, html: string, origin: string): PageReco
 
   const h1 = headings.filter((h) => h.level === 1).map((h) => h.text)
   const wordCount = bodyText ? bodyText.split(' ').length : 0
+  const pageKind = recognisePageKind($('body').attr('class') ?? '', url, platform)
 
   return {
     url,
@@ -104,6 +111,7 @@ export function extractPage(url: string, html: string, origin: string): PageReco
     ...(videoFacts ? { videoSchema: videoFacts } : {}),
     h1,
     headings,
+    ...(pageKind ? { pageKind } : {}),
     wordCount,
     textSample: bodyText.slice(0, TEXT_SAMPLE_LENGTH),
     images,

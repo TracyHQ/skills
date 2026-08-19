@@ -1,3 +1,5 @@
+import type { PageKind } from './harvest/pageKind'
+
 /**
  * Shared shapes of the public crawler (spec 2026-07-30-public-site-crawler-design.md).
  * Domain Language: Crawl / Probe / Surface / Digest / Check / Finding.
@@ -45,6 +47,11 @@ export type PageRecord = {
   videoSchema?: { name: boolean; thumbnail: boolean; url: boolean }
   /** sha1 of the normalized body text — the incremental diff key. */
   contentHash: string
+  /**
+   * What the platform says this page is FOR — cart, checkout, account, search — when it says so.
+   * Absent on ordinary pages, and absent rather than guessed when the platform is silent.
+   */
+  pageKind?: PageKind
 }
 
 /**

@@ -146,3 +146,20 @@ describe('ai-bots-reachable', () => {
     expect(ids(found)).not.toContain('ai-bots-reachable')
   })
 })
+
+describe('utility-page-indexable', () => {
+  it('fires for a checkout page nothing is hiding from search', () => {
+    const url = `${SITE}/thanh-toan/`
+    const found = run({ pages: [page(`${SITE}/`), page(url, { pageKind: 'checkout' })] })
+    const f = found.find((x) => x.checkId === 'utility-page-indexable')
+    expect(f).toMatchObject({ count: 1, priority: 2 })
+    expect(f?.urls[0]).toContain('checkout')
+  })
+
+  it('leaves alone a cart page that already asks to stay out of search', () => {
+    const found = run({
+      pages: [page(`${SITE}/`), page(`${SITE}/gio-hang/`, { pageKind: 'cart', metaRobots: 'noindex, follow' })]
+    })
+    expect(ids(found)).not.toContain('utility-page-indexable')
+  })
+})
