@@ -7,6 +7,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/result-envelope.sh"
+source "$SCRIPT_DIR/json-helpers.sh"
 
 usage() {
   echo "Usage: diag-version-audit.sh --label <site-label>" >&2
@@ -94,20 +95,10 @@ db_query() {
 
 # ---------- JSON helpers ----------
 
-_jstr() { printf '"%s"' "$(_re_json_escape "$1")"; }
+# _jstr / _jnum / _join_json_array come from json-helpers.sh. _jnum answers
+# null for anything that is not a plain integer, which is what mariadb
+# --batch printing SQL NULL as the literal "NULL" needs.
 _jbool() { [[ "$1" == "1" ]] && printf 'true' || printf 'false'; }
-# mariadb --batch prints SQL NULL as the literal "NULL"; anything that is not a
-# plain integer must not be interpolated into JSON as a bare number.
-_jnum() { [[ "$1" =~ ^-?[0-9]+$ ]] && printf '%s' "$1" || printf 'null'; }
-
-_join_json_array() {
-  if [[ $# -eq 0 ]]; then
-    printf '[]'
-  else
-    local IFS=','
-    printf '[%s]' "$*"
-  fi
-}
 
 # GNU date and BSD date disagree on epoch conversion; an unconvertible value
 # yields an empty string, which callers turn into JSON null.
