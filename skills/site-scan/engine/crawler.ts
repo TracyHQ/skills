@@ -19,7 +19,7 @@ import { runUcpChecks, UCP_CHECK_IDS } from './analyze/ucpChecks'
 import { generateDigests } from './digest'
 import { createFetchQueue } from './fetchQueue'
 import { type BotAccessSurface, harvestBotAccess } from './harvest/botAccess'
-import { extractPage } from './harvest/pageExtract'
+import { EXTRACTOR_VERSION, extractPage } from './harvest/pageExtract'
 import { harvestShopifyPublic } from './harvest/shopifyPublic'
 import { harvestSitemap } from './harvest/sitemap'
 import { harvestUcp, type UcpSurface } from './harvest/ucp'
@@ -282,7 +282,7 @@ export async function runCrawl(input: CrawlInput): Promise<{ report: CrawlReport
   }
 
   const previous = await readState(input.workspacePath)
-  const state: CrawlState = { pages: {} }
+  const state: CrawlState = { extractorVersion: EXTRACTOR_VERSION, pages: {} }
   const pages: PageRecord[] = []
   let htmlFetched = 0
   let robotsBlocked = 0
@@ -358,7 +358,16 @@ export async function runCrawl(input: CrawlInput): Promise<{ report: CrawlReport
         const cached = await readCachedPage(input.workspacePath, entry.url)
         if (cached) {
           state.pages[entry.url] = remembered
-          pages.push(cached)
+          // Through the same gate a fresh fetch goes through, and for the same reason. When the
+          // sitemap lists one page under two names — juneflower ships `/thanh-toan/` and
+          // `/gio-hang/`, the first redirecting to the second — only one page file is ever
+          // written. On the next run the alias finds no cache and refetches, the real url reads
+          // its cache, and without this guard the crawl holds the page twice. Every per-page
+          // count then counts it twice, quietly.
+          if (!recordedUrls.has(cached.url)) {
+            recordedUrls.add(cached.url)
+            pages.push(cached)
+          }
           cachedUrls.push(entry.url)
           continue
         }
@@ -564,10 +573,15 @@ function pageFileName(url: string): string {
 }
 
 async function readState(workspacePath: string): Promise<CrawlState> {
+  const empty: CrawlState = { extractorVersion: EXTRACTOR_VERSION, pages: {} }
   try {
-    return JSON.parse(await readFile(path.join(workspacePath, STATE_FILE), 'utf8')) as CrawlState
+    const saved = JSON.parse(await readFile(path.join(workspacePath, STATE_FILE), 'utf8')) as CrawlState
+    // Pages written by an older extractor are missing whatever it had not learned to read yet.
+    // Keeping them would let a new check run over old records and report a clean site by
+    // omission, so the whole cache retires at once and the next run reads the site again.
+    return saved.extractorVersion === EXTRACTOR_VERSION ? saved : empty
   } catch {
-    return { pages: {} }
+    return empty
   }
 }
 

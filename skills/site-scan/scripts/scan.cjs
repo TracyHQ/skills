@@ -45878,6 +45878,7 @@ function recognisePageKind(bodyClass, url, platform) {
 // skills/site-scan/engine/harvest/pageExtract.ts
 var TEXT_SAMPLE_LENGTH = 2e3;
 var STUB_MAX_WORDS = 50;
+var EXTRACTOR_VERSION = 2;
 function extractPage(url, html3, origin, platform = null) {
   const $2 = load(html3);
   const headings = [];
@@ -47549,7 +47550,7 @@ async function runCrawl(input) {
     });
   }
   const previous = await readState(input.workspacePath);
-  const state = { pages: {} };
+  const state = { extractorVersion: EXTRACTOR_VERSION, pages: {} };
   const pages = [];
   let htmlFetched = 0;
   let robotsBlocked = 0;
@@ -47616,7 +47617,10 @@ async function runCrawl(input) {
         const cached = await readCachedPage(input.workspacePath, entry.url);
         if (cached) {
           state.pages[entry.url] = remembered;
-          pages.push(cached);
+          if (!recordedUrls.has(cached.url)) {
+            recordedUrls.add(cached.url);
+            pages.push(cached);
+          }
           cachedUrls.push(entry.url);
           continue;
         }
@@ -47787,10 +47791,12 @@ function pageFileName(url) {
   return `${siteSlug(url)}.json`;
 }
 async function readState(workspacePath) {
+  const empty2 = { extractorVersion: EXTRACTOR_VERSION, pages: {} };
   try {
-    return JSON.parse(await (0, import_promises.readFile)(import_node_path.default.join(workspacePath, STATE_FILE), "utf8"));
+    const saved = JSON.parse(await (0, import_promises.readFile)(import_node_path.default.join(workspacePath, STATE_FILE), "utf8"));
+    return saved.extractorVersion === EXTRACTOR_VERSION ? saved : empty2;
   } catch {
-    return { pages: {} };
+    return empty2;
   }
 }
 async function readJson(filePath) {

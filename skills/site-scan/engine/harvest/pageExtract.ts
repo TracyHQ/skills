@@ -16,6 +16,16 @@ const STUB_MAX_WORDS = 50
  * including ones whose content came from REST — because only the real HTML has
  * the title tag, canonical and structured data the site actually serves.
  */
+/**
+ * Bump this whenever `extractPage` starts reading something it did not read before. The saved
+ * pages from every earlier version are then treated as stale and read again, which is the only
+ * way a new field ever reaches a workspace that has already been crawled.
+ *
+ * 1 — the original shape.
+ * 2 — `pageKind`: what the platform says a page is for.
+ */
+export const EXTRACTOR_VERSION = 2
+
 export function extractPage(
   url: string,
   html: string,

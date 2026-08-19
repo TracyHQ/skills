@@ -112,7 +112,16 @@ export type CrawlReport = {
 }
 
 /** Per-URL memory for T3 incremental crawls — lives at .tracy/crawl-state.json, git-excluded. */
-export type CrawlState = { pages: Record<string, { lastmod?: string; etag?: string; contentHash?: string }> }
+export type CrawlState = {
+  /**
+   * Which extractor wrote the saved pages. A saved page only carries the fields the extractor of
+   * its day knew how to read, so when the extractor learns a new one every earlier page is blind
+   * to it — and a check reading that field reports nothing, with no symptom at all. A mismatch
+   * here retires the whole cache and the next run reads the site again.
+   */
+  extractorVersion?: number
+  pages: Record<string, { lastmod?: string; etag?: string; contentHash?: string }>
+}
 
 /**
  * What a public dataset can say about a site before the merchant has handed over any credential.

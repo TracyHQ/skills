@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -295,5 +295,65 @@ describe('runCrawl', () => {
     expect(read('surface/products/catalog.json').products[0]).not.toHaveProperty('updatedAt')
     // The report is the record of a run, so this is the one file that should move every time.
     expect(read('surface/crawl-report.json')).toHaveProperty('startedAt')
+  })
+
+  describe('when the engine learns to read a page differently', () => {
+    // Every check reads fields the extractor put there. Teach the extractor a new field and the
+    // pages already saved know nothing about it, so the new check reports nothing and says so
+    // nowhere. The cache therefore carries the extractor's version, and a mismatch retires it.
+    const statePath = () => join(workspacePath, '.tracy', 'crawl-state.json')
+
+    it('reuses the saved pages while the extractor is the one that wrote them', async () => {
+      await runCrawl(input(fakeFetch(wpRoutes())))
+      const log: string[] = []
+      await runCrawl(input(fakeFetch(wpRoutes(), log)))
+      expect(log.filter(isPageFetch)).toEqual([])
+    })
+
+    it('reads every page again once the extractor has moved on', async () => {
+      await runCrawl(input(fakeFetch(wpRoutes())))
+      const saved = JSON.parse(readFileSync(statePath(), 'utf8'))
+      writeFileSync(statePath(), JSON.stringify({ ...saved, extractorVersion: 0 }))
+      const log: string[] = []
+      await runCrawl(input(fakeFetch(wpRoutes(), log)))
+      expect(log.filter(isPageFetch).sort()).toEqual(Object.keys(PAGES).sort())
+    })
+  })
+
+  describe('a url the sitemap lists twice under two names', () => {
+    // juneflower ships both /thanh-toan/ and /gio-hang/ in its sitemap; the first 301s to the
+    // second, so only one page file is ever written. On the next run the alias finds no cache and
+    // refetches, the real url reads its cache, and the crawl ends up holding the same page twice —
+    // which every per-page count then counts twice.
+    const aliasRoutes = (): Routes => ({
+      'https://a.com/robots.txt': { status: 200, body: 'User-agent: *\nDisallow:' },
+      'https://a.com/sitemap.xml': {
+        status: 200,
+        body: sitemap([
+          { url: 'https://a.com/', lastmod: '2026-07-01' },
+          { url: 'https://a.com/alias', lastmod: '2026-07-02' },
+          { url: 'https://a.com/real', lastmod: '2026-07-02' }
+        ])
+      },
+      'https://a.com/': { status: 200, body: html('Home', ['https://a.com/real']) },
+      'https://a.com/alias': { status: 200, body: html('Real'), finalUrl: 'https://a.com/real' },
+      'https://a.com/real': { status: 200, body: html('Real') }
+    })
+
+    const crawledPages = () =>
+      Number(
+        /Crawled pages: (\d+)/.exec(readFileSync(join(workspacePath, 'digest', 'SITE-BRIEF.md'), 'utf8'))?.[1]
+      )
+
+    it('holds the page once on the first run', async () => {
+      await runCrawl(input(fakeFetch(aliasRoutes())))
+      expect(crawledPages()).toBe(2)
+    })
+
+    it('still holds it once on the second run, when one copy comes from the cache', async () => {
+      await runCrawl(input(fakeFetch(aliasRoutes())))
+      await runCrawl(input(fakeFetch(aliasRoutes())))
+      expect(crawledPages()).toBe(2)
+    })
   })
 })
