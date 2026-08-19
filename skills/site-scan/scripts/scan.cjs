@@ -30486,46 +30486,6 @@ function siteSlug(siteKey) {
   return noScheme.toLowerCase().replace(/[^a-z0-9.-]+/g, "-").replace(/-{2,}/g, "-").replace(/^-+|-+$/g, "");
 }
 
-// skills/site-scan/engine/analyze/linkGraph.ts
-var DEFAULT_MAX_HEAD_CHECKS = 100;
-async function analyzeLinkGraph(pages, opts) {
-  const known = new Map(pages.map((p) => [p.url, p]));
-  const incoming = /* @__PURE__ */ new Set();
-  for (const p of pages) for (const link of p.internalLinks) incoming.add(link);
-  const root2 = pages.map((p) => p.url).sort((a, b) => a.length - b.length || a.localeCompare(b))[0];
-  const depthByUrl = {};
-  if (root2 !== void 0) {
-    const queue = [{ url: root2, depth: 0 }];
-    while (queue.length > 0) {
-      const { url, depth } = queue.shift();
-      if (depthByUrl[url] !== void 0) continue;
-      depthByUrl[url] = depth;
-      for (const link of known.get(url)?.internalLinks ?? []) {
-        if (known.has(link) && depthByUrl[link] === void 0) queue.push({ url: link, depth: depth + 1 });
-      }
-    }
-  }
-  const orphans = pages.map((p) => p.url).filter((url) => url !== root2 && !incoming.has(url));
-  const brokenInternal = [];
-  let headChecksSkipped = 0;
-  if (opts.headCheck) {
-    const maxHeadChecks = opts.maxHeadChecks ?? DEFAULT_MAX_HEAD_CHECKS;
-    const unknownTargets = /* @__PURE__ */ new Map();
-    for (const p of pages) {
-      for (const link of p.internalLinks) {
-        if (!known.has(link) && !unknownTargets.has(link)) unknownTargets.set(link, p.url);
-      }
-    }
-    const targets = [...unknownTargets.entries()];
-    headChecksSkipped = Math.max(0, targets.length - maxHeadChecks);
-    for (const [target, from] of targets.slice(0, maxHeadChecks)) {
-      const status = await opts.headCheck(target);
-      if (status >= 400) brokenInternal.push({ from, to: target, status });
-    }
-  }
-  return { orphans, depthByUrl, brokenInternal, headChecksSkipped };
-}
-
 // skills/site-scan/engine/robots.ts
 function parseRobots(text4, userAgent) {
   const groups = [];
@@ -30586,9 +30546,128 @@ function parseRobots(text4, userAgent) {
   };
 }
 
+// skills/site-scan/engine/analyze/aiReadiness.ts
+var ANSWER_BOTS = ["googlebot", "bingbot", "coccocbot", "oai-searchbot", "perplexitybot"];
+var TRAINING_BOTS = ["gptbot", "claudebot", "google-extended"];
+var MAX_SAMPLE_URLS = 20;
+var SAMPLE_SECTIONS = 5;
+function samplePaths(sitemapUrls) {
+  const bySection = /* @__PURE__ */ new Map();
+  for (const url of sitemapUrls) {
+    try {
+      const { pathname } = new URL(url);
+      const section = pathname.split("/").filter(Boolean)[0] ?? "";
+      if (section && !bySection.has(section)) bySection.set(section, pathname);
+    } catch {
+    }
+  }
+  return ["/", ...[...bySection.values()].slice(0, SAMPLE_SECTIONS)];
+}
+var isNoindex = (page) => Boolean(page?.metaRobots && /noindex/i.test(page.metaRobots));
+var isHomepage = (page) => {
+  try {
+    return new URL(page.url).pathname === "/";
+  } catch {
+    return false;
+  }
+};
+function blockedPairs(robotsText, bots, paths, siteKey) {
+  const lines = [];
+  for (const bot of bots) {
+    const rules = parseRobots(robotsText, bot);
+    for (const path2 of paths) {
+      if (!rules.isAllowed(path2)) lines.push(`${bot} blocked on ${siteKey}${path2 === "/" ? "" : path2}`);
+    }
+  }
+  return lines;
+}
+var AI_READINESS_CHECK_IDS = ["ai-bots-allowed", "ai-training-bots-blocked", "page-noindex"];
+function runAiReadiness(input) {
+  const findings = [];
+  const paths = samplePaths(input.sitemapUrls);
+  const blocked = blockedPairs(input.robotsText, ANSWER_BOTS, paths, input.siteKey);
+  if (isNoindex(input.pages.find(isHomepage))) {
+    blocked.unshift(`noindex on the homepage of ${input.siteKey}`);
+  }
+  if (blocked.length > 0) {
+    findings.push({
+      checkId: "ai-bots-allowed",
+      title: "Search and answer engines are turned away",
+      count: blocked.length,
+      priority: 1,
+      urls: blocked.slice(0, MAX_SAMPLE_URLS)
+    });
+  }
+  const training = blockedPairs(input.robotsText, TRAINING_BOTS, paths, input.siteKey);
+  if (training.length > 0) {
+    findings.push({
+      checkId: "ai-training-bots-blocked",
+      title: "AI model training is blocked (ignore this if that was deliberate)",
+      count: training.length,
+      priority: 3,
+      urls: training.slice(0, MAX_SAMPLE_URLS)
+    });
+  }
+  const advertised = new Set(input.sitemapUrls);
+  const noindexed = [
+    ...new Set(
+      input.pages.filter((p) => !p.redirectStub && !isHomepage(p) && isNoindex(p) && advertised.has(p.url)).map((p) => p.url)
+    )
+  ];
+  if (noindexed.length > 0) {
+    findings.push({
+      checkId: "page-noindex",
+      title: "Pages the sitemap offers but the page itself hides",
+      count: noindexed.length,
+      priority: 2,
+      urls: noindexed.slice(0, MAX_SAMPLE_URLS)
+    });
+  }
+  return findings;
+}
+
+// skills/site-scan/engine/analyze/linkGraph.ts
+var DEFAULT_MAX_HEAD_CHECKS = 100;
+async function analyzeLinkGraph(pages, opts) {
+  const known = new Map(pages.map((p) => [p.url, p]));
+  const incoming = /* @__PURE__ */ new Set();
+  for (const p of pages) for (const link of p.internalLinks) incoming.add(link);
+  const root2 = pages.map((p) => p.url).sort((a, b) => a.length - b.length || a.localeCompare(b))[0];
+  const depthByUrl = {};
+  if (root2 !== void 0) {
+    const queue = [{ url: root2, depth: 0 }];
+    while (queue.length > 0) {
+      const { url, depth } = queue.shift();
+      if (depthByUrl[url] !== void 0) continue;
+      depthByUrl[url] = depth;
+      for (const link of known.get(url)?.internalLinks ?? []) {
+        if (known.has(link) && depthByUrl[link] === void 0) queue.push({ url: link, depth: depth + 1 });
+      }
+    }
+  }
+  const orphans = pages.map((p) => p.url).filter((url) => url !== root2 && !incoming.has(url));
+  const brokenInternal = [];
+  let headChecksSkipped = 0;
+  if (opts.headCheck) {
+    const maxHeadChecks = opts.maxHeadChecks ?? DEFAULT_MAX_HEAD_CHECKS;
+    const unknownTargets = /* @__PURE__ */ new Map();
+    for (const p of pages) {
+      for (const link of p.internalLinks) {
+        if (!known.has(link) && !unknownTargets.has(link)) unknownTargets.set(link, p.url);
+      }
+    }
+    const targets = [...unknownTargets.entries()];
+    headChecksSkipped = Math.max(0, targets.length - maxHeadChecks);
+    for (const [target, from] of targets.slice(0, maxHeadChecks)) {
+      const status = await opts.headCheck(target);
+      if (status >= 400) brokenInternal.push({ from, to: target, status });
+    }
+  }
+  return { orphans, depthByUrl, brokenInternal, headChecksSkipped };
+}
+
 // skills/site-scan/engine/analyze/mnDiscoverability.ts
 var MN_DISCOVERABILITY = {
-  "ai-bots-allowed": { weight: 3, impact: "Critical", subGroup: "access-findability" },
   "internal-linking": { weight: 1, impact: "Medium", subGroup: "access-findability" },
   "crawlable-text": { weight: 2, impact: "High", subGroup: "content-readability", adapted: true },
   "image-alt-text": { weight: 1, impact: "Medium", subGroup: "content-readability" },
@@ -30604,7 +30683,7 @@ var MN_DISCOVERABILITY = {
   "video-schema": { weight: 1, impact: "Medium", subGroup: "machine-readability" }
 };
 var PRIORITY = { Critical: 1, High: 2, Medium: 3 };
-var MAX_SAMPLE_URLS = 20;
+var MAX_SAMPLE_URLS2 = 20;
 var FILENAME_RE = /^(img[_-]|dsc[_-]?\d)|\.(jpe?g|png|gif|webp|svg|bmp|avif)$/i;
 var CRAWLABLE_MIN_WORDS = 30;
 var isProductPage = (page) => !page.redirectStub && page.url.includes("/products/");
@@ -30635,7 +30714,7 @@ function headingsFail(page) {
   }
   return false;
 }
-function runMnDiscoverability(allPages, robotsText, siteKey) {
+function runMnDiscoverability(allPages, siteKey) {
   const pages = allPages.filter((p) => !p.redirectStub);
   const products = pages.filter(isProductPage);
   const findings = [];
@@ -30646,26 +30725,9 @@ function runMnDiscoverability(allPages, robotsText, siteKey) {
       title,
       count,
       priority: PRIORITY[MN_DISCOVERABILITY[checkId].impact],
-      urls: urls.slice(0, MAX_SAMPLE_URLS)
+      urls: urls.slice(0, MAX_SAMPLE_URLS2)
     });
   };
-  const home = pages.find((p) => {
-    try {
-      return new URL(p.url).pathname === "/";
-    } catch {
-      return false;
-    }
-  });
-  const noindex = Boolean(home?.metaRobots && /noindex/i.test(home.metaRobots));
-  const blockedBots = ["googlebot", "oai-searchbot", "chatgpt-user"].filter(
-    (bot) => !parseRobots(robotsText, bot).isAllowed("/")
-  );
-  if (noindex) blockedBots.unshift("noindex (meta robots)");
-  add2(
-    "ai-bots-allowed",
-    "Search and answer engines are turned away",
-    blockedBots.map((bot) => `${bot} blocked on ${siteKey}`)
-  );
   add2(
     "crawlable-text",
     "Pages with almost no machine-readable text",
@@ -30770,7 +30832,7 @@ function hostLabel(siteKey) {
 }
 
 // skills/site-scan/engine/analyze/seoChecks.ts
-var MAX_SAMPLE_URLS2 = 20;
+var MAX_SAMPLE_URLS3 = 20;
 var THIN_CONTENT_WORDS = 150;
 var CHECKS = [
   {
@@ -30834,7 +30896,7 @@ function runSeoChecks(allPages, graph) {
       title: check.title,
       count: affected.length,
       priority: check.priority,
-      urls: affected.slice(0, MAX_SAMPLE_URLS2)
+      urls: affected.slice(0, MAX_SAMPLE_URLS3)
     });
   }
   return findings.sort((a, b) => a.priority - b.priority || b.count - a.count);
@@ -31089,7 +31151,7 @@ function seoFindings({ findings }) {
     lines.push("");
   }
   if (findings.length > TOP_FINDINGS) {
-    lines.push(`C\xF2n ${findings.length - TOP_FINDINGS} findings \u2014 xem surface/seo/findings.json.`);
+    lines.push(`${findings.length - TOP_FINDINGS} more findings \u2014 read surface/seo/findings.json.`);
   }
   return lines;
 }
@@ -47436,10 +47498,21 @@ async function runCrawl(input) {
   });
   progress("analyze", pages.length, pages.length, { step: "checks" });
   const robotsText = robotsOutcome.ok ? robotsOutcome.text : "";
-  const checksRun = [...SEO_CHECK_IDS, ...Object.keys(MN_DISCOVERABILITY), ...ucp ? UCP_CHECK_IDS : []];
+  const checksRun = [
+    ...SEO_CHECK_IDS,
+    ...AI_READINESS_CHECK_IDS,
+    ...Object.keys(MN_DISCOVERABILITY),
+    ...ucp ? UCP_CHECK_IDS : []
+  ];
   const findings = [
     ...runSeoChecks(pages, graph),
-    ...runMnDiscoverability(pages, robotsText, input.siteKey),
+    ...runAiReadiness({
+      robotsText,
+      siteKey: input.siteKey,
+      pages,
+      sitemapUrls: inventory.map((entry) => entry.url)
+    }),
+    ...runMnDiscoverability(pages, input.siteKey),
     ...ucp ? runUcpChecks(ucp) : []
   ];
   const previousFindings = await readJson(import_node_path.default.join(input.workspacePath, "surface", "seo", "findings.json"));

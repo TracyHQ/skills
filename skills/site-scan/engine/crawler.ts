@@ -6,6 +6,7 @@ import path from 'node:path'
 import { loggerService } from './logger'
 
 import { siteSlug } from './siteSlug'
+import { AI_READINESS_CHECK_IDS, runAiReadiness } from './analyze/aiReadiness'
 import { analyzeLinkGraph } from './analyze/linkGraph'
 import {
   isProductPage,
@@ -405,10 +406,21 @@ export async function runCrawl(input: CrawlInput): Promise<{ report: CrawlReport
   // 8 SEO + the pinned MN table + 4 agent-door checks when the door was probed. Kept as the ids
   // rather than their count: the count could only ever be shown, while the ids can be subtracted
   // from the findings to say which checks the site actually passed.
-  const checksRun = [...SEO_CHECK_IDS, ...Object.keys(MN_DISCOVERABILITY), ...(ucp ? UCP_CHECK_IDS : [])]
+  const checksRun = [
+    ...SEO_CHECK_IDS,
+    ...AI_READINESS_CHECK_IDS,
+    ...Object.keys(MN_DISCOVERABILITY),
+    ...(ucp ? UCP_CHECK_IDS : [])
+  ]
   const findings = [
     ...runSeoChecks(pages, graph),
-    ...runMnDiscoverability(pages, robotsText, input.siteKey),
+    ...runAiReadiness({
+      robotsText,
+      siteKey: input.siteKey,
+      pages,
+      sitemapUrls: inventory.map((entry) => entry.url)
+    }),
+    ...runMnDiscoverability(pages, input.siteKey),
     ...(ucp ? runUcpChecks(ucp) : [])
   ]
 

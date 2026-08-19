@@ -1,4 +1,3 @@
-import { parseRobots } from '../robots'
 import type { Finding, PageRecord } from '../types'
 
 /**
@@ -7,9 +6,12 @@ import type { Finding, PageRecord } from '../types'
  *
  * Criterion ids, weights and impacts are pinned 1:1 to the framework's own
  * `framework.constants.ts` — the two products must keep speaking the same names, so a test in
- * this repo hand-encodes the table and fails if either side drifts. `google-merchant-feed` is
- * the one criterion NOT here: it needs a paid SerpAPI lookup, which makes it Source work, not
- * crawl work.
+ * this repo hand-encodes the table and fails if either side drifts.
+ *
+ * Two criteria are NOT here. `google-merchant-feed` needs a paid SerpAPI lookup, which makes it
+ * Source work rather than crawl work. `ai-bots-allowed` moved to `aiReadiness.ts`: whether a
+ * machine can reach the site at all outranks anything measured ON a page, so Tracy now sets its
+ * own severity for it instead of inheriting MN's.
  *
  * The MN originals audit ONE product page with rendered HTML and a shop context; this port
  * counts across the whole crawl with raw HTML only. Two rules are therefore adaptations, marked
@@ -23,7 +25,6 @@ export const MN_DISCOVERABILITY: Record<
   string,
   { weight: 1 | 2 | 3; impact: MnImpact; subGroup: string; adapted?: true }
 > = {
-  'ai-bots-allowed': { weight: 3, impact: 'Critical', subGroup: 'access-findability' },
   'internal-linking': { weight: 1, impact: 'Medium', subGroup: 'access-findability' },
   'crawlable-text': { weight: 2, impact: 'High', subGroup: 'content-readability', adapted: true },
   'image-alt-text': { weight: 1, impact: 'Medium', subGroup: 'content-readability' },
@@ -89,7 +90,7 @@ function headingsFail(page: PageRecord): boolean {
   return false
 }
 
-export function runMnDiscoverability(allPages: PageRecord[], robotsText: string, siteKey: string): Finding[] {
+export function runMnDiscoverability(allPages: PageRecord[], siteKey: string): Finding[] {
   const pages = allPages.filter((p) => !p.redirectStub)
   const products = pages.filter(isProductPage)
   const findings: Finding[] = []
@@ -103,26 +104,6 @@ export function runMnDiscoverability(allPages: PageRecord[], robotsText: string,
       urls: urls.slice(0, MAX_SAMPLE_URLS)
     })
   }
-
-  // ai-bots-allowed — MN tiers: Google blocked is the disaster, OpenAI-search blocked the warning.
-  // Meta-robots noindex on the homepage counts as blocking Google, exactly as MN scores it.
-  const home = pages.find((p) => {
-    try {
-      return new URL(p.url).pathname === '/'
-    } catch {
-      return false
-    }
-  })
-  const noindex = Boolean(home?.metaRobots && /noindex/i.test(home.metaRobots))
-  const blockedBots = ['googlebot', 'oai-searchbot', 'chatgpt-user'].filter(
-    (bot) => !parseRobots(robotsText, bot).isAllowed('/')
-  )
-  if (noindex) blockedBots.unshift('noindex (meta robots)')
-  add(
-    'ai-bots-allowed',
-    'Search and answer engines are turned away',
-    blockedBots.map((bot) => `${bot} blocked on ${siteKey}`)
-  )
 
   // crawlable-text (adapted) — raw text is what a no-JS crawler gets; almost none means invisible.
   add(
