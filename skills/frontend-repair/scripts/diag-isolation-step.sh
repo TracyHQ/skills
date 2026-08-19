@@ -585,7 +585,7 @@ emit_envelope_once
 # strategy in playbook prose (D-11), never a loop in here.
 #
 # Expected top-level envelope keys:
-#   schemaVersion ("0.1-draft"), kind ("diag-isolation-step"), label, startedAt,
+#   schemaVersion ("1.0"), kind ("diag-isolation-step"), label, startedAt,
 #   finishedAt, status ("ok"|"error"), findings, unavailable, error
 #
 # findings keys, every action:

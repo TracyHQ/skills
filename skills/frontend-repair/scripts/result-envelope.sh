@@ -76,7 +76,7 @@ envelope_emit() {
   local ek el
   ek=$(_re_json_escape "$_RE_KIND")
   el=$(_re_json_escape "$_RE_LABEL")
-  printf '{"schemaVersion":"0.1-draft","kind":"%s","label":"%s","startedAt":"%s","finishedAt":"%s","status":"%s","findings":%s,"unavailable":%s,"error":%s}\n' \
+  printf '{"schemaVersion":"1.0","kind":"%s","label":"%s","startedAt":"%s","finishedAt":"%s","status":"%s","findings":%s,"unavailable":%s,"error":%s}\n' \
     "$ek" "$el" "$_RE_STARTED" "$finished" "$_RE_STATUS" "$_RE_FINDINGS" "$unavail" "$_RE_ERROR"
 }
 

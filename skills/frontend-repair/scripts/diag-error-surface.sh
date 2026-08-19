@@ -359,7 +359,7 @@ emit_envelope_once
 # administrator/logs/error.php). No call ever leaves the host.
 #
 # Expected top-level envelope keys:
-#   schemaVersion ("0.1-draft"), kind ("diag-error-surface"), label, startedAt,
+#   schemaVersion ("1.0"), kind ("diag-error-surface"), label, startedAt,
 #   finishedAt, status ("ok"|"error"), findings, unavailable, error
 #
 # findings keys, both states:

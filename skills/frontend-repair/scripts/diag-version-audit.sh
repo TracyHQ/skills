@@ -336,7 +336,7 @@ envelope_emit
 # (${LABEL}-web-1) over docker exec for the PHP version. No network calls.
 #
 # Expected top-level envelope keys:
-#   schemaVersion ("0.1-draft"), kind ("diag-version-audit"), label, startedAt,
+#   schemaVersion ("1.0"), kind ("diag-version-audit"), label, startedAt,
 #   finishedAt, status ("ok"|"error"), findings, unavailable, error
 #
 # findings keys (status=ok):
