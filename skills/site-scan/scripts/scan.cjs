@@ -30589,7 +30589,7 @@ var AI_READINESS_CHECK_IDS = [
   "ai-training-bots-blocked",
   "crawl-delay-punitive",
   "ai-bots-reachable",
-  "page-noindex"
+  "sitemap-noindex-conflict"
 ];
 function runAiReadiness(input) {
   const findings = [];
@@ -30651,10 +30651,10 @@ function runAiReadiness(input) {
   ];
   if (noindexed.length > 0) {
     findings.push({
-      checkId: "page-noindex",
-      title: "Pages the sitemap offers but the page itself hides",
+      checkId: "sitemap-noindex-conflict",
+      title: "Sitemap advertises pages that ask not to be indexed",
       count: noindexed.length,
-      priority: 2,
+      priority: 3,
       urls: noindexed.slice(0, MAX_SAMPLE_URLS)
     });
   }

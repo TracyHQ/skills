@@ -91,7 +91,7 @@ export const AI_READINESS_CHECK_IDS: string[] = [
   'ai-training-bots-blocked',
   'crawl-delay-punitive',
   'ai-bots-reachable',
-  'page-noindex'
+  'sitemap-noindex-conflict'
 ]
 
 export function runAiReadiness(input: {
@@ -171,10 +171,22 @@ export function runAiReadiness(input: {
     }
   }
 
-  // page-noindex — a url the sitemap advertises while the page itself forbids indexing. The
-  // sitemap membership is what makes this sayable: `/cart/` carrying noindex is correct practice,
-  // and guessing which paths are utility pages would only work in English on one platform. A site
-  // contradicting its own sitemap needs no guessing.
+  // sitemap-noindex-conflict — the sitemap invites a crawler to a page that turns it away.
+  //
+  // The blame is on the sitemap, and the name says so. A cart page carrying `noindex` is correct
+  // practice; listing that page in the sitemap is not. Naming this after the tag would send a
+  // merchant to remove the one thing on the page that is right.
+  //
+  // Sitemap membership is also what makes the check sayable at all. Asking "should this page be
+  // indexed" needs to know what the page is FOR, and a list of utility paths would only work in
+  // English on one platform — juneflower calls them `/gio-hang/` and `/thanh-toan/`. Asking
+  // instead whether the site contradicts its own declarations needs no such list, works in every
+  // language, and rests on two facts the site published itself.
+  //
+  // What it does NOT catch: a utility page that never asked to be hidden. On juneflower four of
+  // the six — `/cart/`, `/my-account/`, `/checkout/`, `/thanh-toan/` — say `index, follow`,
+  // orphan copies from a demo import that no plugin ever configured. That is the worse half of
+  // the problem and it needs the platform recognition stage 4 owes the engine anyway.
   //
   // Deduplicated on purpose: the crawl can hold two records for one url when two sitemap entries
   // redirect to the same page (`/cart/` and `/gio-hang/` on a bilingual WooCommerce store), and a
@@ -189,10 +201,10 @@ export function runAiReadiness(input: {
   ]
   if (noindexed.length > 0) {
     findings.push({
-      checkId: 'page-noindex',
-      title: 'Pages the sitemap offers but the page itself hides',
+      checkId: 'sitemap-noindex-conflict',
+      title: 'Sitemap advertises pages that ask not to be indexed',
       count: noindexed.length,
-      priority: 2,
+      priority: 3,
       urls: noindexed.slice(0, MAX_SAMPLE_URLS)
     })
   }

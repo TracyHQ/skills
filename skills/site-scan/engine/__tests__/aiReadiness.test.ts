@@ -65,15 +65,15 @@ describe('ai-training-bots-blocked', () => {
   })
 })
 
-describe('page-noindex', () => {
+describe('sitemap-noindex-conflict', () => {
   it('fires when a page the sitemap advertises forbids indexing', () => {
     const url = `${SITE}/san-pham/hoa-cuoi`
     const found = run({
       pages: [page(`${SITE}/`), page(url, { metaRobots: 'noindex' })],
       sitemapUrls: [`${SITE}/`, url]
     })
-    const f = found.find((x) => x.checkId === 'page-noindex')
-    expect(f).toMatchObject({ count: 1, priority: 2 })
+    const f = found.find((x) => x.checkId === 'sitemap-noindex-conflict')
+    expect(f).toMatchObject({ count: 1, priority: 3 })
     expect(f?.urls).toEqual([url])
   })
 
@@ -83,7 +83,7 @@ describe('page-noindex', () => {
       pages: [page(`${SITE}/`), page(url, { metaRobots: 'noindex' }), page(url, { metaRobots: 'noindex' })],
       sitemapUrls: [`${SITE}/`, url]
     })
-    expect(found.find((x) => x.checkId === 'page-noindex')).toMatchObject({ count: 1, urls: [url] })
+    expect(found.find((x) => x.checkId === 'sitemap-noindex-conflict')).toMatchObject({ count: 1, urls: [url] })
   })
 
   it('stays silent for a utility page the sitemap never advertised', () => {
@@ -92,7 +92,7 @@ describe('page-noindex', () => {
       pages: [page(`${SITE}/`), page(url, { metaRobots: 'noindex' })],
       sitemapUrls: [`${SITE}/`]
     })
-    expect(ids(found)).not.toContain('page-noindex')
+    expect(ids(found)).not.toContain('sitemap-noindex-conflict')
   })
 })
 
