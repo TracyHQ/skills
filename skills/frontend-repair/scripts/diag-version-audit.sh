@@ -8,6 +8,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/result-envelope.sh"
 source "$SCRIPT_DIR/json-helpers.sh"
+source "$SCRIPT_DIR/joomla-copy-db.sh"
 
 usage() {
   echo "Usage: diag-version-audit.sh --label <site-label>" >&2
@@ -58,40 +59,12 @@ fi
 
 # ---------- DB access ----------
 
-cfg_val() {
-  grep -oP "public \\\$${1}\s*=\s*'\K[^']+" "$CONFIG" 2>/dev/null || true
-}
-
-# The fleet injects DB_PREFIX into the job environment; configuration.php is the
-# fallback for copies started outside that path.
-DB_PREFIX="${DB_PREFIX:-}"
-if [[ -z "$DB_PREFIX" ]]; then
-  DB_PREFIX=$(cfg_val dbprefix)
-fi
-
-if [[ -z "$DB_PREFIX" ]]; then
-  envelope_error "Cannot determine DB table prefix from environment or configuration.php"
+# cfg_val / db_bootstrap / db_query / db_rows come from joomla-copy-db.sh.
+if ! db_bootstrap; then
+  envelope_error "$DB_BOOTSTRAP_ERROR"
   envelope_emit
   exit 0
 fi
-
-# The db service publishes no host port, so the database name is read from the
-# container's own environment rather than from a host-side connection.
-DB_NAME=$(docker exec "$DB_CONTAINER" printenv MARIADB_DATABASE 2>/dev/null || true)
-DB_NAME="${DB_NAME%%$'\r'}"
-
-if [[ -z "$DB_NAME" ]]; then
-  envelope_error "DB container not accessible: $DB_CONTAINER"
-  envelope_emit
-  exit 0
-fi
-
-# The root password is expanded inside the container from its own environment,
-# so it never appears in a host argument list or process listing.
-db_query() {
-  docker exec -i "$DB_CONTAINER" sh -c \
-    'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" -N -B "$1" -e "$2"' _ "$DB_NAME" "$1" 2>/dev/null
-}
 
 # ---------- JSON helpers ----------
 
@@ -149,7 +122,9 @@ query_extensions() {
   local items=() count=0
 
   if [[ -n "$data" ]]; then
-    while IFS=$'\t' read -r eid name type element folder enabled version; do
+    # Read over db_rows: a component's empty folder column would otherwise
+    # collapse under tab-as-whitespace and shift every field after it.
+    while IFS=$'\x1f' read -r eid name type element folder enabled version; do
       [[ -z "$eid" ]] && continue
       local item='{'
       item+="\"extensionId\":$(_jnum "$eid")"
@@ -162,7 +137,7 @@ query_extensions() {
       item+='}'
       items+=("$item")
       (( count++ )) || true
-    done <<< "$data"
+    done < <(db_rows "$data")
   fi
 
   EXT_JSON=$(_join_json_array "${items[@]+"${items[@]}"}")
@@ -188,7 +163,9 @@ query_template_styles() {
   local items=() count=0
 
   if [[ -n "$data" ]]; then
-    while IFS=$'\t' read -r sid template client_id home title; do
+    # Read over db_rows: a style with no title would otherwise collapse under
+    # tab-as-whitespace and shift every field after it.
+    while IFS=$'\x1f' read -r sid template client_id home title; do
       [[ -z "$sid" ]] && continue
       local item='{'
       item+="\"id\":$(_jnum "$sid")"
@@ -199,7 +176,7 @@ query_template_styles() {
       item+='}'
       items+=("$item")
       (( count++ )) || true
-    done <<< "$data"
+    done < <(db_rows "$data")
   fi
 
   STYLE_JSON=$(_join_json_array "${items[@]+"${items[@]}"}")
@@ -227,7 +204,9 @@ query_recorded_updates() {
   local items=() count=0
 
   if [[ -n "$data" ]]; then
-    while IFS=$'\t' read -r uid ext_id name element type version; do
+    # Read over db_rows: an update row with no element or version would
+    # otherwise collapse under tab-as-whitespace and shift the fields after it.
+    while IFS=$'\x1f' read -r uid ext_id name element type version; do
       [[ -z "$uid" ]] && continue
       local item='{'
       item+="\"updateId\":$(_jnum "$uid")"
@@ -239,7 +218,7 @@ query_recorded_updates() {
       item+='}'
       items+=("$item")
       (( count++ )) || true
-    done <<< "$data"
+    done < <(db_rows "$data")
   fi
 
   UPD_JSON=$(_join_json_array "${items[@]+"${items[@]}"}")
@@ -267,7 +246,9 @@ query_update_freshness() {
   local items=() latest_ts=0
 
   if [[ -n "$data" ]]; then
-    while IFS=$'\t' read -r usid name enabled last_check; do
+    # Read over db_rows: an update site with no name would otherwise collapse
+    # under tab-as-whitespace and shift the fields after it.
+    while IFS=$'\x1f' read -r usid name enabled last_check; do
       [[ -z "$usid" ]] && continue
 
       local ts_json="null"
@@ -287,7 +268,7 @@ query_update_freshness() {
       item+=",\"lastChecked\":$ts_json"
       item+='}'
       items+=("$item")
-    done <<< "$data"
+    done < <(db_rows "$data")
   fi
 
   FRESH_JSON=$(_join_json_array "${items[@]+"${items[@]}"}")

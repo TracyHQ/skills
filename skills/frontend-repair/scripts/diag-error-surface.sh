@@ -10,6 +10,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/result-envelope.sh"
 source "$SCRIPT_DIR/json-helpers.sh"
+source "$SCRIPT_DIR/envelope-exit-guard.sh"
+source "$SCRIPT_DIR/page-probe.sh"
 
 usage() {
   echo "Usage: diag-error-surface.sh --label <site-label> --state on|off [--page <path>]" >&2
@@ -68,31 +70,8 @@ JOOMLA_LOG_CONFIGURED=""
 
 # ---------- one envelope, whatever happens after init ----------
 
-ENVELOPE_READY=0
-ENVELOPE_EMITTED=0
-TEMP_FILES=()
-
-emit_envelope_once() {
-  (( ENVELOPE_EMITTED == 1 )) && return 0
-  ENVELOPE_EMITTED=1
-  envelope_emit
-}
-
-# An unforeseen mid-run failure would otherwise leave the copy half-switched
-# and print nothing at all — neither a result nor a reason. Usage errors exit
-# before the envelope exists and stay silent by design.
-on_exit() {
-  local rc=$?
-  local f
-  for f in ${TEMP_FILES[@]+"${TEMP_FILES[@]}"}; do
-    [[ -n "$f" ]] && rm -f "$f"
-  done
-  if (( rc != 0 && ENVELOPE_READY == 1 && ENVELOPE_EMITTED == 0 )); then
-    envelope_error "Run aborted unexpectedly (exit $rc); the copy's config may be half-switched"
-    emit_envelope_once
-    exit 0
-  fi
-}
+# emit_envelope_once / on_exit / TEMP_FILES come from envelope-exit-guard.sh.
+ENVELOPE_ABORT_NOTE="the copy's config may be half-switched"
 trap on_exit EXIT
 
 envelope_init "diag-error-surface" "$LABEL"
@@ -192,8 +171,9 @@ fi
 
 # ---------- error parsing ----------
 
-# PHP's own wording for a surfaced problem, in page output or container log.
-ERROR_PATTERN='Fatal error|Parse error|Warning|Notice|Deprecated|Strict Standards|Uncaught|PHP message'
+# ERROR_PATTERN / parse_error_lines / file_size / resolve_host_port come from
+# page-probe.sh; parse_error_lines is called with a source name here, so each
+# entry says which of the three sources it came from.
 
 # Joomla writes tab-separated log lines: datetime, priority, clientip,
 # category, message. Only the error-ish priorities are countable errors —
@@ -208,41 +188,6 @@ joomla_line_is_error() {
   [[ -z "$prio" ]] && return 0
   [[ "$prio" =~ $JOOMLA_ERROR_PRIORITY_RE ]]
 }
-
-# Reads text on stdin, prints one JSON entry per matching line.
-# Entry shape: {source, message, file, line} — file/line null when the text
-# does not name them.
-parse_error_lines() {
-  local source="$1"
-  # The guarded grep keeps a no-match from failing the whole pipeline under
-  # pipefail, which would otherwise abort a direct (non process-substitution) call.
-  sed -e 's/<br[[:space:]]*\/*>/\n/g' -e 's/<[^>]*>//g' \
-    | { grep -aE "$ERROR_PATTERN" || true; } \
-    | awk '!seen[$0]++' \
-    | while IFS= read -r raw; do
-        local line file lineno
-        # Collapse whitespace so the same error reads identically run to run.
-        line="$(_collapse_ws "$raw")"
-        [[ -z "$line" ]] && continue
-        # PHP writes the origin two ways: "in <file> on line <n>" and
-        # "in <file>:<n>". Matched separately — a single alternation group is
-        # not portable across the seds this may run under.
-        file="$(printf '%s' "$line" | sed -nE 's|.* in (/[^ :]+\.php) on line [0-9]+.*|\1|p')"
-        if [[ -z "$file" ]]; then
-          file="$(printf '%s' "$line" | sed -nE 's|.* in (/[^ :]+\.php):[0-9]+.*|\1|p')"
-        fi
-        lineno="$(printf '%s' "$line" | sed -nE 's|.* in /[^ :]+\.php on line ([0-9]+).*|\1|p')"
-        if [[ -z "$lineno" ]]; then
-          lineno="$(printf '%s' "$line" | sed -nE 's|.* in /[^ :]+\.php:([0-9]+).*|\1|p')"
-        fi
-        printf '{"source":%s,"message":%s,"file":%s,"line":%s}\n' \
-          "$(_jstr "$source")" "$(_jstr "$line")" \
-          "$([[ -n "$file" ]] && _jstr "$file" || printf 'null')" \
-          "$(_jnum "${lineno:-x}")"
-      done
-}
-
-file_size() { [[ -f "$1" ]] && wc -c < "$1" | tr -d ' ' || echo 0; }
 
 # ---------- apply the state ----------
 
@@ -285,10 +230,7 @@ LOGTAIL_JSON='null'
 CONTAINER_LOG=""
 
 if [[ "$STATE" == "on" ]]; then
-  HOST_PORT="${HOST_PORT:-}"
-  if [[ -z "$HOST_PORT" && -f "$STACK_ENV" ]]; then
-    HOST_PORT="$(sed -n 's/^HOST_PORT=//p' "$STACK_ENV" | head -1 || true)"
-  fi
+  resolve_host_port "$STACK_ENV"
 
   BODY_FILE="$(mktemp)"
   TEMP_FILES+=("$BODY_FILE")
@@ -297,19 +239,13 @@ if [[ "$STATE" == "on" ]]; then
   if [[ -z "$HOST_PORT" ]]; then
     envelope_unavailable "probe" "HOST_PORT not found in environment or $STACK_ENV"
   else
-    PROBE_URL="http://127.0.0.1:${HOST_PORT}${PAGE}"
-    # Loopback with the public name in the Host header: the copy answers as
-    # itself without the request ever leaving the host.
-    HTTP_CODE="$(curl -sS -o "$BODY_FILE" -w '%{http_code}' --max-time 60 \
-      -H "Host: ${LABEL}.tracy.ai" -H "X-Forwarded-Proto: https" \
-      "$PROBE_URL" 2>/dev/null || true)"
-    if [[ -z "$HTTP_CODE" || "$HTTP_CODE" == "000" ]]; then
-      envelope_unavailable "probe" "No HTTP response from $PROBE_URL"
-      HTTP_CODE=""
-    else
+    if probe_page "$LABEL" "$HOST_PORT" "$PAGE" "$BODY_FILE"; then
+      HTTP_CODE="$PROBE_HTTP_CODE"
       BODY_BYTES="$(file_size "$BODY_FILE")"
       PROBE_JSON="{\"url\":$(_jstr "$PROBE_URL"),\"httpStatus\":$(_jnum "$HTTP_CODE")"
       PROBE_JSON+=",\"bodyBytes\":$(_jnum "$BODY_BYTES")}"
+    else
+      HTTP_CODE=""
     fi
   fi
 
@@ -357,12 +293,10 @@ if [[ "$STATE" == "on" ]]; then
     envelope_unavailable "joomlaLog" "Joomla log not found: $JOOMLA_LOG"
   fi
 
-  ERROR_TOTAL=${#ERROR_ENTRIES[@]}
   # Bounded so one runaway page cannot produce an unbounded envelope; the
-  # count above always states the true total.
-  if (( ERROR_TOTAL > 100 )); then
-    ERROR_ENTRIES=("${ERROR_ENTRIES[@]:0:100}")
-  fi
+  # count reported alongside always states the true total.
+  cap_error_entries ERROR_ENTRIES
+  ERROR_TOTAL=$ERROR_ENTRY_TOTAL
 
   # A short tail of each source, for the reader's eyes rather than for counting.
   tail_json() {
@@ -390,7 +324,7 @@ fi
 COUNTED_FROM="page body and phpLog lines matching PHP's error wording, plus joomlaLog lines"
 COUNTED_FROM+=" at priority EMERGENCY/ALERT/CRITICAL/ERROR/WARNING (a line in another layout is kept),"
 COUNTED_FROM+=" all of them written during this probe; identical lines within one source counted once;"
-COUNTED_FROM+=" errors[] capped at 100 while errorCount stays the true total"
+COUNTED_FROM+=" errors[] capped at $ERROR_ENTRY_CAP while errorCount stays the true total"
 
 FINDINGS='{'
 FINDINGS+="\"state\":$(_jstr "$STATE")"
