@@ -30550,6 +30550,8 @@ function parseRobots(text4, userAgent) {
 var ANSWER_BOTS = ["googlebot", "bingbot", "coccocbot", "oai-searchbot", "perplexitybot"];
 var TRAINING_BOTS = ["gptbot", "claudebot", "google-extended"];
 var MAX_SAMPLE_URLS = 20;
+var CRAWL_DELAY_HARSH_S = 10;
+var CRAWL_DELAY_NOTABLE_S = 5;
 var SAMPLE_SECTIONS = 5;
 function samplePaths(sitemapUrls) {
   const bySection = /* @__PURE__ */ new Map();
@@ -30563,6 +30565,7 @@ function samplePaths(sitemapUrls) {
   }
   return ["/", ...[...bySection.values()].slice(0, SAMPLE_SECTIONS)];
 }
+var reachable = (status) => status >= 200 && status < 400;
 var isNoindex = (page) => Boolean(page?.metaRobots && /noindex/i.test(page.metaRobots));
 var isHomepage = (page) => {
   try {
@@ -30581,7 +30584,13 @@ function blockedPairs(robotsText, bots, paths, siteKey) {
   }
   return lines;
 }
-var AI_READINESS_CHECK_IDS = ["ai-bots-allowed", "ai-training-bots-blocked", "page-noindex"];
+var AI_READINESS_CHECK_IDS = [
+  "ai-bots-allowed",
+  "ai-training-bots-blocked",
+  "crawl-delay-punitive",
+  "ai-bots-reachable",
+  "page-noindex"
+];
 function runAiReadiness(input) {
   const findings = [];
   const paths = samplePaths(input.sitemapUrls);
@@ -30607,6 +30616,32 @@ function runAiReadiness(input) {
       priority: 3,
       urls: training.slice(0, MAX_SAMPLE_URLS)
     });
+  }
+  const delaysMs = [...ANSWER_BOTS, ...TRAINING_BOTS].map((bot) => parseRobots(input.robotsText, bot).crawlDelayMs ?? 0);
+  const worstDelayS = Math.max(0, ...delaysMs) / 1e3;
+  if (worstDelayS > CRAWL_DELAY_NOTABLE_S) {
+    findings.push({
+      checkId: "crawl-delay-punitive",
+      title: "Crawlers are told to wait so long they never finish",
+      count: 1,
+      priority: worstDelayS > CRAWL_DELAY_HARSH_S ? 2 : 3,
+      urls: [`Crawl-Delay: ${worstDelayS} on ${input.siteKey}/robots.txt`]
+    });
+  }
+  const access = input.botAccess;
+  if (access && reachable(access.baselineStatus)) {
+    const refused = access.bots.filter((probe) => !reachable(probe.status));
+    if (refused.length > 0) {
+      const screened = !reachable(access.controlStatus);
+      const where = access.cdn ? ` at the ${access.cdn} edge` : "";
+      findings.push({
+        checkId: "ai-bots-reachable",
+        title: screened ? `Bot identities are screened${where}, so AI crawlers may never reach the site` : `AI crawlers are refused${where} while ordinary visitors are let in`,
+        count: refused.length,
+        priority: screened ? 3 : 1,
+        urls: refused.map((probe) => `${probe.bot} \u2192 ${probe.status} on ${input.siteKey}`).slice(0, MAX_SAMPLE_URLS)
+      });
+    }
   }
   const advertised = new Set(input.sitemapUrls);
   const noindexed = [
@@ -31280,6 +31315,84 @@ function createFetchQueue(opts) {
     return new Promise((r) => setTimeout(r, ms));
   }
   return queue;
+}
+
+// skills/site-scan/engine/harvest/botAccess.ts
+var AI_BOTS = [
+  {
+    bot: "GPTBot",
+    userAgent: "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; GPTBot/1.2; +https://openai.com/gptbot"
+  },
+  {
+    bot: "OAI-SearchBot",
+    userAgent: "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; OAI-SearchBot/1.0; +https://openai.com/searchbot"
+  },
+  {
+    bot: "ChatGPT-User",
+    userAgent: "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; ChatGPT-User/1.0; +https://openai.com/bot"
+  },
+  { bot: "ClaudeBot", userAgent: "Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)" },
+  {
+    bot: "PerplexityBot",
+    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36; compatible; PerplexityBot/1.0; +https://perplexity.ai/perplexitybot"
+  }
+];
+var CONTROL_USER_AGENT = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
+var CDN_HEADERS = [
+  { header: "cf-ray", name: "Cloudflare" },
+  { header: "server", contains: "cloudflare", name: "Cloudflare" },
+  { header: "x-amz-cf-id", name: "CloudFront" },
+  { header: "server", contains: "cloudfront", name: "CloudFront" },
+  { header: "x-served-by", name: "Fastly" },
+  { header: "server", contains: "akamai", name: "Akamai" },
+  { header: "x-akamai-transformed", name: "Akamai" },
+  { header: "x-sucuri-id", name: "Sucuri" },
+  { header: "x-iinfo", name: "Imperva" },
+  { header: "server", contains: "bunnycdn", name: "BunnyCDN" },
+  { header: "x-vnis-id", name: "VNIS" }
+];
+var PROBE_TIMEOUT_MS = 1e4;
+async function harvestBotAccess(input) {
+  const fetchFn = input.fetchFn ?? fetch;
+  const gap = input.minIntervalMs ?? 1e3;
+  let first2 = true;
+  const ask = async (userAgent) => {
+    if (!first2) await new Promise((resolve) => setTimeout(resolve, gap));
+    first2 = false;
+    try {
+      const response = await fetchFn(input.url, {
+        method: "HEAD",
+        redirect: "follow",
+        headers: { "user-agent": userAgent, accept: "text/html,*/*" },
+        signal: AbortSignal.timeout(PROBE_TIMEOUT_MS)
+      });
+      return { status: response.status, headers: response.headers };
+    } catch {
+      return { status: 0 };
+    }
+  };
+  const baseline = await ask(input.crawlerUserAgent);
+  const control = await ask(CONTROL_USER_AGENT);
+  const bots = [];
+  for (const { bot, userAgent } of AI_BOTS) {
+    bots.push({ bot, status: (await ask(userAgent)).status });
+  }
+  return {
+    baselineStatus: baseline.status,
+    controlStatus: control.status,
+    ...recogniseCdn(baseline.headers) ? { cdn: recogniseCdn(baseline.headers) } : {},
+    bots
+  };
+}
+function recogniseCdn(headers) {
+  if (!headers) return void 0;
+  for (const rule of CDN_HEADERS) {
+    const value = headers.get(rule.header);
+    if (value === null) continue;
+    if (rule.contains && !value.toLowerCase().includes(rule.contains)) continue;
+    return rule.name;
+  }
+  return void 0;
 }
 
 // skills/site-scan/engine/harvest/pageExtract.ts
@@ -47342,6 +47455,31 @@ async function runCrawl(input) {
     void 0,
     () => harvestUcp(origin, queue, checkoutOrigins(origin, shopify?.products[0]?.url))
   );
+  progress("harvest", 0, 0, { step: "bot-access" });
+  const botAccess = await guarded(
+    "bot-access",
+    void 0,
+    () => harvestBotAccess({
+      url: `${origin}/`,
+      crawlerUserAgent: CRAWLER_USER_AGENT,
+      fetchFn: input.fetchFn,
+      minIntervalMs: input.tuning?.minIntervalMs
+    })
+  );
+  if (botAccess) {
+    progress("harvest", 0, 0, {
+      stepIo: {
+        key: "crawl.bot-access",
+        read: { url: `${origin}/`, identities: botAccess.bots.length + 2 },
+        found: {
+          baseline: botAccess.baselineStatus,
+          control: botAccess.controlStatus,
+          cdn: botAccess.cdn ?? "unrecognised",
+          refused: botAccess.bots.filter((b) => b.status < 200 || b.status >= 400).map((b) => `${b.bot}:${b.status}`)
+        }
+      }
+    });
+  }
   const catalogNote = shopify && noteCatalog(shopify.products.length);
   if (catalogNote) progress("harvest", 0, 0, { note: catalogNote });
   if (ucp) {
@@ -47510,7 +47648,8 @@ async function runCrawl(input) {
       robotsText,
       siteKey: input.siteKey,
       pages,
-      sitemapUrls: inventory.map((entry) => entry.url)
+      sitemapUrls: inventory.map((entry) => entry.url),
+      botAccess
     }),
     ...runMnDiscoverability(pages, input.siteKey),
     ...ucp ? runUcpChecks(ucp) : []
@@ -47667,7 +47806,7 @@ ${STATE_FILE}
 }
 
 // skills/site-scan/engine/probe.ts
-var PROBE_TIMEOUT_MS = 8e3;
+var PROBE_TIMEOUT_MS2 = 8e3;
 var EMPTY = {
   robotsAnswered: false,
   sitemapFound: false,
@@ -47683,7 +47822,7 @@ async function probeSite(url, opts) {
       const response = await fetchFn(new URL(path2, origin).toString(), {
         redirect: "follow",
         headers: { "user-agent": CRAWLER_USER_AGENT, accept: "text/plain,application/xml,*/*" },
-        signal: AbortSignal.timeout(PROBE_TIMEOUT_MS)
+        signal: AbortSignal.timeout(PROBE_TIMEOUT_MS2)
       });
       if (!response.ok) return void 0;
       return await response.text();

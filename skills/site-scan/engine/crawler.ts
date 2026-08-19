@@ -18,6 +18,7 @@ import { runSeoChecks, SEO_CHECK_IDS } from './analyze/seoChecks'
 import { runUcpChecks, UCP_CHECK_IDS } from './analyze/ucpChecks'
 import { generateDigests } from './digest'
 import { createFetchQueue } from './fetchQueue'
+import { type BotAccessSurface, harvestBotAccess } from './harvest/botAccess'
 import { extractPage } from './harvest/pageExtract'
 import { harvestShopifyPublic } from './harvest/shopifyPublic'
 import { harvestSitemap } from './harvest/sitemap'
@@ -60,7 +61,7 @@ export type CrawlProgress = {
   /** The page being read, when one page is what is happening. */
   url?: string
   /** The harvest step, for the stretch before any page is fetched. */
-  step?: 'mirror' | 'robots' | 'sitemap' | 'catalog' | 'agent-door' | 'links' | 'checks' | 'verify'
+  step?: 'mirror' | 'robots' | 'sitemap' | 'catalog' | 'agent-door' | 'bot-access' | 'links' | 'checks' | 'verify'
   /**
    * A discovery worth reacting to, as a fact. The reaction itself — surprise, praise, alarm — is
    * copy, so it lives in the renderer's i18n; a rule fires it, no model anywhere.
@@ -230,6 +231,32 @@ export async function runCrawl(input: CrawlInput): Promise<{ report: CrawlReport
   const ucp = await guarded<UcpSurface | undefined>('ucp', undefined, () =>
     harvestUcp(origin, queue, checkoutOrigins(origin, shopify?.products[0]?.url))
   )
+  // What the site DOES when a machine says who it is, next to what robots.txt says it may do.
+  // Six HEADs, single file, and never fatal: an unanswered probe is a fact, not a failure.
+  progress('harvest', 0, 0, { step: 'bot-access' })
+  const botAccess = await guarded<BotAccessSurface | undefined>('bot-access', undefined, () =>
+    harvestBotAccess({
+      url: `${origin}/`,
+      crawlerUserAgent: CRAWLER_USER_AGENT,
+      fetchFn: input.fetchFn,
+      minIntervalMs: input.tuning?.minIntervalMs
+    })
+  )
+  if (botAccess) {
+    progress('harvest', 0, 0, {
+      stepIo: {
+        key: 'crawl.bot-access',
+        read: { url: `${origin}/`, identities: botAccess.bots.length + 2 },
+        found: {
+          baseline: botAccess.baselineStatus,
+          control: botAccess.controlStatus,
+          cdn: botAccess.cdn ?? 'unrecognised',
+          refused: botAccess.bots.filter((b) => b.status < 200 || b.status >= 400).map((b) => `${b.bot}:${b.status}`)
+        }
+      }
+    })
+  }
+
   const catalogNote = shopify && noteCatalog(shopify.products.length)
   if (catalogNote) progress('harvest', 0, 0, { note: catalogNote })
   if (ucp) {
@@ -418,7 +445,8 @@ export async function runCrawl(input: CrawlInput): Promise<{ report: CrawlReport
       robotsText,
       siteKey: input.siteKey,
       pages,
-      sitemapUrls: inventory.map((entry) => entry.url)
+      sitemapUrls: inventory.map((entry) => entry.url),
+      botAccess
     }),
     ...runMnDiscoverability(pages, input.siteKey),
     ...(ucp ? runUcpChecks(ucp) : [])

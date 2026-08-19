@@ -95,3 +95,54 @@ describe('page-noindex', () => {
     expect(ids(found)).not.toContain('page-noindex')
   })
 })
+
+describe('crawl-delay-punitive', () => {
+  it('calls out a delay so long the honouring bots can never finish', () => {
+    const found = run({ robotsText: 'User-agent: *\nCrawl-Delay: 20' })
+    const f = found.find((x) => x.checkId === 'crawl-delay-punitive')
+    expect(f).toMatchObject({ priority: 2 })
+    expect(f?.urls[0]).toContain('20')
+  })
+
+  it('drops to the softest priority for a delay that merely slows things down', () => {
+    const found = run({ robotsText: 'User-agent: *\nCrawl-Delay: 7' })
+    expect(found.find((x) => x.checkId === 'crawl-delay-punitive')).toMatchObject({ priority: 3 })
+  })
+
+  it('stays silent at a delay a crawler can live with', () => {
+    expect(ids(run({ robotsText: 'User-agent: *\nCrawl-Delay: 2' }))).not.toContain('crawl-delay-punitive')
+  })
+})
+
+describe('ai-bots-reachable', () => {
+  const access = (over: Record<string, unknown> = {}) => ({
+    baselineStatus: 200,
+    controlStatus: 200,
+    bots: [
+      { bot: 'GPTBot', status: 200 },
+      { bot: 'ClaudeBot', status: 200 }
+    ],
+    ...over
+  })
+
+  it('reports at P1 when an AI bot is turned away but an ordinary visitor is not', () => {
+    const found = run({
+      botAccess: access({ cdn: 'Fastly', bots: [{ bot: 'GPTBot', status: 403 }, { bot: 'ClaudeBot', status: 200 }] })
+    })
+    const f = found.find((x) => x.checkId === 'ai-bots-reachable')
+    expect(f).toMatchObject({ count: 1, priority: 1 })
+    expect(f?.urls[0]).toContain('GPTBot')
+    expect(f?.urls[0]).toContain('403')
+    expect(f?.title).toContain('Fastly')
+  })
+
+  it('softens to P3 when a search identity is refused too, which means identities are being verified', () => {
+    const found = run({ botAccess: access({ controlStatus: 403, bots: [{ bot: 'GPTBot', status: 403 }] }) })
+    expect(found.find((x) => x.checkId === 'ai-bots-reachable')).toMatchObject({ priority: 3 })
+  })
+
+  it('says nothing when the site refuses an ordinary visitor as well', () => {
+    const found = run({ botAccess: access({ baselineStatus: 401, bots: [{ bot: 'GPTBot', status: 401 }] }) })
+    expect(ids(found)).not.toContain('ai-bots-reachable')
+  })
+})

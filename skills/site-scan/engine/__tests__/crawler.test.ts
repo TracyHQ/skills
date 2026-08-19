@@ -18,9 +18,12 @@ const sitemap = (entries: { url: string; lastmod?: string }[]) =>
 type Routes = Record<string, { status: number; body: string; finalUrl?: string }>
 
 function fakeFetch(routes: Routes, log: string[] = []): typeof fetch {
-  return (async (input: RequestInfo | URL) => {
+  return (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
-    log.push(url)
+    // HEAD carries no body, so it is not a page fetch. The log keeps the two apart because
+    // `isPageFetch` asks whether a page was downloaded AGAIN, not whether the url was touched:
+    // the bot-access probe and the broken-link check both HEAD urls the crawl already knows.
+    log.push(init?.method === 'HEAD' ? `HEAD ${url}` : url)
     const route = routes[url]
     if (!route) return new Response('missing', { status: 404 })
     const response = new Response(route.body, { status: route.status })

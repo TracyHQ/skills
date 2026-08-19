@@ -1,3 +1,4 @@
+import type { BotAccessSurface } from '../harvest/botAccess'
 import { parseRobots } from '../robots'
 import type { Finding, PageRecord } from '../types'
 
@@ -28,6 +29,15 @@ const TRAINING_BOTS = ['gptbot', 'claudebot', 'google-extended']
 
 const MAX_SAMPLE_URLS = 20
 
+/**
+ * Crawl-Delay thresholds, in seconds. Google ignores the directive outright, so this is squarely
+ * an AI-and-second-tier-engine problem: Bing, CocCocBot, GPTBot, ClaudeBot and PerplexityBot honour
+ * it, and at twenty seconds a four-hundred-product catalogue takes over two hours to read once.
+ * That is not a block, it is a chokehold, and the outcome is the same.
+ */
+const CRAWL_DELAY_HARSH_S = 10
+const CRAWL_DELAY_NOTABLE_S = 5
+
 /** How many distinct sections to test besides the homepage. */
 const SAMPLE_SECTIONS = 5
 
@@ -49,6 +59,9 @@ function samplePaths(sitemapUrls: string[]): string[] {
   }
   return ['/', ...[...bySection.values()].slice(0, SAMPLE_SECTIONS)]
 }
+
+/** 2xx and 3xx both mean the door opened; anything else is a door held shut. */
+const reachable = (status: number): boolean => status >= 200 && status < 400
 
 const isNoindex = (page?: PageRecord): boolean => Boolean(page?.metaRobots && /noindex/i.test(page.metaRobots))
 
@@ -73,13 +86,20 @@ function blockedPairs(robotsText: string, bots: string[], paths: string[], siteK
 }
 
 /** The ids this file runs, in order — the denominator for "what did the site pass". */
-export const AI_READINESS_CHECK_IDS: string[] = ['ai-bots-allowed', 'ai-training-bots-blocked', 'page-noindex']
+export const AI_READINESS_CHECK_IDS: string[] = [
+  'ai-bots-allowed',
+  'ai-training-bots-blocked',
+  'crawl-delay-punitive',
+  'ai-bots-reachable',
+  'page-noindex'
+]
 
 export function runAiReadiness(input: {
   robotsText: string
   siteKey: string
   pages: PageRecord[]
   sitemapUrls: string[]
+  botAccess?: BotAccessSurface
 }): Finding[] {
   const findings: Finding[] = []
   const paths = samplePaths(input.sitemapUrls)
@@ -107,6 +127,48 @@ export function runAiReadiness(input: {
       priority: 3,
       urls: training.slice(0, MAX_SAMPLE_URLS)
     })
+  }
+
+  // crawl-delay-punitive — the delay that applies to the bots this file cares about, whichever
+  // group of the file names them. Read from the same parse as everything above; the parser has
+  // returned this number all along and nothing has ever read it.
+  const delaysMs = [...ANSWER_BOTS, ...TRAINING_BOTS].map((bot) => parseRobots(input.robotsText, bot).crawlDelayMs ?? 0)
+  const worstDelayS = Math.max(0, ...delaysMs) / 1000
+  if (worstDelayS > CRAWL_DELAY_NOTABLE_S) {
+    findings.push({
+      checkId: 'crawl-delay-punitive',
+      title: 'Crawlers are told to wait so long they never finish',
+      count: 1,
+      priority: worstDelayS > CRAWL_DELAY_HARSH_S ? 2 : 3,
+      urls: [`Crawl-Delay: ${worstDelayS} on ${input.siteKey}/robots.txt`]
+    })
+  }
+
+  // ai-bots-reachable — what the site DOES, next to what robots.txt SAYS. A clean robots.txt is
+  // no comfort when the edge turns AI crawlers away before they ever read it, which is now the
+  // default on some networks.
+  //
+  // Two guards keep this from convicting a healthy site. The baseline: if an ordinary visitor is
+  // refused too, this is not about bots and nothing is reported. The control: a request wearing
+  // Googlebot's name, whose refusal means the edge is checking whether declared identities can be
+  // verified — our address cannot be, and neither can anyone else's but Google's own. Then the
+  // honest reading is "identities are being screened", not "AI is blocked", and the finding says so.
+  const access = input.botAccess
+  if (access && reachable(access.baselineStatus)) {
+    const refused = access.bots.filter((probe) => !reachable(probe.status))
+    if (refused.length > 0) {
+      const screened = !reachable(access.controlStatus)
+      const where = access.cdn ? ` at the ${access.cdn} edge` : ''
+      findings.push({
+        checkId: 'ai-bots-reachable',
+        title: screened
+          ? `Bot identities are screened${where}, so AI crawlers may never reach the site`
+          : `AI crawlers are refused${where} while ordinary visitors are let in`,
+        count: refused.length,
+        priority: screened ? 3 : 1,
+        urls: refused.map((probe) => `${probe.bot} → ${probe.status} on ${input.siteKey}`).slice(0, MAX_SAMPLE_URLS)
+      })
+    }
   }
 
   // page-noindex — a url the sitemap advertises while the page itself forbids indexing. The
