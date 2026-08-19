@@ -1,23 +1,32 @@
 #!/usr/bin/env bash
-# layout-qa.sh — page-dimension QA tier of the Reskin pipeline (script #11).
-# visual-qa asserts nav geometry; this one asserts the page's BOX MODEL:
+# layout-qa.sh — the BOX MODEL tier. A wrapper: the engine is `browser-qa.sh --tiers layout`,
+# and the flags below are the ones this command has always taken, plus `--variant`, which it
+# documented but never had.
+#
+# visual-qa asserts nav geometry; this one asserts the page's dimensions:
 #   section-overlap   in-flow siblings stacking on top of each other
 #   parent-escape     children breaking out of their parent's width
 #   collapsed-section a section with real content but no height
-#   media-size        images/SVG taller than the viewport, wider than the page,
-#                     or upscaled far past natural resolution (giant logos)
+#   media-size        images/SVG taller than the viewport, wider than the page, or upscaled
+#                     far past natural resolution (giant logos)
+#   content-measure   text nothing constrains — a full-bleed wall that never overflows
 #   page-height       suspiciously short pages (an empty shell renders "fine")
 #   drift             height/section-count change vs a saved baseline
-# Plus a crawl mode: discovered internal pages are measured and REPORTED
-# (not gated) — the trap-32 coverage hole, closed.
+# Plus a crawl mode: discovered internal pages are measured and REPORTED, not gated — they
+# may still wear the old skin by design. When the crawl stops at the cap, the run says so.
 #
 # Usage:
-#   layout-qa.sh --host <public-host> --port <loopback-port> \
-#                --pages "/,/pricing-stratum" \
-#                [--crawl 15] [--min-height 500] [--baseline write|compare]
+#   layout-qa.sh --host <public-host> --port <loopback-port> --pages "/,/pricing-stratum" \
+#                [--variant <slug>] [--crawl 15] [--min-height 500] \
+#                [--baseline write|compare] [--out <dir>]
+#
+# --variant judges a PROPOSAL instead of the site, via the `X-Tracy-Variant` header. This
+# tier accepted the flag nowhere and sent the header never, so a proposal run silently
+# measured the live site and passed — which is the exact failure the skill warns about.
 set -euo pipefail
 
-HOST="" PORT="" PAGES="" CRAWL=0 MINH=500 BASE="off" OUT=""
+DIR="$(cd "$(dirname "$0")" && pwd)"
+HOST="" PORT="" PAGES="" CRAWL=0 MINH=500 BASE="off" OUT="" VARIANT=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --host) HOST="$2"; shift 2 ;;
@@ -26,26 +35,18 @@ while [ $# -gt 0 ]; do
     --crawl) CRAWL="$2"; shift 2 ;;
     --min-height) MINH="$2"; shift 2 ;;
     --baseline) BASE="$2"; shift 2 ;;
+    --variant) VARIANT="$2"; shift 2 ;;
     --out) OUT="$2"; shift 2 ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
 done
 [ -n "$HOST" ] && [ -n "$PORT" ] && [ -n "$PAGES" ] || {
-  echo "usage: layout-qa.sh --host <h> --port <n> --pages \"/a,/b\" [--crawl N] [--min-height N] [--baseline write|compare]" >&2
+  echo "usage: layout-qa.sh --host <h> --port <n> --pages \"/a,/b\" [--variant s] [--crawl N] [--min-height N] [--baseline write|compare]" >&2
   exit 2
 }
-OUT="${OUT:-/opt/tracy-fleet/reskin/out/layout}"
-mkdir -p "$OUT"
+OUT="${OUT:-${TRACY_QA_HOME:-/opt/tracy-fleet/reskin}/out/layout}"
 
-IMAGE="mcr.microsoft.com/playwright:v1.49.0-jammy"
-DIR="$(cd "$(dirname "$0")" && pwd)"
-CACHE="/opt/tracy-fleet/reskin/.qa-cache"
-mkdir -p "$CACHE"
-
-docker run --rm --network host --memory 512m --shm-size 256m \
-  -e PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
-  -v "$DIR/layout-qa.mjs:/qa/layout-qa.mjs:ro" -v "$OUT:/qa/out" -v "$CACHE:/qa/node_modules" \
-  -w /qa "$IMAGE" bash -lc '
-    [ -d node_modules/playwright ] || npm install --no-save --loglevel=error playwright@1.49.0 >/dev/null 2>&1
-    node layout-qa.mjs "'"$HOST"'" "'"$PORT"'" /qa/out "'"$PAGES"'" "'"$CRAWL"'" "'"$MINH"'" "'"$BASE"'"
-  '
+exec "$DIR/browser-qa.sh" --tiers layout \
+  --host "$HOST" --port "$PORT" --pages "$PAGES" --out "$OUT" \
+  --crawl "$CRAWL" --min-height "$MINH" --baseline "$BASE" \
+  ${VARIANT:+--variant "$VARIANT"}
