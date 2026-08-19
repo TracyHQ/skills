@@ -2,7 +2,8 @@
 
 Reference while running the skill: what a criterion asks, which lane produces its data, and how
 much it moves the score. All of it is encoded in `scripts/framework.mjs`, hand-ported from the
-backend's `framework.constants.ts` and pinned by `scripts/tests/framework-drift.test.mjs`.
+backend's `framework.constants.ts`. The test that pins them lives in the source pack, not in
+this copy — see SKILL.md, *Where this came from*.
 
 ## How the score is built
 
@@ -149,8 +150,8 @@ the report rather than hidden in a number:
 Everything else — the bands, the thresholds, the curves (`reddit` 12.5·√n, `press` 45·√n, `video`
 7·Σ√n), the gating rules, the aggregation, the narrative guards — is the backend's logic, ported
 line for line and pinned by two tests that fail for different reasons:
-`scripts/tests/framework-drift.test.mjs` catches the framework moving (a re-weighted criterion), and
-`scripts/tests/scorer-parity.test.mjs` runs both implementations over the same page and catches the
+In the source pack, a drift test catches the framework moving (a re-weighted criterion) and a
+parity test runs both implementations over the same page and catches the
 scorers disagreeing about it while the weights sit still.
 
 ## Reading the evidence

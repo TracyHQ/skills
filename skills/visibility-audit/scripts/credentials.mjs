@@ -92,9 +92,12 @@ export function serializeEnv(map) {
   return header + (body ? body + '\n' : '')
 }
 
+// Real provider keys are 40+ chars, so the last 4 identify which key this is without helping
+// anyone reconstruct it. Below 12 there is nothing safe to show: revealing 4 of a 5-character
+// value is most of it, and the only thing the tail is for is telling two keys apart.
 export function mask(value) {
   if (typeof value !== 'string' || value.length === 0) return '(empty)'
-  return value.length <= 4 ? '****' : '****' + value.slice(-4)
+  return value.length < 12 ? '****' : '****' + value.slice(-4)
 }
 
 function readStore(env) {
@@ -106,7 +109,11 @@ function writeStore(map, env) {
   const p = credsPath(env)
   mkdirSync(dirname(p), { recursive: true })
   try { chmodSync(dirname(p), 0o700) } catch { /* best effort */ }
-  writeFileSync(p, serializeEnv(map))
+  // `mode` on the create, not a chmod after it: writeFileSync without it creates the file at
+  // 0644 under a default umask, so there is a window — short, but real on a shared host — where
+  // plaintext API keys sit world-readable. The chmod stays for the case where the file already
+  // existed with looser permissions, which `mode` does not fix.
+  writeFileSync(p, serializeEnv(map), { mode: 0o600 })
   chmodSync(p, 0o600)
   return p
 }
@@ -176,8 +183,10 @@ const PROBES = {
     { headers: { Authorization: `Bearer ${key}` } },
   ],
   GEMINI_API_KEY: (key) => [
-    `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}&pageSize=1`,
-    {},
+    // `x-goog-api-key`, not `?key=` — a secret in a query string is a secret in every proxy and
+    // edge access log along the way, TLS or not.
+    'https://generativelanguage.googleapis.com/v1beta/models?pageSize=1',
+    { headers: { 'x-goog-api-key': key } },
   ],
   SERPAPI_API_KEY: (key) => [
     `https://serpapi.com/account?api_key=${encodeURIComponent(key)}`,
@@ -201,20 +210,24 @@ export async function check(names, env = process.env, fetchImpl = fetch) {
       lines.push(`${name}: unknown name (one of: ${KNOWN.join(', ')})`)
       continue
     }
+    // `status` distinguishes stored from env-only and so must this: telling someone a key is
+    // stored when it only lives in this shell is how it disappears the next time they open one.
+    const isStored = stored.has(name)
     const value = stored.get(name) ?? env[name] ?? ''
     if (!value) {
       lines.push(`${name}: missing — nothing to check`)
       continue
     }
+    const where = isStored ? 'stored' : 'env only'
     const probe = PROBES[name]
     if (!probe) {
-      lines.push(`${name}: stored ${mask(value)} — not probed here; P1 verifies it against the MCP`)
+      lines.push(`${name}: ${where} ${mask(value)} — not probed here; P1 verifies it against the MCP`)
       continue
     }
     const [url, init] = probe(value)
     try {
       const res = await fetchImpl(url, { ...init, signal: AbortSignal.timeout(15000) })
-      if (res.ok) lines.push(`${name}: ok (${mask(value)})`)
+      if (res.ok) lines.push(`${name}: ok — ${where} ${mask(value)}`)
       else if (res.status === 401 || res.status === 403) {
         lines.push(`${name}: REJECTED ${res.status} — the key is wrong, revoked or out of quota`)
       } else lines.push(`${name}: inconclusive — provider answered ${res.status}`)

@@ -16,9 +16,12 @@
 //
 // Usage:
 //   node collect-offstore.mjs --brand "Acme" --domain acme.com --language en --country US \
-//     --product-title "Acme Widget" --product-type "widget" --out offstore.json
+//     --product-title "Acme Widget" --product-type "widget" --pages pages.json --out offstore.json
+//
+// `--pages` is how the store's own social profiles reach the video count so they are not scored as
+// third-party mentions. Pass it whenever pages.json exists, which is every normal run.
 
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { foldDiacritics, isMainModule, parseJsonLd, parseArgv } from './util.mjs'
 
@@ -285,6 +288,18 @@ export async function main(argv, env = process.env) {
         'credential store before running this script.',
     )
   }
+  // The store's own social profiles, which the video count must exclude. Read from pages.json by
+  // default (`fetch-pages.mjs` harvests them off the PDP footer) so that getting this right is not
+  // a thing someone has to remember to type. Forgetting it does not fail the run — it counts the
+  // brand's own channel as earned coverage and quietly inflates `social-video-mentions`, which is
+  // exactly the kind of error nobody goes looking for. `--own-social` still works and is merged in
+  // on top, for a profile that is not linked from the product page.
+  const fromPages = a.pages ? (JSON.parse(readFileSync(a.pages, 'utf8')).storeSocials ?? []) : []
+  const fromFlag = String(a['own-social'] ?? '')
+    .split(',')
+    .map((u) => u.trim().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/+$/, ''))
+    .filter(Boolean)
+
   const subject = {
     brand: a.brand,
     domain: a.domain ?? null,
@@ -293,10 +308,7 @@ export async function main(argv, env = process.env) {
     city: a.city ?? null,
     productTitle: a['product-title'] ?? a.brand,
     productType: a['product-type'] ?? null,
-    ownSocialUrls: String(a['own-social'] ?? '')
-      .split(',')
-      .map((u) => u.trim().replace(/^https?:\/\//, ''))
-      .filter(Boolean),
+    ownSocialUrls: [...new Set([...fromPages, ...fromFlag])],
   }
   const result = await collectOffStore(subject, { apiKey: env.SERPAPI_API_KEY })
 
@@ -307,6 +319,7 @@ export async function main(argv, env = process.env) {
   return {
     out: a.out ?? null,
     route: 'serpapi',
+    ownSocialUrls: subject.ownSocialUrls,
     collected: Object.fromEntries(
       ['reddit', 'googleReviews', 'trustpilot', 'video', 'press', 'entityDatabases'].map((k) => [
         k,

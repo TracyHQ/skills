@@ -164,6 +164,12 @@ Alongside it, in the same batch:
   >   https://shopify-mcp-dev.mention.network/api/v1/mcp \
   >   --header "Authorization: Bearer ${MENTION_NETWORK_KEY}"     # then reload the session
   > ```
+  >
+  > **Say this out loud when you hand over that second command:** unlike everything else here, it
+  > puts the live key in a command-line argument, where another local user can read it out of
+  > `ps` while it runs, and `claude mcp add` then writes it into its own config file. That is
+  > `claude mcp add --header`'s interface, not a choice this skill makes — but design contract 5
+  > promises keys never go through argv, and this is the one place that promise does not hold.
   > Then re-probe and continue.
   >
   > A **stored key on its own is enough** to finish the run — `scripts/mcp-client.mjs` speaks the
@@ -202,7 +208,7 @@ Product   Water Bank Aqua Facial 30ml   (/products/water-bank-aqua-facial-30ml)
 Grading   Anthropic  ****a91f  (checked ok)   15 criteria
 Off-store SerpApi    ****075c  (checked ok)   ~9 searches of your free 100
 Page      plain fetch                         crawlable-text will be n/a
-Coverage  38/40 criteria · ~2 min · ~$0.05 + 9 SerpApi searches
+Coverage  36/40 scored · 2 n/a, 2 gated (Arabic) · ~2 min · ~$0.05 + 9 SerpApi searches
 ```
 
 Compose the questions in this order, dropping from the bottom if you run out of room (max 4):
@@ -223,7 +229,13 @@ instruction to take the pick unasked; `yes` skips the card but still prints the 
 
 ## P3 — Fetch the page
 
-Create the run directory (`RECOVERY.md`), then:
+Open the run directory first — every later step writes into `$RUN`, and an unset `$RUN` does not
+stop anything, it writes the audit to `/` and fails with a confusing error much later:
+
+```bash
+RUN="$(node "$HERE/scripts/run-dir.mjs" --domain "<shopDomain>" --handle "<handle>")"
+# add --resume to reuse the newest existing run for this store+product (see RECOVERY.md)
+```
 
 ```bash
 node "$HERE/scripts/fetch-pages.mjs" \
@@ -244,7 +256,8 @@ will use it; do not go and capture one.
 
 These two are independent; start both.
 
-**P4a — the 15 LLM-graded criteria** (two batched calls, plus the press filter if off-store ran):
+**P4a — the 15 LLM-graded criteria** (four calls in parallel — content, voice, credibility and the
+FAQ analysis — plus the press filter if off-store ran):
 
 ```bash
 node "$HERE/scripts/analyze-llm.mjs" --pages "$RUN/pages.json" --meta "$RUN/meta.json" \
@@ -262,9 +275,14 @@ coerced: that criterion goes `na`.
 ```bash
 node "$HERE/scripts/collect-offstore.mjs" --brand "<shop name>" --domain "<shopDomain>" \
   --language <lang> --country <CC> --city "<city>" --product-title "<title>" \
-  --product-type "<type>" --own-social "<comma-separated own social URLs>" \
-  --out "$RUN/offstore.json"
+  --product-type "<type>" --pages "$RUN/pages.json" --out "$RUN/offstore.json"
 ```
+
+**Pass `--pages`.** It is how the store's own social profiles — harvested off the product page by
+`fetch-pages.mjs` — reach the video count, so the brand's own YouTube channel is not counted as
+third-party coverage. Leaving it off does not fail: it silently scores the store's own marketing
+as earned mentions and `social-video-mentions` reads higher than the truth. `--own-social` still
+takes a comma-separated list on top, for a profile the product page does not link to.
 
 Anything the searches did not return stays `null` → that criterion is `na`. **Never fill a signal
 that was not measured.** (Wikidata and Wikipedia are free APIs and need no key.)
@@ -284,9 +302,11 @@ criterion, no numbers at all in the verdict) or it falls back to a template sent
 hallucinating model degrades the copy, never the numbers. `--narrative-route none` skips the LLM
 entirely and uses templates throughout; omitting it picks the first available key.
 
-`meta.json` (written by you, outside the collected files):
+`meta.json` carries what the storefront cannot tell you. Write it before P4 — `analyze-llm.mjs`
+reads it too:
 
-```json
+```bash
+cat > "$RUN/meta.json" <<'JSON'
 {
   "shop": { "name": "K-Beauty Arabia", "primaryDomain": "kbeautyarabia.com", "storeUrl": "kbeautyarabia.com" },
   "product": { "currency": "AED" },
@@ -294,7 +314,12 @@ entirely and uses templates throughout; omitting it picks the first available ke
   "location": { "country": "AE", "city": "Dubai" },
   "competitorPrices": []
 }
+JSON
 ```
+
+Omitting it entirely does not fail the run and does not change a single score — but the shop's
+display name comes from here, so the report heads a nameless store and every brand match in the
+off-store lane works off whatever you typed into `--brand` instead.
 
 Only what the storefront cannot tell you belongs here: the shop's display name (it drives every
 brand match — Reddit, Trustpilot, Google, `brand-in-title`), the currency, the market, and — if a
@@ -380,11 +405,15 @@ After any setup, re-run the step and re-state coverage before delivering again.
 
 ## Where this came from
 
-Ported from `agent-pack/skills/website-audit` in the Mention Network Shopify repo
-(`lab3-ai/mention-network-shopify`), commit `035e1df0`, 2026-08-14. That copy is the one kept in
-step with `backend/src/modules/website-audit/` by the repo's own `scorer-parity` and
-`framework-drift` tests; **this copy is not covered by those tests**, so a scorer changed there
-does not fail anything here.
+Ported on 2026-08-14 from the Mention Network agent pack, which lives in a **private** repo —
+deliberately not named here, along with its paths and commit: this repository is public, and a
+public repo naming a private one's internals discloses them to everyone who can install the
+skill. Whoever maintains the pack knows which copy this is; the coordinates are recorded in the
+pull request that added it.
+
+The pack's copy is the one kept in step with the backend scorers by that repo's own parity and
+drift tests. **This copy is not covered by those tests**, so a scorer changed there does not fail
+anything here.
 
 Two differences are deliberate, not drift:
 
@@ -392,6 +421,9 @@ Two differences are deliberate, not drift:
   signed-out Playwright lanes were dropped, and an `anthropic` API route was added in their place.
 - **No local renderer.** The bundled Chrome/Mustache PDF renderer was dropped; the hosted export
   is the only one.
+
+A third difference is local: the store's own social profiles are discovered from the product page
+rather than typed in (see P4b), because forgetting them inflates `social-video-mentions`.
 
 Anything else that differs from the source is a bug in this copy. When re-porting, take the
 scorers, `framework.mjs` and the prompt text verbatim — the wording *is* the calibration, and the

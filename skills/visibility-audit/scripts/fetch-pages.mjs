@@ -48,6 +48,39 @@ export async function plainFetch(url, { timeoutMs = 30000, fetchImpl = fetch } =
   }
 }
 
+/**
+ * The store's OWN social profiles, read off the PDP (footer/nav links to social platforms).
+ *
+ * Why this is collected here rather than typed in: `collect-offstore.mjs` counts third-party
+ * video mentions, and a store's own YouTube channel is not a third-party mention. Passing the
+ * store's own profiles is what excludes them — and when nobody passes them the criterion reads
+ * the brand's own marketing as earned coverage and scores higher than the truth.
+ *
+ * A profile URL with NO path is deliberately dropped. `countVideoPlatforms` excludes a result
+ * when the result's link CONTAINS one of these strings, so a bare `youtube.com` would exclude
+ * every YouTube result in existence — turning an over-count into a zero, which is the worse
+ * error of the two because it looks like a real finding.
+ */
+const SOCIAL_HOSTS =
+  /^(?:www\.)?((?:m\.)?youtube\.com|youtu\.be|tiktok\.com|instagram\.com|facebook\.com|fb\.watch|twitter\.com|x\.com|pinterest\.[a-z.]+|linkedin\.com|vimeo\.com)$/i
+
+export function discoverSocials(pdpHtml) {
+  const found = new Set()
+  for (const m of String(pdpHtml || '').matchAll(/href=["']([^"']+)["']/gi)) {
+    let url
+    try {
+      url = new URL(m[1])
+    } catch {
+      continue // relative href — never an off-site social profile
+    }
+    if (!SOCIAL_HOSTS.test(url.hostname)) continue
+    const path = url.pathname.replace(/\/+$/, '')
+    if (!path || path === '/') continue // bare domain — see the docblock
+    found.add(`${url.hostname.replace(/^www\./, '')}${path}`.toLowerCase())
+  }
+  return [...found]
+}
+
 // href values under /about or /contact found on the PDP (footer/nav) — extra candidates for
 // themes that don't use the canonical Shopify paths. Uncapped, like the backend: the paths are
 // deduped and `fetchFirstOk` stops at the first hit, so truncating only risks dropping the real
@@ -148,6 +181,7 @@ export async function collectPages(pdpUrl, { renderedHtml = null, timeoutMs = 30
     robots,
     product,
     storePages: { about, contact, policies: { refund, shipping, privacy, terms } },
+    storeSocials: discoverSocials(raw.html),
   }
 }
 
@@ -171,6 +205,7 @@ export async function main(argv) {
     status: bundle.page.status,
     robotsOk: bundle.robots.ok,
     productJson: !!bundle.product,
+    storeSocials: bundle.storeSocials.length,
     storePages: {
       about: !!sp.about,
       contact: !!sp.contact,

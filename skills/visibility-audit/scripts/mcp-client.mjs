@@ -7,7 +7,7 @@
 //   MENTION_NETWORK_MCP_URL   default https://shopify-mcp-dev.mention.network/api/v1/mcp
 //   MENTION_NETWORK_KEY       required (Bearer)
 //
-// Exports rpc() / callTool() for submit.mjs and any other script; no npm deps (Node ≥18 fetch).
+// Exports rpc() / callTool() for submit-audit.mjs and any other script; no npm deps (Node ≥18 fetch).
 
 const DEFAULT_URL = 'https://shopify-mcp-dev.mention.network/api/v1/mcp'
 

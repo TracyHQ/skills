@@ -132,10 +132,13 @@ async function runGemini(prompt, { model, apiKey, timeoutMs, fetchImpl = fetch }
   if (!apiKey) throw new Error('GEMINI_API_KEY is not set')
   const id = model || 'gemini-3.5-flash'
   const res = await fetchImpl(
-    `https://generativelanguage.googleapis.com/v1beta/models/${id}:generateContent?key=${apiKey}`,
+    // The key travels in `x-goog-api-key`, not `?key=`. Query-string secrets are written to every
+    // proxy and edge access log on the path, TLS or not — and the raw key was being interpolated
+    // into the URL unescaped, so a key containing `&` or `#` would have silently truncated.
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(id)}:generateContent`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: { responseMimeType: 'application/json' },

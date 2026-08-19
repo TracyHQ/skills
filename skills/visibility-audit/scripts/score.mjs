@@ -10,7 +10,7 @@
 //                anyone driving these scripts by hand may still want it.
 //
 // Every input is optional except pages.json: no llm.json → the 15 LLM criteria go `na` (and
-// shipping-competitive floors at 0, as on the backend); no offstore.json → the 8 off-store
+// shipping-competitive floors at 0, as on the backend); no offstore.json → the 7 off-store
 // criteria go `na`. The score is always computed over what WAS measured, and coverage says so.
 //
 // Usage:
