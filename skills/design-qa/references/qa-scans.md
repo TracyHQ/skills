@@ -13,6 +13,8 @@ restates only what judging a page needs, so `design-qa` never sends a reader to 
 - [Link scan](#link-scan) — taxonomy, probing, the QA loop
 - [Accessibility scan](#accessibility-scan) — the two-pass baseline, and the catalogue
 - [Geometry gate](#geometry-gate) — what the machine eye can and cannot see
+- [The picture tiers](#the-picture-tiers) — pixel diff, skin diff, and what a picture answers
+- [One engine](#one-engine) — why the browser tiers stopped being three scripts
 - [Trusting a gate](#trusting-a-gate)
 
 ---
@@ -175,6 +177,20 @@ measures close that:
 - **JavaScript errors** — the page's own `pageerror` and console errors, **exempting third-party
   CORS/CDN noise**: a dressing can neither cause nor cure a font host refusing cross-origin.
 
+**An asset that 404s is invisible to every check written for a different asset.** The `<img>`
+check reads `document.images`; the text tier greps `href=` and `src=` out of the HTML; and the
+console filter deliberately drops `Failed to load resource`, on the stated grounds that "the image
+checks report those with the element that asked". None of the three can see a CSS
+`background-image` — which is what the hero of a dressed page usually is. So a dead hero passed
+all of them, green. The witness is the browser's own response stream: every response this site's
+host answers 4xx/5xx for, named with the element whose background asked for it. Off-host failures
+stay out, on the same principle as the CORS exemption — a dressing can neither cause nor cure
+somebody else's server.
+
+Note the shape of that bug, because it recurs: three checks each excluded a case on the grounds
+that **another** check covered it, and no check covered it. An exclusion justified by "X handles
+that" is only as true as X, and nobody re-reads X.
+
 **Never guess a container name.** The first interaction check counted links inside `.off-canvas`;
 one template calls its panel `.t3-off-canvas`, so the gate reported "menu did not open" while it
 opened perfectly (0 → 177 links). Count **every visible link on the page** instead of naming a
@@ -187,6 +203,88 @@ copy never got replaced. *Arranged validly but wrong* is a real category, and on
 
 Infrastructure note: on a small host, run the browser container with a memory cap and one page at a
 time rather than in parallel.
+
+---
+
+## The picture tiers
+
+Geometry answers "are the boxes sane?". It cannot answer "did anything move that nobody meant to
+move?" — and no rule written in advance can, because the point of a regression is that nobody
+predicted it. Two tiers use pictures instead of rules, and they answer **different** questions.
+Confusing them produces a number that is real and useless.
+
+### `pixel-diff` — the same page, twice
+
+Compares this run's screenshots against the previous accepted ones, by filename. Meaningful
+precisely because both sides are the same page: any difference is a change somebody made.
+
+- **0.5% of pixels** is the threshold, calibrated the way everything here is calibrated — against
+  reality, not taste. Two renders of an *unchanged* page are not bit-identical: antialiased text,
+  a lazy image landing one frame later and an animation mid-flight move ~0.1-0.3% of a
+  1440×6000 page. Below 0.5% is render noise. Above it, something moved.
+- **Colour distance is perceptual (YIQ), not RGB.** A red-channel shift of 120 is a large RGB
+  number and a small perceptual one, which is exactly what antialiasing produces. Compare in RGB
+  and the noise floor rises until the threshold has to be raised past anything worth catching.
+- **A size change is its own finding, not a percentage.** When the page height changes the two
+  images no longer describe the same page, and a percentage over the overlap would understate a
+  page that grew back a whole missing section.
+- **A screenshot that used to exist and now does not is a FAIL.** The commonest reason is that
+  the page stopped rendering — never "nothing changed".
+- Accepting a new baseline is a **second, deliberate act** (`--accept yes`), run after the report
+  is on screen. A tier that promotes silently is a tier that records whatever broke.
+
+### `skin-diff` — the demo against the dressed page
+
+A pixel diff here is worthless and worth understanding why: the two pages share a template and
+nothing else — different copy, different photographs, four pricing tiers against the demo's three.
+Diff them and you get "99.4% changed" on a perfect dressing and "99.1%" on a broken one.
+
+So compare only what the demo DEFINES and content cannot legitimately change:
+
+- **Palette, weighted by painted area.** Not by how many CSS rules mention a colour: an accent on
+  one button is not the page's colour. A colour counts as carried over if the dressed page paints
+  it anywhere within ~40 per channel — theme tints and darker photography must not read as loss.
+  Below 60% of the demo's painted weight, a stylesheet did not land.
+- **Typeface**, taken from the most-painted text rather than `<body>` (templates set fonts on
+  inner wrappers, and `body` often still says the browser default). A page that fell back to a
+  default serif looks wrong from across the room and passes every geometry gate ever written.
+- **Container bands** — the section widths as a percentage of the viewport. Judged over the
+  *constrained* bands only: every template has a full-bleed 100% band, so a page whose wrapper
+  vanished still shares that one, and "did any band survive" would never fire.
+
+Everything content may legitimately move is a **warn**, so the report stays readable. The tier
+that cried wolf is the tier somebody switches off.
+
+And the half no machine does: a **contact sheet** per page per viewport, demo left, dressed right,
+same width, one image. Trap 28 is unambiguous that the agent's eye on a full-page screenshot is
+the only thing that has ever caught a block still wearing demo content. That step used to be a
+sentence — "then finish with your own eyes" — with no command, no artifact and no exit code,
+which is how it became the step that gets skipped. Looking at one paired image is a thing people
+actually do; opening twenty-one separate PNGs is not.
+
+---
+
+## One engine
+
+The three browser tiers were three scripts, each starting its own container, launching its own
+Chromium and loading the same pages again. A seven-page loop cost 63 page loads — 21 visual, 14
+layout, 28 responsive — of which 35 were the same URL at the same width, measured three times
+because the measurements lived in three files.
+
+Every assertion in all three **reads** the DOM; none of them changes it. So they can all read the
+same load. The union of the viewports the requested tiers need is 28 loads, in one container.
+
+Two things made this safe to do, and both are worth keeping:
+
+- **The interaction check runs last, after the screenshot and after every measurement.** It
+  clicks things. Everything else must describe the page as loaded, not as poked.
+- **Each tier still declares its own viewports**, so `--tiers visual` renders exactly the three
+  widths `visual-qa` always rendered and writes exactly the same filenames. A consolidation that
+  changes what a single-tier caller gets is not a consolidation, it is a rewrite with a rename.
+
+The old command names are wrappers over the engine. They kept their flags because callers outside
+this repo hold them: the app's `visual_qa` tool, the fleet's deploy path, and `reskin`'s own
+step 4.
 
 ---
 
@@ -207,3 +305,14 @@ This is not ceremony. Two examples from this toolkit's own history:
 
 Both were found by deliberately breaking a page and watching what the tool said. Neither would have
 been found by watching it pass.
+
+**What changed since:** every threshold above now has a case in `design-qa/__tests__/` that names
+the incident which set it — 97% content-measure against the customer's own 93% portfolio page,
+the four-tiers-against-three fold rhythm, the reference recorded against the wrong host. The
+verdicts were moved out of `page.evaluate` into a plain module for exactly this reason: logic that
+only runs inside a browser is logic no test can reach, so for two years the only way to check a
+number was to render a site and squint.
+
+This does not replace breaking a page on purpose. A unit test proves the judgment is right about
+the numbers it was handed; only a broken page proves the measurement hands it the right numbers.
+Do both, and know which one you did.
