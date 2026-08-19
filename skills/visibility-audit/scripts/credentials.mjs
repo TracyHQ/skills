@@ -33,7 +33,7 @@
 //   CREDS="${MENTION_NETWORK_CREDENTIALS:-$HOME/.config/mention-network/credentials}"
 //   set -a; [ -f "$CREDS" ] && . "$CREDS"; set +a
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync, chmodSync, realpathSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync, mkdirSync, chmodSync, lstatSync, realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -108,7 +108,30 @@ function readStore(env) {
 function writeStore(map, env) {
   const p = credsPath(env)
   mkdirSync(dirname(p), { recursive: true })
-  try { chmodSync(dirname(p), 0o700) } catch { /* best effort */ }
+  // A directory left at 0755 lets other local users see that a credentials file exists. That is
+  // not a disclosure of the keys, so it does not stop the write — but it is worth one line on
+  // stderr, because the silent version of this is how nobody ever finds out.
+  try {
+    chmodSync(dirname(p), 0o700)
+  } catch (e) {
+    process.stderr.write(`warning: could not restrict ${dirname(p)} to 0700 (${e.message})\n`)
+  }
+
+  // Refuse to write through a symlink. `writeFileSync` follows one, so a link planted at this
+  // path before first run redirects every key the user saves to a file the attacker chose — and
+  // the chmod below then obligingly makes that file 0600, which looks like the store is secure.
+  // Replacing the link instead would silently break someone who symlinked the store on purpose,
+  // so this stops and says which path to use.
+  try {
+    if (lstatSync(p).isSymbolicLink()) {
+      throw new Error(
+        `${p} is a symlink; refusing to write credentials through it. ` +
+          'Point $MENTION_NETWORK_CREDENTIALS at the real file if that link is intentional.',
+      )
+    }
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw e // ENOENT is the normal first-run case
+  }
   // `mode` on the create, not a chmod after it: writeFileSync without it creates the file at
   // 0644 under a default umask, so there is a window — short, but real on a shared host — where
   // plaintext API keys sit world-readable. The chmod stays for the case where the file already

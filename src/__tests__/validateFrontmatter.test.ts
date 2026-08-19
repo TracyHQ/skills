@@ -180,4 +180,21 @@ describe('validateNoPrivateRepoReference', () => {
   it('says nothing about a public repository', () => {
     expect(validateNoPrivateRepoReference('SKILL.md', 'pinned in `TracyHQ/skills` and `mcp/servers/`')).toEqual([])
   })
+
+  it('refuses a private repository under an owner that is not TracyHQ', () => {
+    // The form that shipped: a vendored skill's provenance line, no trailing path, foreign owner.
+    const text = 'Ported from the pack in (`lab3-ai/mention-network-shopify`), commit `035e1df0`.'
+    expect(codes(validateNoPrivateRepoReference('SKILL.md', text))).toEqual(['private_repo_reference'])
+  })
+
+  it('refuses a private repository named in a GitHub URL', () => {
+    const text = 'see https://github.com/lab3-ai/mention-network-shopify for the source'
+    expect(codes(validateNoPrivateRepoReference('SKILL.md', text))).toEqual(['private_repo_reference'])
+  })
+
+  it('reports an owner-qualified reference once, not once per matching form', () => {
+    expect(codes(validateNoPrivateRepoReference('x.md', 'github.com/TracyHQ/tracy-desk'))).toEqual([
+      'private_repo_reference'
+    ])
+  })
 })

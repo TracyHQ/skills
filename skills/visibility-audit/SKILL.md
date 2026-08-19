@@ -98,8 +98,12 @@ secret never enters this conversation, never reaches the model, and never lands 
 
 ```bash
 read -rs SERPAPI_API_KEY && export SERPAPI_API_KEY \
-  && node "$HERE/scripts/credentials.mjs" save SERPAPI_API_KEY && unset SERPAPI_API_KEY
+  && node "$HERE/scripts/credentials.mjs" save SERPAPI_API_KEY
+unset SERPAPI_API_KEY        # own line, so it runs even when the save above fails
 ```
+
+`unset` is deliberately not chained onto the `&&`: if `save` errors, a chained `unset` never runs
+and the key stays exported in that interactive shell for the rest of the session.
 
 If the user would rather just paste the key to you, that is their call to make and you may take
 it — say once that the key will be stored in the conversation history, then save it the same way
@@ -159,7 +163,7 @@ Alongside it, in the same batch:
   > Say what's missing, and how to fix it:
   > ```bash
   > read -rs MENTION_NETWORK_KEY && export MENTION_NETWORK_KEY \
-  >   && node "$HERE/scripts/credentials.mjs" save MENTION_NETWORK_KEY
+  >   && node "$HERE/scripts/credentials.mjs" save MENTION_NETWORK_KEY   # unset it when done
   > claude mcp add mention-network --transport http \
   >   https://shopify-mcp-dev.mention.network/api/v1/mcp \
   >   --header "Authorization: Bearer ${MENTION_NETWORK_KEY}"     # then reload the session
