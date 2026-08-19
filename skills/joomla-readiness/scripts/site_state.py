@@ -60,6 +60,17 @@ def _strip_type(element: str) -> str:
     return low
 
 
+#: Marks a key that more than one product answers to, so it can be dropped once the whole
+#: registry has been walked rather than guessed at on the way through.
+_AMBIGUOUS = object()
+
+
+def _put(table: dict, key: str, record: dict) -> None:
+    if not key:
+        return
+    table[key] = _AMBIGUOUS if key in table else record
+
+
 def _index(registry: dict) -> tuple[dict, dict]:
     """Two lookup tables, because there are two routes in and they find different things.
 
@@ -68,11 +79,18 @@ def _index(registry: dict) -> tuple[dict, dict]:
     """
     by_slug, by_title = {}, {}
     for slug, record in registry.items():
-        by_slug.setdefault(_squash(record.get("slug") or slug), record)
+        _put(by_slug, _squash(record.get("slug") or slug), record)
         title = record.get("title")
         if title:
-            by_title.setdefault(_squash(title), record)
-    return by_slug, by_title
+            _put(by_title, _squash(title), record)
+    # A key two different products answer to is dropped rather than resolved to one of them.
+    # Measured on the live registry 2026-08-19: 4 titles and 5 slugs collide, "Count Down"
+    # against "Countdown", "Custom CSS" against "CustomCSS", "Backdoor" against "AdminExile".
+    # Eight records, 0.2%, and picking whichever was seen first was silent. Rare is not
+    # harmless: a wrong verdict is worse than an honest unknown, and "two products answer to
+    # this name" is an honest unknown.
+    return ({k: v for k, v in by_slug.items() if v is not _AMBIGUOUS},
+            {k: v for k, v in by_title.items() if v is not _AMBIGUOUS})
 
 
 def classify(extension: dict, registry: dict, *, core_version: str,
