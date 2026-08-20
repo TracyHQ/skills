@@ -46,6 +46,134 @@ CORE, MATCHED, UNRECOGNISED = "core", "matched", "unrecognised"
 _TYPE_PREFIXES = ("com_", "mod_", "plg_", "tpl_", "lib_", "pkg_", "file_")
 
 
+
+#: Every extension Joomla ships with itself, read from its own install SQL across the four
+#: releases a site being examined can be on: 3.10.12, 4.4.14, 5.4.8 and 6.1.3. 265 names.
+#:
+#: The rule before this one was "its version equals the core's", which was inferred rather than
+#: checked. Joomla's install SQL settles it: all 248 core rows in 6.1.3 ship with an empty
+#: `manifest_cache`, so their version reads as null and not one of them would have matched.
+#:
+#: The list moves between releases, so the union is what a reader needs: 25 names in Joomla 3
+#: are gone by Joomla 4, and Joomla 6 carries 65 that Joomla 4 did not.
+#:
+#: Worth the bytes. A Joomla 6 site holds 248 of these, 156 of them plugins. Failing to recognise
+#: them floods a report with rows a customer can do nothing about and buries the few that matter.
+_CORE_NAMES = frozenset((
+    "atum", "beez3", "cassiopeia",
+    "cassiopeia_extended", "com_actionlogs", "com_admin",
+    "com_ajax", "com_associations", "com_banners",
+    "com_cache", "com_categories", "com_checkin",
+    "com_config", "com_contact", "com_content",
+    "com_contenthistory", "com_cpanel", "com_fields",
+    "com_finder", "com_guidedtours", "com_installer",
+    "com_joomlaupdate", "com_languages", "com_login",
+    "com_mails", "com_mailto", "com_media",
+    "com_menus", "com_messages", "com_modules",
+    "com_newsfeeds", "com_plugins", "com_postinstall",
+    "com_privacy", "com_redirect", "com_scheduler",
+    "com_search", "com_tags", "com_templates",
+    "com_users", "com_workflow", "com_wrapper",
+    "files_joomla", "mod_articles", "mod_articles_archive",
+    "mod_articles_categories", "mod_articles_category", "mod_articles_latest",
+    "mod_articles_news", "mod_articles_popular", "mod_banners",
+    "mod_breadcrumbs", "mod_custom", "mod_feed",
+    "mod_finder", "mod_footer", "mod_frontend",
+    "mod_guidedtours", "mod_languages", "mod_latest",
+    "mod_latestactions", "mod_logged", "mod_login",
+    "mod_loginsupport", "mod_menu", "mod_messages",
+    "mod_multilangstatus", "mod_popular", "mod_post_installation_messages",
+    "mod_privacy_dashboard", "mod_privacy_status", "mod_quickicon",
+    "mod_random_image", "mod_related_items", "mod_sampledata",
+    "mod_search", "mod_stats", "mod_stats_admin",
+    "mod_status", "mod_submenu", "mod_syndicate",
+    "mod_tags_popular", "mod_tags_similar", "mod_title",
+    "mod_toolbar", "mod_user", "mod_users_latest",
+    "mod_version", "mod_whosonline", "mod_wrapper",
+    "plg_actionlog_joomla", "plg_api-authentication_basic", "plg_api-authentication_token",
+    "plg_authentication_cookie", "plg_authentication_gmail", "plg_authentication_joomla",
+    "plg_authentication_ldap", "plg_behaviour_compat", "plg_behaviour_compat6",
+    "plg_behaviour_taggable", "plg_behaviour_versionable", "plg_captcha_powcaptcha",
+    "plg_captcha_recaptcha", "plg_captcha_recaptcha_invisible", "plg_content_confirmconsent",
+    "plg_content_contact", "plg_content_emailcloak", "plg_content_fields",
+    "plg_content_finder", "plg_content_joomla", "plg_content_loadmodule",
+    "plg_content_pagebreak", "plg_content_pagenavigation", "plg_content_vote",
+    "plg_editors-xtd_article", "plg_editors-xtd_contact", "plg_editors-xtd_fields",
+    "plg_editors-xtd_image", "plg_editors-xtd_menu", "plg_editors-xtd_module",
+    "plg_editors-xtd_pagebreak", "plg_editors-xtd_readmore", "plg_editors_codemirror",
+    "plg_editors_none", "plg_editors_tinymce", "plg_extension_finder",
+    "plg_extension_joomla", "plg_extension_joomlaupdate", "plg_extension_namespacemap",
+    "plg_fields_calendar", "plg_fields_checkboxes", "plg_fields_color",
+    "plg_fields_editor", "plg_fields_imagelist", "plg_fields_integer",
+    "plg_fields_list", "plg_fields_media", "plg_fields_note",
+    "plg_fields_number", "plg_fields_radio", "plg_fields_repeatable",
+    "plg_fields_sql", "plg_fields_subform", "plg_fields_text",
+    "plg_fields_textarea", "plg_fields_url", "plg_fields_user",
+    "plg_fields_usergrouplist", "plg_filesystem_local", "plg_finder_categories",
+    "plg_finder_contacts", "plg_finder_content", "plg_finder_newsfeeds",
+    "plg_finder_tags", "plg_installer_folderinstaller", "plg_installer_override",
+    "plg_installer_packageinstaller", "plg_installer_urlinstaller", "plg_installer_webinstaller",
+    "plg_media-action_crop", "plg_media-action_resize", "plg_media-action_rotate",
+    "plg_multifactorauth_email", "plg_multifactorauth_fixed", "plg_multifactorauth_totp",
+    "plg_multifactorauth_webauthn", "plg_multifactorauth_yubikey", "plg_privacy_actionlogs",
+    "plg_privacy_consents", "plg_privacy_contact", "plg_privacy_content",
+    "plg_privacy_message", "plg_privacy_user", "plg_quickicon_autoupdate",
+    "plg_quickicon_downloadkey", "plg_quickicon_eos", "plg_quickicon_eos310",
+    "plg_quickicon_extensionupdate", "plg_quickicon_joomlaupdate", "plg_quickicon_overridecheck",
+    "plg_quickicon_phpversioncheck", "plg_quickicon_privacycheck", "plg_sampledata_blog",
+    "plg_sampledata_multilang", "plg_schemaorg_article", "plg_schemaorg_blogposting",
+    "plg_schemaorg_book", "plg_schemaorg_custom", "plg_schemaorg_event",
+    "plg_schemaorg_jobposting", "plg_schemaorg_organization", "plg_schemaorg_person",
+    "plg_schemaorg_recipe", "plg_search_categories", "plg_search_contacts",
+    "plg_search_content", "plg_search_newsfeeds", "plg_search_tags",
+    "plg_system_accessibility", "plg_system_actionlogs", "plg_system_cache",
+    "plg_system_debug", "plg_system_fields", "plg_system_guidedtours",
+    "plg_system_highlight", "plg_system_httpheaders", "plg_system_jooa11y",
+    "plg_system_languagecode", "plg_system_languagefilter", "plg_system_log",
+    "plg_system_logout", "plg_system_logrotation", "plg_system_p3p",
+    "plg_system_privacyconsent", "plg_system_redirect", "plg_system_remember",
+    "plg_system_schedulerunner", "plg_system_schemaorg", "plg_system_sef",
+    "plg_system_sessiongc", "plg_system_shortcut", "plg_system_skipto",
+    "plg_system_stats", "plg_system_tasknotification", "plg_system_updatenotification",
+    "plg_system_webauthn", "plg_task_checkfiles", "plg_task_deleteactionlogs",
+    "plg_task_demotasks", "plg_task_globalcheckin", "plg_task_privacyconsent",
+    "plg_task_requests", "plg_task_rotatelogs", "plg_task_sessiongc",
+    "plg_task_sitestatus", "plg_task_updatenotification", "plg_twofactorauth_totp",
+    "plg_twofactorauth_yubikey", "plg_user_contactcreator", "plg_user_joomla",
+    "plg_user_profile", "plg_user_terms", "plg_user_token",
+    "plg_webservices_banners", "plg_webservices_config", "plg_webservices_contact",
+    "plg_webservices_content", "plg_webservices_installer", "plg_webservices_joomlaupdate",
+    "plg_webservices_languages", "plg_webservices_media", "plg_webservices_menus",
+    "plg_webservices_messages", "plg_webservices_modules", "plg_webservices_newsfeeds",
+    "plg_webservices_plugins", "plg_webservices_privacy", "plg_webservices_redirect",
+    "plg_webservices_tags", "plg_webservices_templates", "plg_webservices_users",
+    "plg_workflow_featuring", "plg_workflow_notification", "plg_workflow_publishing",
+    "protostar",
+))
+
+
+#: The thirteen core rows whose `name` is a human title rather than a language key, matched on
+#: type and element together. "Joomla! Platform" has element `joomla` and "PHPass" has `phpass`,
+#: and putting those in a list matched by name alone would swallow any third-party extension
+#: that happens to use them. Swallowing third-party products is the failure direction that hides
+#: what an upgrade breaks, so the pair is used: no component or module can collide with a
+#: library or a template.
+_CORE_TYPED = frozenset((
+    ("language", "en-GB"),
+    ("library", "fof"),
+    ("library", "idna_convert"),
+    ("library", "joomla"),
+    ("library", "phpass"),
+    ("library", "phputf8"),
+    ("package", "pkg_en-GB"),
+    ("template", "atum"),
+    ("template", "beez3"),
+    ("template", "cassiopeia"),
+    ("template", "hathor"),
+    ("template", "isis"),
+    ("template", "protostar"),
+))
+
 def _squash(text: str) -> str:
     """A name with every separator removed. The same rule the readiness report already uses
     for catalog names, and here for the same reason: two sources spell one product two ways."""
@@ -118,6 +246,12 @@ def classify(extension: dict, registry: dict, *, core_version: str,
         "isJ6": None,
     }
 
+    # The name Joomla itself gives the extension, first. Then the version, which still catches a
+    # core extension from a release this list does not cover or one renamed since.
+    kind = str(extension.get("type") or "")
+    if name in _CORE_NAMES or element in _CORE_NAMES or (kind, element) in _CORE_TYPED:
+        row["state"] = CORE
+        return row
     if core_version and version and version == core_version:
         row["state"] = CORE
         return row
