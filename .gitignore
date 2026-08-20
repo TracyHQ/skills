@@ -6,3 +6,8 @@ dist/
 # reached the index before anyone noticed, and every install would have carried them.
 __pycache__/
 *.pyc
+
+# Run directories the Mention Network skills write into the cwd (run-dir.mjs).
+# They hold a store's collected answers and meta — working artifacts, never source.
+.mn-runs/
+.mn-audits/

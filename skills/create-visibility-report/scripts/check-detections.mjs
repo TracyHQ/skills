@@ -168,9 +168,9 @@ export function isSupported(merchant, response) {
   const textFuzz = fuzz(response?.rawText)
   const nameFuzz = fuzz(name)
   if (nameFuzz.length >= minFuzzLength(nameFuzz) && textFuzz.includes(nameFuzz)) return true
-  const citeDomains = (response?.citations ?? []).map((c) => normDomain(c.domain))
-  if (merchant.domain && citeDomains.includes(normDomain(merchant.domain))) return true
-  if (Array.isArray(merchant.urls) && merchant.urls.some((u) => citeDomains.includes(normDomain(u)))) return true
+  const citations = response?.citations ?? []
+  if (merchant.domain && citations.some((c) => citationSupportsDomain(c, merchant.domain))) return true
+  if (Array.isArray(merchant.urls) && merchant.urls.some((u) => citations.some((c) => citationSupportsDomain(c, u)))) return true
   const evFuzz = fuzz(merchant?.evidence)
   if (evFuzz.length >= 12 && textFuzz.includes(evFuzz)) {
     const tokens = foldDiacritics(name).split(/[^\p{L}\p{N}]+/u).filter((t) => t.length >= 4)
@@ -236,6 +236,46 @@ export const normDomain = (s) =>
     .replace(/^www\./, '')
     .replace(/\/.*$/, '')
 
+// Gemini's grounding chunks (`groundingChunks[].web.uri`, collect-api.mjs's `parseGemini`) are a
+// `vertexaisearch.cloud.google.com` redirect, not the merchant's real page — `domainOf()` records
+// that proxy host as `citation.domain`, so a literal domain compare can never match a real
+// merchant on a Gemini cell. Real incident: 8 of 30 merchants in one run false-flagged
+// `WARN_FALSE_CITATION_SOURCE` this way; hand-resolving one redirect proved the citation genuine
+// (`gymshark.com` → `https://uk.gymshark.com/collections/leggings/womens`, HTTP 200). Gemini's own
+// grounding chunk carries `title` alongside the redirect `uri` (see `toCitation` in
+// collect-api.mjs), and that title is the source's hostname more often than not — so a
+// Gemini-shaped citation (domain is the proxy host) additionally matches when its `title` names
+// the merchant's domain. See ANALYSIS.md "One thing that bites on Gemini cells".
+const GEMINI_REDIRECT_HOST = 'vertexaisearch.cloud.google.com'
+
+export function citationSupportsDomain(citation, merchantDomain) {
+  const want = normDomain(merchantDomain)
+  if (!want) return false
+  const citeDomain = normDomain(citation?.domain)
+  if (citeDomain === want) return true
+  if (citeDomain === GEMINI_REDIRECT_HOST) {
+    // Gemini puts the real hostname in `title` (measured: title "gymshark.com" behind a
+    // vertexaisearch redirect). Match it as a HOST, never as a substring.
+    //
+    // `title.includes(want)` credited `shark.com` with gymshark.com's citations — "gymshark.com"
+    // contains "shark.com". That is the same class of bug this whole guard exists to catch: a
+    // merchant getting evidence that belongs to someone else. Any registrable name ending in a
+    // competitor's name would inherit their citations.
+    //
+    // So the title must BE the domain, or be a subdomain of it (a leading dot boundary). A title
+    // carrying more than a hostname is matched the same way, token by token.
+    const title = String(citation?.title ?? '').toLowerCase()
+    if (!title) return false
+    return title
+      .split(/[^a-z0-9.-]+/)
+      .some((tok) => {
+        const t = normDomain(tok)
+        return t === want || t.endsWith(`.${want}`)
+      })
+  }
+  return false
+}
+
 export function targetFromMeta(meta) {
   if (!meta) return null
   const shop = meta.shop ?? {}
@@ -255,13 +295,15 @@ export function checkTarget({ file, cell }, target) {
   if (!target || !cell.detection) return []
   const merchants = cell.detection.merchants ?? []
   const raw = String(cell.response?.rawText ?? '').toLowerCase()
-  const citeDomains = (cell.response?.citations ?? []).map((c) => normDomain(c.domain))
+  const citations = cell.response?.citations ?? []
   const isTarget = (m) =>
     target.domains.includes(normDomain(m.domain)) || target.names.includes(String(m.name ?? '').toLowerCase())
 
   const out = []
   const flagged = merchants.filter((m) => m.isTargetShop)
-  const domainInAnswer = target.domains.find((d) => d && (raw.includes(d) || citeDomains.includes(d)))
+  const domainInAnswer = target.domains.find(
+    (d) => d && (raw.includes(d) || citations.some((c) => citationSupportsDomain(c, d))),
+  )
   const nameInAnswer = target.names.find((n) => n && raw.includes(n))
 
   // The shop IS in the list but unflagged is the more precise finding below — don't say both.
@@ -420,7 +462,7 @@ export function expectedOrder(merchants, rawText) {
 export function checkCell({ file, cell }) {
   const violations = []
   const merchants = cell.detection?.merchants ?? []
-  const citeDomains = new Set((cell.response?.citations ?? []).map((c) => String(c.domain ?? '').toLowerCase()))
+  const citations = cell.response?.citations ?? []
 
   let targets = 0
   const positions = []
@@ -439,7 +481,7 @@ export function checkCell({ file, cell }) {
     if (typeof m.evidence === 'string' && m.evidence.length > 160) {
       violations.push({ code: 'WARN_EVIDENCE_TOO_LONG', detail: `${m.name} — ${m.evidence.length} chars (spec caps at 160)` })
     }
-    if (m.mentionSources?.includes('citation') && m.domain && !citeDomains.has(String(m.domain).toLowerCase())) {
+    if (m.mentionSources?.includes('citation') && m.domain && !citations.some((c) => citationSupportsDomain(c, m.domain))) {
       violations.push({ code: 'WARN_FALSE_CITATION_SOURCE', detail: `${m.name} claims 'citation' but ${m.domain} isn't in this cell's citations` })
     }
   }

@@ -192,17 +192,56 @@ wrongly**, and the one `check-detections.mjs` gets right so you don't have to re
 ```js
 // WRONG — every evidence quote you copied is verbatim, so this always passes and checks nothing
 const supported = raw.includes(m.evidence)
-// RIGHT — support means the NAME is findable, fold-matched the same way the backend matches it
-// (diacritics folded, every script's letters/numbers kept — not just a plain lowercase compare)
+// ALSO WRONG on a Gemini cell — a literal domain compare, and Gemini's own citation.domain is a
+// vertexaisearch.cloud.google.com redirect, never the merchant's real host (see "One thing that
+// bites on Gemini cells" below). This passed on OpenAI/Anthropic/SerpApi cells and silently
+// failed every real citation on a Gemini one.
 const supported = fuzzMatches(raw, m.name)
              || fuzzMatches(m.evidence, m.name)
-             || citeDomains.some((d) => d === m.domain)
+             || citations.some((c) => normDomain(c.domain) === normDomain(m.domain))
+// RIGHT — support means the NAME is findable, fold-matched the same way the backend matches it
+// (diacritics folded, every script's letters/numbers kept — not just a plain lowercase compare),
+// and a citation supports the domain through citationSupportsDomain(), which also accepts a
+// Gemini-shaped citation (redirect domain) whose own title names the merchant's domain
+const supported = fuzzMatches(raw, m.name)
+             || fuzzMatches(m.evidence, m.name)
+             || citations.some((c) => citationSupportsDomain(c, m.domain))
 ```
 
 Also assert `position` is `1..n` with no gaps and in true first-appearance order (`--fix` does
 this for you), at most one `isTargetShop`, `evidence.length <= 160`, and that `mentionSources`
-never claims `citation` unless the domain really is in that cell's citations. Measured
-2026-07-28: the wrong version above passed a merchant the backend then rejected.
+never claims `citation` unless `citationSupportsDomain()` accepts it against that cell's citations.
+Measured 2026-07-28: the first wrong version above passed a merchant the backend then rejected. The
+second wrong version — a literal domain compare — is its own, later incident: see the next section.
+
+## One thing that bites on Gemini cells
+
+**A Gemini citation's `domain` is a Google redirect, not the merchant's real host — matching it
+literally against a merchant's `domain` fails every time.** `collect-api.mjs`'s Gemini path reads
+citations from `groundingChunks[].web.uri`, and Gemini hands back that `uri` as a
+`vertexaisearch.cloud.google.com` redirect rather than the page it actually points to; `domainOf()`
+records that redirect host as `citation.domain` because that is genuinely what the URL resolves to
+without following it. So a merchant extracted with `domain: "gymshark.com"` and
+`mentionSources: ['citation']` can never satisfy a check that compares `citation.domain` to
+`merchant.domain` literally — the citation's `domain` is always
+`vertexaisearch.cloud.google.com`, never the merchant's own host. Real incident: this false-flagged
+`WARN_FALSE_CITATION_SOURCE` on 8 of 30 merchants in one run; hand-resolving one redirect proved the
+citation genuine
+(`gymshark.com` → `https://uk.gymshark.com/collections/leggings/womens`, HTTP 200) — the extraction
+was right and the check was wrong.
+
+`check-detections.mjs`'s `citationSupportsDomain()` fixes this without following the redirect at
+collection time (an extra network hop per citation the collectors don't otherwise make): Gemini's
+own grounding chunk carries a `title` alongside the redirect `uri` (`toCitation(ch.web?.uri,
+ch.web?.title)` in `collect-api.mjs`), and that title is the source's hostname more often than not.
+So a citation whose `domain` is the `vertexaisearch.cloud.google.com` proxy additionally supports a
+merchant when its `title` names that merchant's domain — `isSupported()`, `checkCell()`'s
+`WARN_FALSE_CITATION_SOURCE` check, and `checkTarget()`'s target-domain check all read citations
+through this one function now, so the three call sites can't drift out of sync with each other
+again. This is this file's own **local approximation** (this file's own header says so — it is not
+a substitute for `validate_byok_submission`, which stays the authority); the fix here is what keeps
+the client-side self-check from rejecting genuine Gemini evidence before you ever spend a submit
+round-trip finding out whether the server agrees.
 
 ## One thing that bites on non-English markets
 

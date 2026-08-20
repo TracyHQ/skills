@@ -160,7 +160,7 @@ clean; only involve the user if the same code survives two rounds.
 | `MISSING_WHERE_TO_BUY` | The mandatory intent was edited out | Restore it and re-render the prompt set |
 | `INCONSISTENT_PROMPT_TEXT` | The same intent has different text across platforms | Re-render every cell of that intent from `prompts.md` — one prompt per intent, identical across platforms |
 | `WEB_SEARCH_REQUIRED` | A cell claims no web search | Re-collect with search on. Citations are **not** required (the free Gemini UI often returns none) |
-| `UNEXPECTED_SERVED_MODEL` | A `browser` cell carries a `servedModel` | Strip it. Browser cells have an empty `servedModel` for **every** engine — `get_byok_skill`'s own `google_ai_mode` section says the same; the validator wins |
+| `UNEXPECTED_SERVED_MODEL` | A `browser` cell carries a `servedModel` | Strip it. Browser cells have an empty `servedModel` for **every** engine — the validator wins |
 | `SERVED_MODEL_MISMATCH` | An `api` cell's model isn't the grid's `apiModelId` | Take the exact `apiModelId` from `describe_check_grid` and re-collect. Never hardcode a model id |
 
 ### When you analyzed the answers yourself (P4.5)

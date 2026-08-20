@@ -12,6 +12,14 @@ provenOn: —
 Produce an AI Visibility Report for a Shopify store. Two lanes: **BYOK** (default — the user's own
 API keys collect the answers) and **backend-run** (the backend spends its own AI budget).
 
+**This document is the playbook.** Read it together with `ARGUMENTS.md`, `SETUP-ROUTES.md`,
+`RECOVERY.md` and `ANALYSIS.md` — there is no other document that tells you how to run this skill.
+The MCP calls this skill makes (`describe_check_grid`, `get_prompt_templates`,
+`get_product_name_rules`, `get_template_localization_rules`, `get_detect_extraction_spec`) return
+**data** from the backend's own tables — intent slugs, model ids, prompt templates, localization and
+extraction rules — never **method**. They change what this run measures; they never change what to
+do next.
+
 **Design contract for this skill — hold to it:**
 
 1. **Probe before you ask.** P1 runs unattended and fills every later option with a real value.
@@ -93,7 +101,7 @@ The intent slugs, the platform list, the prompt templates, and the exact `served
 already changed by migration more than once (`gpt-4o`→`gpt-5.5`, `gemini-2.5-pro`→`gemini-3.5-flash`,
 and 2026-07-29 `gemini-3.5-flash`→`gemini-3.6-flash`, with `3.5-flash` kept as the managed lane's
 in-platform fallback — see the fallback ADR, and 2026-08 `fastest_shipping`→`free_shipping`). Never
-hardcode, recall, or invent them — that history is exactly why. Fetch every run: `get_byok_skill`,
+hardcode, recall, or invent them — that history is exactly why. Fetch every run:
 `describe_check_grid` (its response already carries the full `intents` list — no separate
 `list_intents` call needed), `get_prompt_templates`, `get_product_name_rules`,
 `get_template_localization_rules`, and — for the client-side analysis at P4.5, which runs **by
@@ -412,10 +420,9 @@ you re-check), so it was never going to fit in the same breath either way.
 > market's local language, and for picking a product out of the catalog.
 >
 > These two are not cosmetic:
-> - **Language changes the answer, not the wording.** The MCP says so itself and `get_byok_skill` §1
->   backs it with a measurement: the same question in English and in the local language produces
->   **materially different rankings**. Choosing it silently picks which market's reality gets
->   reported.
+> - **Language changes the answer, not the wording.** The MCP's own instruction says so: the same
+>   question asked in English versus in the local language produces **materially different
+>   rankings**. Choosing it silently picks which market's reality gets reported.
 > - **The product is the entire subject.** `/products.json` is ordered by the store's collection
 >   sort, not by sales, so "the first one" is arbitrary — and a report about the wrong product is
 >   simply the wrong report, at full quota cost.
@@ -557,9 +564,9 @@ this run measures) and `skippedEngines` (the ones it doesn't, each with the reas
 below, the collectors, P5's local report, P6's submission — reads `declaredPlatforms` from here
 rather than re-deriving it, so there is exactly one place the declared set is decided.
 
-Fetch the live catalog: `get_byok_skill` (the authoritative playbook — follow it), then
-`describe_check_grid` (its `intents` field IS the `list_intents` data — don't call it twice),
-`get_prompt_templates({language})`, `get_product_name_rules`, `get_template_localization_rules`.
+Fetch the live catalog: `describe_check_grid` (its `intents` field IS the `list_intents` data —
+don't call it twice), `get_prompt_templates({language})`, `get_product_name_rules`,
+`get_template_localization_rules`.
 On success, cache each with `catalog-cache.mjs save <name> <file>` (*Live data comes from the MCP*,
 above) so a future run's fetch failure has something dated to fall back to. On failure, load the
 cache instead, print its age, and carry the same "local fallback, fetched N days ago" note into
@@ -570,6 +577,14 @@ cache instead, print its age, and carry the same "local fallback, fetched N days
   ever built for a platform NOT in `declaredPlatforms` (design contract 5).
 - **Render the actual prompt per intent** — apply the template with the normalized product name, in
   the prompt's language (localization rules).
+  **`{location}` is a natural place name, never the bare `country=` code.** A live template reads
+  `"where to buy {product} in {location}"`; filling it with `GB` or `SA` produces broken English
+  (or broken Arabic) that reads as a typo to the engine being asked, not as a place. Render it as
+  the market's natural place name, in the prompt's own language (`get_template_localization_rules`
+  is the source for that name — never hand-translate a country code yourself). When Q1 narrowed to
+  a city, `{location}` is `"<city>, <country name>"` (e.g. `"Riyadh, Saudi Arabia"`); at the
+  country-level default it's the country name alone (`"Saudi Arabia"`), never the city without its
+  country and never the ISO code standing in for either.
 
 ## Q2 — Approve the prompts *(asking moment 2 of 3)*
 
@@ -725,8 +740,7 @@ narrows past the country.
   `servedModel` **empty**, `webSearchUsed: true`. Throws without `SERPAPI_API_KEY`. `'browser'` here
   is the wire value the backend expects for an engine that never states which model answered — it
   does not mean a browser was driven. Any `servedModel` on such a cell is
-  `UNEXPECTED_SERVED_MODEL` — `get_byok_skill`'s own `google_ai_mode` section says the same thing:
-  the validator wins over any table value.
+  `UNEXPECTED_SERVED_MODEL` — the validator wins over any table value.
 
 > **How a cell maps to `collectionMethod`.** The wire enum is `'api' | 'cli' | 'browser'`. This
 > skill only ever writes two of them: the three model engines are `'api'` (the model is known,
