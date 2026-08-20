@@ -43,7 +43,16 @@ CORE, MATCHED, UNRECOGNISED = "core", "matched", "unrecognised"
 
 #: Element prefixes Joomla gives its own extension types. Stripped before comparing to a
 #: listing slug, which never carries them.
-_TYPE_PREFIXES = ("com_", "mod_", "plg_", "tpl_", "lib_", "pkg_", "file_")
+#: Which prefix belongs to which type. A prefix is only stripped when it agrees with the row's
+#: own type, because it does not always describe the row: Xmap installs its per-product plugins
+#: as `plugins/xmap/com_k2`, so a plugin really does have the element `com_k2`. Stripping it and
+#: looking up `k2` handed that plugin K2's Joomla 6 verdict, which is Xmap's business and not
+#: K2's. Found on joomlart.com, the first real site this ran against, where three of fourteen
+#: matches were exactly this.
+_TYPE_PREFIXES = {
+    "com_": "component", "mod_": "module", "plg_": "plugin",
+    "tpl_": "template", "lib_": "library", "pkg_": "package", "file_": "file",
+}
 
 
 
@@ -180,11 +189,13 @@ def _squash(text: str) -> str:
     return re.sub(r"[^a-z0-9]", "", (text or "").lower())
 
 
-def _strip_type(element: str) -> str:
+def _strip_type(element: str, kind: str = "") -> str:
     low = (element or "").lower()
-    for prefix in _TYPE_PREFIXES:
+    for prefix, owner in _TYPE_PREFIXES.items():
         if low.startswith(prefix):
-            return low[len(prefix):]
+            # A prefix that contradicts the row's own type is somebody else's name inside this
+            # one, so the element is left whole and the lookup misses rather than mismatches.
+            return low[len(prefix):] if not kind or kind == owner else low
     return low
 
 
@@ -256,7 +267,7 @@ def classify(extension: dict, registry: dict, *, core_version: str,
         row["state"] = CORE
         return row
 
-    record = by_slug.get(_squash(_strip_type(element))) or by_title.get(_squash(name))
+    record = by_slug.get(_squash(_strip_type(element, kind))) or by_title.get(_squash(name))
     if record is None:
         return row
 
