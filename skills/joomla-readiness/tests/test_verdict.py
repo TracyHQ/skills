@@ -6,8 +6,7 @@ Runs without pytest:  python3 tests/test_verdict.py
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent
-                      / "scripts"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 from profile_types import OwnedProduct, SiteProfile  # noqa: E402
 from verdict import decide  # noqa: E402
@@ -24,10 +23,10 @@ def _p(name, j6, kind="template", src="catalog", note="", when="2026-01-01"):
                         j6=j6, j6_source=src, j6_note=note or f"{name}: {j6}")
 
 
-def _profile(products, version="5.4.7"):
+def _profile(products, version="5.4.7", hops=None):
     return SiteProfile(user_id=1, email="a@b.c", domain="example.org",
                        joomla_version=version, version_measured_at="2026-08-17",
-                       products=list(products),
+                       products=list(products), hops_to_six=hops,
                        unseen=["Third-party extensions installed on the site."])
 
 
@@ -229,6 +228,51 @@ def test_a_discontinued_product_still_matters_on_a_site_already_at_six():
     check("still must replace", v.level == "must_replace")
 
 
+def test_reading_no_extensions_at_all_is_not_a_clean_bill_of_health():
+    """Found on 2026-08-20 by running the chain on real sites. A site whose extensions could not
+    be read produced "Everything we checked has a Joomla 6 build", which is true in the way that
+    matters least: nothing was checked. `read_state` already warns about it and the warning
+    reaches `unseen`, but the verdict overrode it with the one word a customer reads first."""
+    v = decide(_profile([], version="5.4.8"))
+    check("not ready", v.level != "ready")
+    check("and says why", any("no extensions" in b.lower() or "nothing" in b.lower()
+                              for b in v.blockers))
+
+
+def test_the_headline_does_not_describe_what_was_never_read():
+    """The blocker told the truth while the headline said "Some of what you run is not ready for
+    Joomla 6 yet" about a site nothing had been read from. The headline is the line a customer
+    reads first and often the only one, so it cannot be the one that overclaims."""
+    v = decide(_profile([], version="5.4.8"))
+    check("no claim about what they run", "what you run" not in v.headline.lower())
+    check("says the reading failed", "could not" in v.headline.lower()
+          or "not read" in v.headline.lower())
+
+
+def test_a_site_on_six_with_nothing_read_still_says_nothing_was_read():
+    """Being on Joomla 6 is a real reading and stays. Having read no extensions is also real."""
+    v = decide(_profile([], version="6.1.3"))
+    check("still already there", "already" in v.headline.lower())
+    check("but names the gap", any("no extensions" in b.lower() or "nothing" in b.lower()
+                                   for b in v.blockers))
+
+
+def test_a_site_two_hops_away_is_not_told_to_plan_one_upgrade():
+    """A Joomla 5.2 site must reach 5.4 before the update server offers it a 6. SKILL.md says
+    saying "upgrade to Joomla 6" without saying how many upgrades is telling somebody the job is
+    smaller than it is, and the rule only covered Joomla 3 and 4."""
+    v = decide(_profile([_p("K2", j6="available")], version="5.2.5", hops=2))
+    check("the number of upgrades is stated",
+          any("two" in b.lower() or "2 " in b for b in v.blockers))
+    check("not offered as one", not any("You can plan the upgrade" in s for s in v.next_steps))
+
+
+def test_a_site_one_hop_away_is_left_alone():
+    v = decide(_profile([_p("K2", j6="available")], version="5.4.8", hops=1))
+    check("ready", v.level == "ready")
+    check("no staging lecture", not any("stage" in b.lower() for b in v.blockers))
+
+
 def main():
     for fn in (test_one_discontinued_product_decides_the_whole_verdict,
                test_unknown_never_rounds_up_to_ready,
@@ -250,7 +294,12 @@ def main():
                test_a_site_already_running_joomla_6_is_not_told_it_is_not_ready,
                test_a_site_already_on_six_is_not_told_to_plan_an_upgrade,
                test_a_site_already_on_six_still_names_what_nobody_has_published_a_verdict_for,
-               test_a_discontinued_product_still_matters_on_a_site_already_at_six):
+               test_a_discontinued_product_still_matters_on_a_site_already_at_six,
+               test_reading_no_extensions_at_all_is_not_a_clean_bill_of_health,
+               test_a_site_on_six_with_nothing_read_still_says_nothing_was_read,
+               test_a_site_two_hops_away_is_not_told_to_plan_one_upgrade,
+               test_a_site_one_hop_away_is_left_alone,
+               test_the_headline_does_not_describe_what_was_never_read):
         fn()
     for name, ok in _RESULTS:
         print(f"  {'PASS' if ok else 'FAIL'}  {name}")

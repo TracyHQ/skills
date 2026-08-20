@@ -47,6 +47,11 @@ class SiteProfile:
     #: is nothing to ask. Empty by default: a read that never saw a PHP version says nothing
     #: rather than guessing, and a blank line is the honest rendering of not knowing.
     php_note: str = ""
+    #: How many upgrades stand between this site and Joomla 6, when that could be worked out.
+    #: None means it could not, and the verdict then falls back to reasoning from the major
+    #: alone. A Joomla 5.2 site is two upgrades away and looks like one to anybody counting
+    #: majors, which is exactly the reader this number exists for.
+    hops_to_six: int | None = None
 
 
 def joomla_major(version: str) -> int | None:

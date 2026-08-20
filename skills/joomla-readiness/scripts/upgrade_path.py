@@ -174,6 +174,8 @@ def profile_from_state(state: dict, php: str = "") -> SiteProfile:
         user_id=0, email="", domain="",
         joomla_version=str(core.get("version") or ""), version_measured_at="",
         products=products, unseen=unseen, php_note=php_note,
+        hops_to_six=(len(chain_to_six(core.get("version") or "") or [])
+                     if core.get("version") else None),
         scope_one="extension installed on this site",
         scope_many="extensions installed on this site",
         scope_limit=("It covers what the site reports as installed, looked up in the public "
