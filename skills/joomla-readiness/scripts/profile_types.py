@@ -52,6 +52,11 @@ class SiteProfile:
     #: alone. A Joomla 5.2 site is two upgrades away and looks like one to anybody counting
     #: majors, which is exactly the reader this number exists for.
     hops_to_six: int | None = None
+    #: How many extension rows the read returned, core included. Zero and None are different
+    #: answers: zero means the read came back empty, None means nobody counted. Neither is the
+    #: same as `products` being empty, which happens on a site that runs only Joomla itself and
+    #: is good news rather than a failure.
+    extensions_read: int | None = None
 
 
 def joomla_major(version: str) -> int | None:

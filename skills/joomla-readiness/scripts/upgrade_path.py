@@ -176,6 +176,7 @@ def profile_from_state(state: dict, php: str = "") -> SiteProfile:
         products=products, unseen=unseen, php_note=php_note,
         hops_to_six=(len(chain_to_six(core.get("version") or "") or [])
                      if core.get("version") else None),
+        extensions_read=int((state.get("counts") or {}).get("total", 0)),
         scope_one="extension installed on this site",
         scope_many="extensions installed on this site",
         scope_limit=("It covers what the site reports as installed, looked up in the public "

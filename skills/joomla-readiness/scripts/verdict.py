@@ -101,6 +101,15 @@ _WORDS = {2: "two", 3: "three", 4: "four"}
 _NOTHING_READ_HEADLINE = "We could not read what this site has installed."
 
 
+def _read_something(profile) -> bool:
+    """Did the read come back with rows at all, core included.
+
+    None means nobody counted, and the safe reading of "nobody counted" is the old one: an empty
+    product list is treated as an empty read. Only a positive count buys the better answer.
+    """
+    return bool(getattr(profile, "extensions_read", None))
+
+
 def _already_there(profile, blocking) -> Verdict:
     """The verdict for a site that is already on Joomla 6.
 
@@ -115,7 +124,7 @@ def _already_there(profile, blocking) -> Verdict:
         "before updates, as always."
     ]
     blockers = []
-    if not profile.products:
+    if not profile.products and not _read_something(profile):
         blockers.append(_NOTHING_READ)
     if unknown:
         listed = ", ".join(sorted(p.product for p in unknown)[:5])
@@ -165,7 +174,12 @@ def decide(profile) -> Verdict:
     # Nothing read is not nothing wrong. "Everything we checked has a Joomla 6 build" is true in
     # the way that matters least when the checked set is empty, and it is the one word a
     # customer reads first. Seen on real sites 2026-08-20.
-    if not profile.products:
+    # Empty for two opposite reasons, and only one of them is bad news. A read that returned
+    # nothing is a report with nothing to work from; a read that returned rows of which none
+    # were third-party is a site running only Joomla itself, which has nothing that can block
+    # an upgrade. They wore the same sentence until 2026-08-20.
+    nothing_read = not profile.products and not _read_something(profile)
+    if nothing_read:
         if level == READY:
             level = WORK_NEEDED
         blockers.insert(0, _NOTHING_READ)
@@ -265,7 +279,7 @@ def decide(profile) -> Verdict:
     # The headline is the line a customer reads first and often the only one, so it must not be
     # the line that overclaims. "Some of what you run is not ready for Joomla 6 yet" describes a
     # reading that did not happen when nothing could be read.
-    headline = (_NOTHING_READ_HEADLINE if not profile.products else _HEADLINE[level])
+    headline = (_NOTHING_READ_HEADLINE if nothing_read else _HEADLINE[level])
     return Verdict(level=level, headline=headline,
                    scope_line=_scope_line(profile),
                    blockers=blockers, next_steps=next_steps)
