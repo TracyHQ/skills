@@ -5,6 +5,63 @@ much it moves the score. All of it is encoded in `scripts/framework.mjs`, hand-p
 backend's `framework.constants.ts`. The test that pins them lives in the source pack, not in
 this copy — see SKILL.md, *Where this came from*.
 
+## Method: how a page becomes a number
+
+The tables below say what each criterion asks. This section says how the pipeline gets from a
+URL to the score at the top of `report.md` — someone reading only this file should be able to
+explain that end to end, not just look up one criterion's weight.
+
+1. **Fetch.** `fetch-pages.mjs` does a plain, unauthenticated HTTP GET of the PDP, `robots.txt`,
+   and the store pages (About, Contact, the four policies), in parallel, with a 30s timeout per
+   request and a UA string (`MentionNetworkAudit/1.0; non-JS fetch`) that identifies the request
+   rather than spoofing a browser. This is deliberately what a non-JS AI crawler sees, not what a
+   shopper sees — no JavaScript runs, so anything a theme builds client-side is invisible here.
+   Store pages are found at a short list of conventional Shopify paths
+   (`/pages/about`, `/policies/refund-policy`, …) plus whatever the PDP's own footer links to; a
+   theme that hides them elsewhere yields a `false` for that page, not a guess. The product JSON
+   comes from Shopify's public `<handle>.json` endpoint, not scraped out of the HTML. Everything
+   lands in one `pages.json`; nothing here calls an LLM or costs anything beyond the fetches
+   themselves. See `SKILL.md` P3 and *Deliberate deviations* below for what changes without a
+   `--rendered-html` capture.
+2. **Sample, for the parts an LLM will read.** The raw HTML is not handed to a model whole.
+   `extractMainText` (in `util.mjs`) prefers the `<main>` element, strips page chrome (`<nav>`,
+   `<header>`, `<footer>`, Shopify's `shopify-section-*` wrappers, screen-reader-only text) and a
+   short list of known boilerplate phrases ("Write a review", "View full details", …), then caps
+   the result — 8,000 characters for a product description, 6,000 for the rendered page body
+   (`CONTENT_CAP` / `PAGE_CONTENT_CAP` in `analyze-llm.mjs`). The cap exists so one long page
+   cannot crowd out the smaller sections (FAQ, structured data) sitting alongside it in the same
+   prompt; content is truncated, not summarized, so nothing is invented to fill the gap. Off-store
+   text (SerpApi results, Trustpilot's own JSON-LD) needs no sampling — those are already short,
+   structured API responses.
+3. **Ask the LLM, batched by what it needs to see and NOT see.** Grading a page uses no web
+   search — every judgement has to come from text already in the prompt — and is split into
+   separate calls (content, voice, credibility, FAQ, plus a press filter) rather than one big
+   one, because the sections withheld from a batch are as deliberate as the ones included: the
+   **voice** batch (`unique-description`, `answer-formatting`) sees ONLY the merchant's own copy,
+   because machine-extracted page text or structured data leaking in was measured to move those
+   two bands even when told to ignore it (backend ADR-0042). See *What the LLM is asked, and why
+   it's batched that way* below for the full breakdown of which 15 criteria go in which call and
+   what each one reads.
+4. **Band becomes score.** Every LLM-graded criterion returns a discrete band — `0`, `50`, `100`,
+   or `na` where the rule allows it — plus a one-sentence reason grounded in the text, never a
+   number the model invents on a continuous scale. Discrete bands are why two different provider
+   models still land on comparable numbers: there is no room for one model's "72" and another's
+   "68" to read as a disagreement about the page rather than about calibration. Script-scored
+   (non-LLM) criteria are also discrete, just wider: 0 / 25 / 50 / 75 / 100 by rule (e.g.
+   `ai-bots-allowed` in `scorers.mjs`). Nothing is rounded until the report is written, so
+   intermediate maths (sub-group, factor, total) stays exact.
+5. **Weights combine into the total.** See *How the score is built* immediately below — the
+   short version is: each criterion's global weight is fixed by its factor's budget and its own
+   1/2/3 label weight, and every average (criterion → sub-group → factor → total) is a weighted
+   mean over the rows that actually have a status of `scored`.
+6. **`na` is a lane that didn't run, never a zero.** A criterion goes `na` when the data it needs
+   was never collected — no SerpApi key, so `reddit` was never searched; no LLM key, so
+   `shipping-competitive`'s batch never ran — and it leaves the weighted-mean denominator instead
+   of counting as a 0. See *Statuses* below, and `scorers.mjs`'s own header comment (the `!a` ⇒
+   `na` pattern every LLM-graded scorer follows, audit incident B) for exactly where this is
+   enforced in code, and `report-md.mjs` / `preflight.mjs` for where it is said in the delivered
+   report and the P1 preflight, respectively.
+
 ## How the score is built
 
 - Every criterion carries a **label weight** (1 / 2 / 3) inside its factor.

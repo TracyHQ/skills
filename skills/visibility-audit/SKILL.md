@@ -36,10 +36,14 @@ If the store already has a Phase-1 report and the backend should just do it, cal
 1. **Probe before you ask.** P1 runs unattended and fills every later option with a real value.
 2. **Two asking moments, no more:** Q1 confirm → Q2 gaps. Each is one `AskUserQuestion` with
    pre-filled options; typing is the fallback, not the path.
-3. **A missing key is a setup task, not a zero.** A criterion with no data is `na` and says so.
-   Never invent a signal, and never present a partial audit as a complete one. **A missing MCP key
-   is the same:** it stops the run at P1 with a request to connect, because the deliverable is an
-   audit *on the server* with a shareable link — not a file in a local run directory.
+3. **A missing key is a setup task, not a zero — and never a reason to stop measuring.** A
+   criterion with no data is `na` and says so. Never invent a signal, and never present a partial
+   audit as a complete one. This holds the same way for every lane, **`MENTION_NETWORK_KEY`
+   included**: P1 through P5 run to completion on this machine regardless of whether it exists —
+   `audit.json` and `report.md` are a complete, usable deliverable on their own. What a missing
+   MCP key changes is P6 only: saving the finished audit on the server and getting a hosted PDF
+   link. Name what's missing, name what it costs, and offer the same choice the LLM/SerpApi lanes
+   get — supply it, or proceed without it — instead of stopping the run to ask.
 4. **The numbers come from the ported scorers, never from your own reading of the page.** You
    drive the scripts; you do not eyeball the HTML and decide a score.
 5. **Secrets are handled, never echoed.** Every key goes through `scripts/credentials.mjs`, whose
@@ -71,6 +75,12 @@ Companion files — read the one the situation calls for, not all of them up fro
 | **Grading LLM** | +15: the content-quality bands, About page, policy substance, testimonials, shipping offer | one of `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY` |
 | **Off-store** | +7: Reddit, Trustpilot, Google reviews, video mentions, press, entity databases, Google Shopping | `SERPAPI_API_KEY` |
 | **Phase-1 prices** | +1: `price-competitive` | a visibility report's competitor prices, passed in `meta.json` |
+
+`MENTION_NETWORK_KEY` is deliberately not a row in this table: it buys nothing here. It is not a
+scoring lane, it never changes which of the 40 criteria go `na`, and its absence never reduces
+`N/40` — it only decides whether P6 can save the finished audit to the server. Run
+`node scripts/preflight.mjs` for the current per-lane numbers above, computed from whatever keys
+are actually in the environment right now rather than hand-copied from this table.
 
 `crawlable-text` scores **`na`** on a normal run: measuring JS-hidden content means comparing the
 pre-JS HTML against a rendered DOM, and this skill only fetches the former. `fetch-pages.mjs`
@@ -132,12 +142,21 @@ HERE="$(dirname "$(readlink -f "<abs path to this SKILL.md>")")"   # this skill'
 CREDS="${MENTION_NETWORK_CREDENTIALS:-$HOME/.config/mention-network/credentials}"
 set -a; [ -f "$CREDS" ] && . "$CREDS"; set +a        # stored secrets into this shell, unechoed
 node "$HERE/scripts/credentials.mjs" status          # masked: stored | env only | missing
+node "$HERE/scripts/preflight.mjs"                   # per-lane: usable key? how many of the 40 na without one?
 curl -s -o /dev/null -w '%{http_code}\n' "https://<shopDomain>/products.json?limit=250"
 ```
 
 Run `credentials.mjs check` too when `status` shows a stored key you are about to spend on — it is
 one cheap list call per provider and it turns "the grading failed after the page fetch" into "this
 key was revoked, replace it before we start".
+
+`preflight.mjs` is the run's one required, unskippable checkpoint: it answers, for the grading LLM
+and off-store lanes, not just "is there a key" but "what does not having one cost" — how many of
+the 40 criteria go `na`, and which of those are Critical/weight-3 (the ones that actually move the
+verdict, not just the count). Read straight off the environment already sourced above, so it adds
+no new probing of its own. Its output is what the Q1 confirm card's `Grading` / `Off-store` /
+`Coverage` lines are built from, and it prints even under `yes` — the plan is never skipped, only
+the confirm *question* is.
 
 Alongside it, in the same batch:
 
@@ -149,19 +168,28 @@ Alongside it, in the same batch:
   with (`report=`, P6) so the audit shows on the merchant's Website Audit home. **It does not by
   itself unlock `price-competitive`** — see `ARGUMENTS.md` for why and for the one path that
   does. The MCP is also how the finished audit gets **saved on the server** and turned into a
-  hosted PDF (P6), so check `MENTION_NETWORK_KEY` now, not at the end.
+  hosted PDF (P6) — that is the *only* thing it does; it never drives the collecting, grading or
+  scoring, all of which run on this machine either way (design contract §3).
 
-  > **No MCP → stop here and ask for it, before anything else.** If `credentials.mjs status` says
-  > `MENTION_NETWORK_KEY: missing` **and** no host `mention-network` tool answers, **end your turn
-  > and wait.** Not "warn and carry on": announcing the problem and then running anyway is the same
-  > failure, because the user finds out what they got only after the grading and off-store lanes are
-  > already spent. The deliverable people expect is *an audit stored on the server with a shareable
-  > PDF link*; a local file in a run directory is a different, lesser thing.
+  > **A missing `MENTION_NETWORK_KEY` never stops the run.** Check it here, alongside the other
+  > two lanes, so its cost is on the table at Q1 too — but if `credentials.mjs status` says
+  > `MENTION_NETWORK_KEY: missing`, that is a note for the confirm card, not a reason to end the
+  > turn. P2 through P5 proceed exactly as if the key existed; `$RUN/audit.json` and
+  > `$RUN/report.md` are the deliverable regardless of what P6 can later do with them.
   >
-  > It **outranks `dry-run`** — when both apply the key blocker wins, because there is no plan worth
-  > confirming for a run that cannot deliver its output.
+  > Since 2026-08-19 the production MCP
+  > (`https://shopify-mcp.mention.network/api/v1/mcp`) accepts a request with **no**
+  > `Authorization` header at all and serves it as principal `anonymous`
+  > (`scripts/mcp-client.mjs` already omits the header instead of sending one — see its header
+  > comment) — verified on prod for `tools/list` and `describe_check_grid`. Whether
+  > `submit_byok_website_audit` (a *write*, storing an audit against a shop) is served the same
+  > way anonymously is what P6 finds out when it runs, not something to promise here. What stays
+  > true either way: a **wrong** key still gets `401` from the server, so a stale key is worse
+  > than none — if a key IS stored, run `credentials.mjs check` on it before relying on it, same
+  > as the LLM/SerpApi lanes.
   >
-  > Say what's missing, and how to fix it:
+  > If there is genuinely no key and the user wants one, hand over the setup command — same shape
+  > as every other lane, so the secret never enters this conversation:
   > ```bash
   > read -rs MENTION_NETWORK_KEY && export MENTION_NETWORK_KEY \
   >   && node "$HERE/scripts/credentials.mjs" save MENTION_NETWORK_KEY   # unset it when done
@@ -182,15 +210,15 @@ Alongside it, in the same batch:
   > `ps` while it runs, and `claude mcp add` then writes it into its own config file. That is
   > `claude mcp add --header`'s interface, not a choice this skill makes — but design contract 5
   > promises keys never go through argv, and this is the one place that promise does not hold.
-  > Then re-probe and continue.
   >
   > A **stored key on its own is enough** to finish the run — `scripts/mcp-client.mjs` speaks the
-  > same MCP over plain HTTP, so the host tools are a convenience, not a requirement. Try that before
-  > telling anyone to reload a session.
+  > same MCP over plain HTTP, so the host tools are a convenience, not a requirement.
   >
-  > **Local-only is a choice the user makes, never a fallback you take for them.** They can pick it
-  > — that is what `no-save` is for — but it has to be said out loud and agreed *before* the run
-  > spends anything.
+  > **Proceeding without a key is the user's choice, said out loud, not a fallback taken for
+  > them** — but it no longer has to be said *before* anything else. It fits naturally at Q1
+  > alongside the LLM/SerpApi keys (missing → note it on the card) or at Q2 if it is still missing
+  > once the run is done (offer to set one up and submit now, or accept the local files as the
+  > final result, same as `no-save`).
 
 ## P2 — Resolve the plan
 
@@ -219,17 +247,29 @@ Shop      kbeautyarabia.com  ·  AE  ·  Arabic
 Product   Water Bank Aqua Facial 30ml   (/products/water-bank-aqua-facial-30ml)
 Grading   Anthropic  ****a91f  (checked ok)   15 criteria
 Off-store SerpApi    ****075c  (checked ok)   ~9 searches of your free 100
+Save      Mention Network  ****9c2e  (checked ok)   auditId + hosted PDF
 Page      plain fetch                         crawlable-text will be n/a
 Coverage  36/40 scored · 2 n/a, 2 gated (Arabic) · ~2 min · ~$0.05 + 9 SerpApi searches
+```
+
+When a lane's key is missing, its row names what that lane is worth instead of the checked-ok
+line — this is `preflight.mjs`'s output verbatim, not a paraphrase:
+
+```
+Grading   no key — 15 criteria go na (~38% of weight), incl. 4 Critical: specifications,
+          faq-product, unique-description, answer-formatting
+Save      no key — audit still runs; without one, submitting it at the end may be
+          declined (or may not — the server now accepts unauthenticated calls; P6 finds out)
 ```
 
 Compose the questions in this order, dropping from the bottom if you run out of room (max 4):
 
 1. **Confirm** — *Run it (Recommended)* · *Change product* · *Change market or language*.
-2. **Keys** — whenever at least one key is stored, show each one masked and offer *Keep these
-   (Recommended)* · *Replace one* · *Remove one*. A key the user forgot they stored is a key that
-   quietly decides which provider their money goes to; showing it is cheaper than explaining it
-   afterwards. Skip this question only when nothing is stored — then it is Q2's job.
+2. **Keys** — whenever at least one key is stored (LLM, SerpApi, **or `MENTION_NETWORK_KEY`**),
+   show each one masked and offer *Keep these (Recommended)* · *Replace one* · *Remove one*. A key
+   the user forgot they stored is a key that quietly decides which provider their money goes to,
+   or where their audit ends up saved; showing it is cheaper than explaining it afterwards. Skip
+   this question only when nothing is stored — then it is Q2's job.
 3. **Grading route** — ask when more than one LLM key is available and the arguments did not pin
    one; show which is pre-selected and why.
 
@@ -361,11 +401,21 @@ automatically.
 
 ## P6 — Save it on the server and export the PDF
 
-The audit does not stay on this machine. Submit it and the backend stores it as a completed
-audit — same as a server-run one — which is what gives you an `auditId`, a hosted PDF URL, and a
-report anyone with the link can open. It still costs the backend nothing: it runs **no** scorer and
-**no** LLM, it only validates, **re-computes every score with its own weights**, and re-runs the
-narrative guards over the prose you supplied.
+This step is the one place the run touches the network for anything other than reading — and the
+only one a missing key can affect. Everything through P5 already produced a complete, scored,
+readable audit on disk (`$RUN/audit.json`, `$RUN/report.md`); P6 tries to also put a copy on the
+server, which is what gives you an `auditId`, a hosted PDF URL, and a report anyone with the link
+can open. It still costs the backend nothing: it runs **no** scorer and **no** LLM, it only
+validates, **re-computes every score with its own weights**, and re-runs the narrative guards over
+the prose you supplied.
+
+Run it whether or not `MENTION_NETWORK_KEY` is set — `submit-audit.mjs` calls out through
+`mcp-client.mjs`, which omits the `Authorization` header when there is no key rather than refusing
+to call at all (see the P1 MCP note). The server decides what an unauthenticated
+`submit_byok_website_audit` gets: it may succeed as `anonymous`, or it may not — either outcome is
+a normal result of this step, not a failure of the run. If it is declined, say so plainly and hand
+over the local files; do not retry with a fabricated key, and do not treat the decline as reason to
+throw away `audit.json`/`report.md`.
 
 ```bash
 node "$HERE/scripts/submit-audit.mjs" --audit "$RUN/audit.json" --meta "$RUN/meta.json" \
@@ -402,37 +452,53 @@ the server.
 
 ## Q2 — Close the gaps *(asking moment 2 of 2)*
 
-Only if a key was missing. State the coverage you got, name what each missing key would add, and
-offer:
+Only if a key was missing — any of the three, including `MENTION_NETWORK_KEY`. State the coverage
+you got, name what each missing key would add, and offer:
 
 1. **Set it up now (Recommended)** — the cheapest concrete path: a free SerpApi key (~100
-   searches/month, covers ~10 audits) for off-store; any one of the three LLM keys for grading.
-   Hand over the `read -rs …` one-liner from *Credentials*, then re-run only the missing step and
-   re-score (the page fetch is already on disk).
+   searches/month, covers ~10 audits) for off-store; any one of the three LLM keys for grading; a
+   `MENTION_NETWORK_KEY` to save the finished audit and get a hosted PDF link. Hand over the
+   `read -rs …` one-liner from *Credentials*, then re-run only the missing step — off-store or
+   grading re-run and re-score (the page fetch is already on disk); a late `MENTION_NETWORK_KEY`
+   just means running P6 now, on the `audit.json` that already exists.
 2. **Replace a rejected key** — when `credentials.mjs check` came back `REJECTED`, this is the fix,
    and it is a different situation from having no key at all. Say which provider refused it.
-3. **Ship as is** — allowed as an explicit, informed choice: the report says `N/40 scored` and
-   lists every skipped criterion with its reason.
+3. **Ship as is** — allowed as an explicit, informed choice, and the two gaps are not the same
+   thing: a missing LLM/SerpApi key means the report says `N/40 scored` and lists every skipped
+   criterion with its reason (fewer criteria measured); a missing `MENTION_NETWORK_KEY` means the
+   audit was fully measured and scored but stays local-only — no `auditId`, no shareable link. Say
+   which one applies, not just "N/40" for both.
 
-After any setup, re-run the step and re-state coverage before delivering again.
+After any setup, re-run the step and re-state coverage (or re-run P6) before delivering again.
 
 ## Gate
 
-- [ ] P1 ran **before** any question: credential store loaded, keys probed, catalog fetched.
+- [ ] P1 ran **before** any question: credential store loaded, keys probed (all three —
+      LLM/SerpApi/`MENTION_NETWORK_KEY`), `preflight.mjs` run for the lane-impact numbers, catalog
+      fetched.
 - [ ] The user was asked **at most twice** (Q1 / Q2), each with pre-filled options.
 - [ ] The **confirm card was shown** with shop, product + PDP path, market, language, the grading
-      route, the off-store key, and the coverage/time/cost estimate — unless the invocation carried `yes`.
+      route, the off-store key, the save/MCP key, and the coverage/time/cost estimate — unless the
+      invocation carried `yes`.
 - [ ] Stored keys were shown masked at Q1 with keep / replace / remove offered.
+- [ ] **No missing key stopped P2 through P5.** A missing `MENTION_NETWORK_KEY` changed nothing
+      about the run itself — it is not a gate before collection, grading or scoring.
 - [ ] The PDP fetch returned `pageOk: true`; nothing was scored against a 404 or a guessed URL.
 - [ ] Bands came from `analyze-llm.mjs`; no score, band or off-store signal was hand-written.
 - [ ] Every criterion with no data is `na`/`gated` **with a reason** — none was scored 0 to fill a gap.
-- [ ] The delivered headline states coverage (`N/40`) and names what was not measured.
-- [ ] The audit was **submitted** (`submit-audit.mjs`): `submitted.json` exists, the server's
-      re-computed score matched the local one, and the **hosted PDF URL** was returned.
-- [ ] If it was **not** submitted, that was the user's explicit choice (`no-save`, or they accepted a
-      local-only run when P1 flagged the missing key) — never a silent fallback. The handover says
-      plainly that the result is local-only and has no shareable link.
-- [ ] `source: byok` was disclosed alongside the PDF — the numbers are self-reported.
+- [ ] The delivered headline states coverage (`N/40`) and names what was not measured — and names
+      it separately from whether the audit was saved (missing LLM/SerpApi ≠ missing
+      `MENTION_NETWORK_KEY`; see Q2).
+- [ ] P6 (`submit-audit.mjs`) **ran regardless of whether `MENTION_NETWORK_KEY` was present** — a
+      missing key changes what the server does with the call, not whether this skill makes it, unless
+      the user chose `no-save`.
+- [ ] If the audit was **submitted**: `submitted.json` exists, the server's re-computed score
+      matched the local one, and the **hosted PDF URL** was returned.
+- [ ] If it was **not** submitted (declined by the server, or `no-save`), `audit.json` and
+      `report.md` were still delivered as a complete result, and the handover says plainly that the
+      result is local-only and has no shareable link — never a silent, unexplained gap.
+- [ ] `source: byok` was disclosed alongside the PDF (when there is one) — the numbers are
+      self-reported.
 - [ ] No secret was echoed, repeated back, or written inside this skill directory; any new one was
       saved through `credentials.mjs`.
 

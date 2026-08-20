@@ -78,14 +78,14 @@ route the arguments did not pin gets a question at Q1 when there is more than on
 
 | Impossible combination | Repair | Say on the card |
 |---|---|---|
-| `offstore=serpapi` with no `SERPAPI_API_KEY` | → `none`; Q2 asks for a key | "no SerpApi key stored — 7 criteria go n/a until there is one" |
+| `offstore=serpapi` with no `SERPAPI_API_KEY` | → `none`; Q2 asks for a key. Run does **not** wait — off-store just never runs | "no SerpApi key stored — 7 criteria go n/a, incl. Critical `reddit` and `press-and-lists` (~23% of total weight); supply one or proceed without this lane" |
 | `offstore=browser` / `playwright` / `chrome` | → `serpapi` if a key is stored, else `none` | "there is no browser route: every lane here is an API key" |
 | `llm=agent-sdk` / `claude-cli` | → `anthropic` if that key is stored, else the next stored key | "no subscription lane — using your Anthropic key" |
 | `llm=<provider>` with no key for it | → the next stored key, else Q2 asks | "no `<PROVIDER>_API_KEY` stored" |
-| No LLM key at all | grading is skipped, 15 criteria go `na`; Q2 asks | "no LLM key: the content-quality bands can't be graded" |
+| No LLM key at all | grading is skipped, 15 criteria go `na`; Q2 asks. Run proceeds — P3 through P5 do not wait for this | "no LLM key: 15 criteria go n/a, incl. 4 Critical (`specifications`, `faq-product`, `unique-description`, `answer-formatting`, ~38% of total weight); supply one or proceed without this lane" |
 | A key the store holds but the provider rejected | → the next stored key; name the provider that refused | "your `<PROVIDER>` key came back 401 — replace or remove it" |
 | `report=<id>` but the MCP is absent | drop the pairing, keep the audit | "no MCP: the audit stands alone, no link to that report; `price-competitive` was already `na` regardless (see the note above)" |
-| No `MENTION_NETWORK_KEY` | **stop at P1 and ask to connect** — do not run into a local-only result. Local-only needs `no-save` or the user's explicit go-ahead | "no MCP key: I can't save the audit or give you a link until this is set" |
+| No `MENTION_NETWORK_KEY` | Note it, same as the other two lanes, and **keep going** — P2 through P5 never wait on this. Only P6 (save) is affected, and even then the server may still serve an unauthenticated `submit_byok_website_audit` (see SKILL.md P1) | "no MCP key: the audit will still be measured and scored on this machine; without a key, saving it at the end may be declined — supply one now, or proceed and see what P6 finds out" |
 | A PDP URL and `product=` that disagree | the explicit URL wins | "using the URL you gave" |
 
 One repair line per changed value, on the confirm card. A repair is never silent.

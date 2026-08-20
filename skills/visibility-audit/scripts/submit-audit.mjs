@@ -17,7 +17,14 @@
 //   node submit-audit.mjs --audit audit.json --meta meta.json --report-id <uuid>  # pair with Phase 1
 //   node submit-audit.mjs --audit audit.json --meta meta.json --no-pdf
 //
-// Needs MENTION_NETWORK_KEY in the env (source the credential store first).
+// This is the ONE step a missing MENTION_NETWORK_KEY can affect — collection, grading and
+// scoring (P3-P5) never touch this file and never wait on it. Runs with or without a key: it
+// calls out through mcp-client.mjs, which omits the Authorization header rather than refusing to
+// call at all when none is stored (server-decided since 2026-08-19 — see mcp-client.mjs's
+// header comment). Without a key this may still succeed as `anonymous`, or the server may
+// decline it; either is a normal outcome of running this step, not a reason to skip running it.
+// A STORED-BUT-WRONG key is worse than none (still a hard 401), so source the credential store
+// first and `credentials.mjs check MENTION_NETWORK_KEY` before trusting one you haven't run yet.
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
