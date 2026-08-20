@@ -8,14 +8,26 @@
 //   --resume                reuse the newest existing run for this store instead of making one;
 //                           prints nothing and exits 1 when there is none
 //
-// The layout is the one RECOVERY.md documents — `.mn-runs/<shopDomain>/<YYYY-MM-DDTHHMM>/` — with
-// runs nested under the store so `resume` is "the newest entry in this store's folder" rather than
-// a scan of every run ever made. The timestamp sorts lexically, so newest is the last name, not a
-// stat of each candidate.
+// The layout is the one RECOVERY.md documents — `.mn-runs/<slugged shopDomain>/<YYYY-MM-DDTHHMM>/`
+// — with runs nested under the store so `resume` is "the newest entry in this store's folder"
+// rather than a scan of every run ever made. The timestamp sorts lexically, so newest is the last
+// name, not a stat of each candidate.
 //
-// Self-contained on purpose: this file is the same helper in both Mention Network skills, and the
-// two directories share no modules. Importing a sibling's `util.mjs` would make copying it between
-// them a silent breakage rather than a copy.
+// SKILL.md P4 calls this at the start of every BYOK run to establish `$RUN`, and RECOVERY.md's
+// `resume` step calls it again with `--resume` — always through this script, in both directions,
+// never by hand-typing `.mn-runs/<domain>/...`: `slug()` below rewrites the domain
+// (`kbeautyarabia.com` → `kbeautyarabia-com`), so a hand-typed path built from the raw domain
+// looks plausible but is not the directory `--resume` will ever find.
+//
+// Self-contained on purpose — no shared imports. That is NOT a claim that this is a copy of
+// `visibility-audit/scripts/run-dir.mjs`; the two are deliberately different tools that happen to
+// share a name and a shape: the sibling imports from its own `util.mjs`, roots runs under
+// `.mn-audits` (this one uses `.mn-runs`), stamps with `YYYY-MM-DD-HHmm` (this one uses
+// `YYYY-MM-DDTHHMM`), and requires `--handle` because an audit is scoped to one product page,
+// which a visibility report is not. The two directories share no modules on purpose — importing a
+// sibling's `util.mjs` would make copying this file between them a silent breakage rather than a
+// portable copy — but "self-contained" and "identical" are different claims; diff the two before
+// assuming parity.
 
 import { existsSync, mkdirSync, readdirSync, realpathSync } from 'node:fs'
 import { join, resolve } from 'node:path'

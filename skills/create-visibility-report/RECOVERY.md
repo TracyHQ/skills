@@ -12,16 +12,31 @@ whole file:
 ## The run directory
 
 Every BYOK run gets a directory so an interrupted session loses nothing. Create it at the start of
-P4, in the user's working directory:
+P3 (SKILL.md) — before Q2 needs it for `prompts.md` — in the user's working directory, with
+`scripts/run-dir.mjs`, and keep the result in `$RUN` for every path from here on:
+
+```bash
+RUN="$(node "$HERE/scripts/run-dir.mjs" --domain "<shopDomain>")"     # fresh run
+echo "$RUN"     # confirm it's a real path before writing anything into "$RUN/…"
+```
+
+**An unset `$RUN` does not stop anything — it silently writes into `/` and fails with a confusing
+error much later**, the same trap the sibling `visibility-audit` skill documents for its own `$RUN`.
+Get the directory from `run-dir.mjs` in both directions (fresh and `--resume`, below) — it slugs the
+domain (`kbeautyarabia.com` → `kbeautyarabia-com`), so a hand-typed `.mn-runs/<domain>/…` path looks
+plausible and is not the directory `--resume` will ever find.
 
 ```
-.mn-runs/<shopDomain>/<YYYY-MM-DDTHHMM>/
+.mn-runs/<slugged shopDomain>/<YYYY-MM-DDTHHMM>/
 ├── state.json      the resolved plan + per-cell status  (you maintain this)
 ├── prompts.md      the approved prompt table from Q2    (the record of what was asked)
+├── grid.json       the job array collect-pool.mjs --grid reads — one entry per cell, you write it
 ├── meta.json       submit payload metadata — OUTSIDE cells/
 ├── spec.json       get_detect_extraction_spec, as fetched (P4.5 renders the analysis from it)
 ├── analysis/       one <cell>.prompt.md per cell + manifest.json — the analyzers' brief
 ├── cells/          one <intent>.<platform>.json per cell — nothing else in here
+├── logs/           collect-pool.mjs's per-cell stdout+stderr (<file>.log) — pool retry output,
+│                   not a cell; SKILL.md P4 "Collect" says why it can't live in cells/
 └── out/            exported or locally rendered PDFs
 ```
 
@@ -53,8 +68,11 @@ finishes, not at the end — that's the whole point.
 
 ## `resume`
 
-1. Take the newest directory under `.mn-runs/<shopDomain>/`. Say which one, and how old it is.
-2. Read `state.json`. If `reportId` is set → jump straight to **P7** (export and show the link).
+1. `RUN="$(node "$HERE/scripts/run-dir.mjs" --domain "<shopDomain>" --resume)"` — the newest
+   directory under `.mn-runs/<slugged shopDomain>/`. It exits 1 with "no existing run directory
+   under …" when there is none; don't hand-construct the path (see *The run directory* above for
+   why the slug makes that unreliable). Say which run this is, and how old it is.
+2. Read `"$RUN/state.json"`. If `reportId` is set → jump straight to **P7** (export and show the link).
    If `checkRunId` is set → jump to the **P6 poll**. Otherwise continue collecting.
 3. Re-collect only cells that aren't `done`. Cells already on disk are reused as-is — the prompt
    text is fixed in `prompts.md`, so a mixed-age cell set is still consistent.
@@ -70,7 +88,8 @@ finishes, not at the end — that's the whole point.
 |---|---|
 | MCP tools not present in the session | The user hasn't installed/keyed it. Give the `claude mcp add` one-liner (SKILL.md P1) and stop until a tool actually answers. Adding an MCP needs a session reload before the tools appear — say that. |
 | **`MENTION_NETWORK_KEY: missing` and no host tool answers** — the first-run case | **Not recoverable by falling back**: the prompt templates, intents, grid and validator all live behind the MCP, so no lane can run without it. Stop **before** the confirm card, point the user at mention.network for a key, and offer to store it: `MENTION_NETWORK_KEY='<pasted>' node "$HERE/scripts/credentials.mjs" save MENTION_NETWORK_KEY`. Then re-probe and resume at P1. Never paper over it with an `UNKNOWN` coverage line. |
-| MCP call returns **401 / invalid key** | The key is wrong or expired, not missing. Ask for a fresh one from mention.network and offer to `save` it. Don't retry the same key. |
+| MCP call returns **401 / invalid key** | The key is wrong or expired, not missing. Ask for a fresh one from mention.network and offer to `save` it. Don't retry the same key. A **dev-issued key against the production host** lands here too (`401 "Internal API key không hợp lệ"`) — that isn't a revoked key, it's the wrong host/key pairing; see SKILL.md P1 on `MENTION_NETWORK_MCP_URL`. |
+| `missing MENTION_NETWORK_KEY in the environment` from `submit.mjs` / `mcp-client.mjs` | Almost always an unsourced shell, not a missing key — **shell state does not persist between tool calls**, so the `set -a; . "$CREDS"; set +a` block has to run again immediately before every `submit.mjs`/`check-detections.mjs --meta`/direct `mcp-client.mjs` call, not just once back at P4. If it's still missing after sourcing, there is genuinely no key — ask for one (`credentials.mjs save MENTION_NETWORK_KEY`). |
 | MCP call **times out / network error** | Retry once. Still failing → report it as an outage; offer `dry-run` so the user's answers aren't wasted. |
 | `ERR_AMBIGUOUS_MODULE_SYNTAX` from a `node --input-type=module -e` snippet | You mixed `require()` into a snippet that already uses top-level `await`. The `mcp-client.mjs` snippets are ESM — use `import { readFileSync } from 'node:fs'` at the top, never `require`. |
 | `SHOP_NOT_FOUND` from `get_shop` | **Not an error.** The store has never been checked. Build the snapshots from what the user gives. |
@@ -89,7 +108,7 @@ Handle per cell. One bad cell must never sink the batch — collect the rest, th
 |---|---|---|---|
 | `429` / quota | Back off (respect `Retry-After`) and retry that cell | Lower `--concurrency` for that provider and retry | Wait for the quota window, or move the whole run to the backend lane. **Not** dropping the cell — a short grid is rejected at submit |
 | `503` / `5xx` | Retry with backoff — the collectors already do this (measured: Gemini `503`) | Retry once more | Report the cell as failed and stop; there is no second route for an engine |
-| **Your own orchestrating call got killed before the collector finished** — e.g. you ran `collect-pool.mjs` as a plain foreground shell call and it hit *your tool's* default execution timeout | Not a route failure and not the collector timing out. Re-run with an explicit long timeout, or in the background with polling | Check `cells/` first — cells that completed are on disk and must not be re-collected | — |
+| **Your own orchestrating call got killed before the collector finished** — e.g. you ran `collect-pool.mjs` as a plain foreground shell call and it hit *your tool's* default execution timeout | Not a route failure and not the collector timing out. Re-run with an explicit long timeout, or in the background with polling | Check `"$RUN/cells/"` first — cells that completed are on disk and must not be re-collected | — |
 | The collector itself reports timing out (`--timeout-ms` fired) | Raise `--timeout-ms` once and re-run that cell | — | An Anthropic cell that keeps pausing mid-search fails with "kept pausing after N turns"; re-run it before concluding anything about the key |
 | Web search didn't run | Re-run the cell; every collector requests search, so this is usually transient. On the Anthropic route check `providerMeta.searchErrors` — `max_uses_exceeded` there means the search was refused, not that the collector misread it | Re-run once more | **Never set `webSearchUsed: true` by hand.** The backend requires it because a cell without search measures a different question |
 | The user asks for a logged-in browser route | Explain the memory contamination (SKILL.md *Clean-room collection*) and offer the key setup | If they insist, it is their call | Disclose in the handover that those cells came from a personalized account |
@@ -98,7 +117,8 @@ Handle per cell. One bad cell must never sink the batch — collect the rest, th
 
 ## Validator errors → fix
 
-`node "$HERE/scripts/submit.mjs" --cells cells/ --validate-only` prints these. Fix and re-run until
+`node "$HERE/scripts/submit.mjs" --cells "$RUN/cells/" --validate-only` prints these (source the
+credential store again first — see *Preflight and access errors* above). Fix and re-run until
 clean; only involve the user if the same code survives two rounds.
 
 **These codes cover the cells only.** `validate_byok_submission` never reads `meta.json`, so a clean
@@ -121,7 +141,7 @@ clean; only involve the user if the same code survives two rounds.
 
 These appear only if cells carry a `detection` field. Every one is fixable by editing the
 `detection` — never by re-collecting the answer, which costs quota for nothing.
-`node "$HERE/scripts/check-detections.mjs" --cells cells/ --fix` catches most of these locally
+`node "$HERE/scripts/check-detections.mjs" --cells "$RUN/cells/" --fix` catches most of these locally
 before you spend a `validate_byok_submission` round-trip on them (`--fix` mechanically corrects
 `position` in place, see the `DETECTION_BAD_POSITIONS` row below).
 
@@ -149,12 +169,12 @@ attaches no figure to that merchant.
 
 | Code | What it means | What to do |
 |---|---|---|
-| `NO_PRICE_EXTRACTED` | Either no merchant in the whole grid carries a price, or one `cheapest` cell whose answer quotes money produced none | Check whether the figure is actually tied to a merchant — a product-level price ("it retails around €30") belongs to no one and stays null. If it is tied, fill `priceRaw` **verbatim** (`"AED 135"`, `"228,89 €"` — never reformat) plus `price` when the currency is unambiguous. Never copy one merchant's figure onto another |
-| `NO_SHIPPING_EXTRACTED` | Same, for `shipping` on the `free_shipping` intent | Fill it only with a real shipping condition — `"Free"`, `"Free over $40"`, `"AED 20"`. `"free returns"` and `"delivery 2–3 days"` are **not** shipping cost, and a free-over threshold must never be reduced to its bare number (`"Envío gratis desde AED 199"` once surfaced as a 199 shipping fee — the opposite of what it says) |
+| `WARN_NO_PRICE_EXTRACTED` | Either no merchant in the whole grid carries a price, or one `cheapest` cell whose answer quotes money produced none | Check whether the figure is actually tied to a merchant — a product-level price ("it retails around €30") belongs to no one and stays null. If it is tied, fill `priceRaw` **verbatim** (`"AED 135"`, `"228,89 €"` — never reformat) plus `price` when the currency is unambiguous. Never copy one merchant's figure onto another |
+| `WARN_NO_SHIPPING_EXTRACTED` | Same, for `shipping` on the `free_shipping` intent | Fill it only with a real shipping condition — `"Free"`, `"Free over $40"`, `"AED 20"`. `"free returns"` and `"delivery 2–3 days"` are **not** shipping cost, and a free-over threshold must never be reduced to its bare number (`"Envío gratis desde AED 199"` once surfaced as a 199 shipping fee — the opposite of what it says) |
 
 ### Local-only warnings — the ones a per-cell analyzer cannot see
 
-`check-detections.mjs --cells cells/ --meta meta.json` adds these; the backend has no code for
+`check-detections.mjs --cells "$RUN/cells/" --meta "$RUN/meta.json"` adds these; the backend has no code for
 them. They exist because P4.5 is fanned out one analyzer per cell, so nothing inside the analysis
 can notice that *this* cell disagrees with the other nineteen. Without `--meta` they are silently
 skipped (the tool prints a note saying so on its last line).
@@ -174,7 +194,7 @@ skipped (the tool prints a note saying so on its last line).
 
 | Code | What it means | What to do |
 |---|---|---|
-| `AGENT_LANE_CONTAMINATION` (#287, R5) | `rawText` matches a tool-permission refusal / meta-commentary pattern about the collection run itself (`WebFetch`, `web_search`, `permission`, `denied`, `を許可いただければ`, `search results only`) — not a shopper's answer. Runs on every cell regardless of whether it carries `detection`, and mirrors the same regex `validate_byok_submission` enforces server-side (`byok-validate.util.ts`) | Re-collect that cell. The classic cause is gone with the subscription lane — an agent CLI asking for a tool permission mid-answer — but the server-side check remains, and any answer that talks about its own collection run rather than the shop still trips it. Real incident from the CLI era: a `cheapest × claude` cell opened with *"WebFetch was denied, so I couldn't open product pages for live prices — the answer below is from search results only"* and closed in Japanese asking to be granted `WebFetch` — an agent-CLI tool-permission message, scored and printed in the Appendix as if it were the AI's answer |
+| `AGENT_LANE_CONTAMINATION` (#287, R5) | `rawText` matches a tool-permission refusal / meta-commentary pattern about the collection run itself — not a shopper's answer. Tool names (`WebFetch`, `web_search`), the Japanese refusal phrase, `search results only`, or `permission`/`access`/`denied` **in tool-refusal context** ("permission denied", "denied access", "permission to browse/fetch/access/open/visit"), but *not* those two words on their own — ordinary commerce prose ("Returns may be denied without a receipt.") used to hard-fail here and was fixed. Runs on every cell regardless of whether it carries `detection`, and is byte-identical to the pattern `validate_byok_submission` enforces server-side (`byok-validate.util.ts`) — the two are kept in sync deliberately | Re-collect that cell. The classic cause is gone with the subscription lane — an agent CLI asking for a tool permission mid-answer — but the server-side check remains, and any answer that talks about its own collection run rather than the shop still trips it. Real incident from the CLI era: a `cheapest × claude` cell opened with *"WebFetch was denied, so I couldn't open product pages for live prices — the answer below is from search results only"* and closed in Japanese asking to be granted `WebFetch` — an agent-CLI tool-permission message, scored and printed in the Appendix as if it were the AI's answer |
 
 **Fix these by re-dispatching the affected cell, not by hand-editing it** (`ANALYSIS.md`,
 "Delegating it"). A grid extracted by one analyzer plus your corrections is a grid extracted by two.

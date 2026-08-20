@@ -21,12 +21,12 @@ poll instead of after several rounds of backend analysis.
 1. **Fetch the spec — never invent the schema.** `get_detect_extraction_spec` returns the prompt
    template, the JSON schema, the guard rules, and the char limits, built from the same source the
    backend's own analyzer uses. Same principle as the prompt templates: live catalog, not memory.
-   Save it to the run directory (`spec.json`) — the next two steps read it from there.
+   Save it to `"$RUN/spec.json"` — the next two steps read it from there.
 2. **Render that prompt once per cell**, filled with this run's shop, product, question, answer and
    citations. One command, no hand-assembly:
    ```bash
    node "$HERE/scripts/render-detect-prompts.mjs" \
-     --cells cells/ --meta meta.json --spec spec.json --out analysis/
+     --cells "$RUN/cells/" --meta "$RUN/meta.json" --spec "$RUN/spec.json" --out "$RUN/analysis/"
    ```
    It writes `analysis/<intent>.<platform>.prompt.md` per cell plus `analysis/manifest.json` (the
    JSON schema + guards + which cell each prompt belongs to), and **throws** if the spec grew a
@@ -63,14 +63,14 @@ Five rules, and they are what makes the delegation safe:
    file · merchant count · target flagged? · how many carry price/shipping · any warning left.
 4. **The analyzer self-checks before it reports**, on its own cell, and fixes what it broke:
    ```bash
-   node "$HERE/scripts/check-detections.mjs" --cells cells/<intent>.<platform>.json --fix
+   node "$HERE/scripts/check-detections.mjs" --cells "$RUN/cells/<intent>.<platform>.json" --fix
    ```
    `--fix` mechanically corrects `position` in place whenever it can be verified against
    `rawText` (ADR-0040) — it is not the analyzer's judgment call to get right by hand, unlike the
    merchant list, price, or shipping, which stay genuine analyst reads of the answer.
 5. **When they have all landed, you run the checker over the whole set — with `--meta`:**
    ```bash
-   node "$HERE/scripts/check-detections.mjs" --cells cells/ --meta meta.json --fix
+   node "$HERE/scripts/check-detections.mjs" --cells "$RUN/cells/" --meta "$RUN/meta.json" --fix
    ```
    `--meta` turns on the two checks no per-cell analyzer can make, because each one only ever saw
    its own cell: **the target shop** (`WARN_TARGET_MISSED` / `WARN_TARGET_MISLABELED` /
@@ -143,11 +143,11 @@ The guards that will be checked (the spec lists them in full — these are the o
 | `position` = order of first appearance, `1..n`, no duplicates | The report's `bestRank` reads straight from it — wrong order is a wrong number on the customer's report |
 | `mentionSources` non-empty (`text`, `citation`, or both) | `DETECTION_MISSING_SOURCE` |
 | Don't add the target shop just because the product is discussed | A product mention is not a merchant mention. The shop context is for recognition only |
-| A `cheapest` / `free_shipping` answer that quotes money must leave **some** merchant carrying `price` / `shipping` | `NO_PRICE_EXTRACTED` / `NO_SHIPPING_EXTRACTED`. These are **warnings, not errors** — they never block submit and the report is still correct on rank/score, but ignoring them ships the PRICE/SHIPPING columns as `N/A` |
+| A `cheapest` / `free_shipping` answer that quotes money must leave **some** merchant carrying `price` / `shipping` | `WARN_NO_PRICE_EXTRACTED` / `WARN_NO_SHIPPING_EXTRACTED`. These are **warnings, not errors** — they never block submit and the report is still correct on rank/score, but ignoring them ships the PRICE/SHIPPING columns as `N/A` |
 
 ## Self-check the guards before you submit — and get the evidence rule right
 
-Run `node "$HERE/scripts/check-detections.mjs" --cells cells/ --meta meta.json --fix` after
+Run `node "$HERE/scripts/check-detections.mjs" --cells "$RUN/cells/" --meta "$RUN/meta.json" --fix` after
 writing detections and before `submit.mjs`, so a bad one costs a second instead of a validate
 round-trip. `--fix` mechanically corrects `position` wherever it can be verified against
 `rawText` (ADR-0040) — don't hand-fix a position violation, let the flag do it and re-run.

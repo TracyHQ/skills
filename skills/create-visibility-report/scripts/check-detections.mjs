@@ -511,10 +511,19 @@ export function checkCrossCellMisses(entries) {
 // below is from search results only", ending in "WebFetchを許可いただければ…") is not a
 // shopper's answer — it's the agent lane leaking its own runtime state into the data the report
 // measures, yet nothing today stops it from being scored and printed in the Appendix verbatim.
-// Same pattern as the backend's check (byok-validate.util.ts) — keep the two in sync, same
-// reasoning as `answerStatesMoney` above.
+// Byte-identical to the backend's `AGENT_LANE_CONTAMINATION_PATTERN` (byok-validate.util.ts) —
+// change one side, change the other, or this client-side self-check stops predicting what
+// `validate_byok_submission` will actually do. The pattern is deliberately broad (signal-based,
+// not semantic — threat model is carelessness, not an adversary), but the bare `permission` /
+// `denied` alternatives it used to carry were too broad: they hard-failed ordinary commerce
+// prose ("Returns may be denied without a receipt.") with `AGENT_LANE_CONTAMINATION`, and
+// RECOVERY.md's fix for that code is "re-collect the cell" — spending quota to reproduce the
+// exact same text. Replaced with context-bearing forms ("permission denied", "denied access",
+// "permission to browse/fetch/access/open/visit") that still catch genuine agent-lane leakage
+// ("Permission denied when I tried to open the product page.", "I don't have permission to
+// browse the web right now.") without tripping on prose that merely contains those two words.
 export const AGENT_LANE_CONTAMINATION_PATTERN =
-  /WebFetch|web_search|permission|denied|を許可いただければ|search results only/
+  /WebFetch|web_search|を許可いただければ|search results only|\b(?:permission|access)\s+(?:was\s+|is\s+)?denied\b|\bdenied\s+(?:permission|access)\b|\bpermission\s+to\s+(?:browse|fetch|access|open|visit)\b/i
 
 export function checkContamination(entries) {
   const out = []

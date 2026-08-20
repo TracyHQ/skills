@@ -12,15 +12,16 @@
 //
 // Usage:
 //   node collect-serpapi.mjs --prompt "<text>" [--hl vi] [--gl vn] [--location "Hanoi, Vietnam"] \
-//     --out cells/where_to_buy.google_ai_mode.json
-// Prompt may also come from --prompt-file or stdin.
+//     [--timeout-ms 120000] --out cells/where_to_buy.google_ai_mode.json
+// Prompt may also come from --prompt-file or stdin. --timeout-ms bounds each HTTP attempt with a
+// real AbortSignal (default 120000ms, same default as collect-api.mjs — see its DEFAULT_TIMEOUT_MS).
 
 import { readFileSync } from 'node:fs'
-import { toCitation, dedupeCitations, fetchWithRetry, isMainModule, writeOutput } from './collect-api.mjs'
+import { toCitation, dedupeCitations, fetchWithRetry, isMainModule, writeOutput, DEFAULT_TIMEOUT_MS } from './collect-api.mjs'
 
 export function parseArgs(argv) {
-  const out = { prompt: null, promptFile: null, hl: null, gl: null, location: null, out: null, intent: null, platform: null }
-  const keys = { prompt: 'prompt', 'prompt-file': 'promptFile', hl: 'hl', gl: 'gl', location: 'location', out: 'out', intent: 'intent', platform: 'platform' }
+  const out = { prompt: null, promptFile: null, hl: null, gl: null, location: null, out: null, intent: null, platform: null, timeoutMs: null }
+  const keys = { prompt: 'prompt', 'prompt-file': 'promptFile', hl: 'hl', gl: 'gl', location: 'location', out: 'out', intent: 'intent', platform: 'platform', 'timeout-ms': 'timeoutMs' }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     if (!a.startsWith('--')) continue
@@ -92,7 +93,7 @@ export function parseSerpApi(body, params = {}) {
   }
 }
 
-export async function collect({ prompt, apiKey, hl, gl, location, fetchImpl = fetch }) {
+export async function collect({ prompt, apiKey, hl, gl, location, fetchImpl = fetch, timeoutMs }) {
   const ask = async (noCache) => {
     const url = new URL('https://serpapi.com/search')
     url.searchParams.set('engine', 'google_ai_mode')
@@ -102,7 +103,7 @@ export async function collect({ prompt, apiKey, hl, gl, location, fetchImpl = fe
     if (gl) url.searchParams.set('gl', gl)
     if (location) url.searchParams.set('location', location)
     if (noCache) url.searchParams.set('no_cache', 'true')
-    const res = await fetchWithRetry(url, undefined, { fetchImpl }) // key is in the query string; never logged by us
+    const res = await fetchWithRetry(url, undefined, { fetchImpl, timeoutMs }) // key is in the query string; never logged by us
     const text = await res.text()
     if (!res.ok) throw new Error(`SerpApi ${res.status}: ${text.slice(0, 300)}`)
     return parseSerpApi(JSON.parse(text), { hl, gl, location })
@@ -119,8 +120,13 @@ export async function main(argv, env = process.env) {
   if (!apiKey) throw new Error('missing SERPAPI_API_KEY in the environment')
   const prompt = a.prompt ?? (a.promptFile ? readFileSync(a.promptFile, 'utf8') : readFileSync(0, 'utf8'))
   if (!prompt.trim()) throw new Error('empty prompt (pass --prompt, --prompt-file, or pipe via stdin)')
+  let timeoutMs = DEFAULT_TIMEOUT_MS
+  if (a.timeoutMs != null) {
+    timeoutMs = Number(a.timeoutMs)
+    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) throw new Error('--timeout-ms must be a positive number of milliseconds')
+  }
 
-  const response = await collect({ prompt, apiKey, hl: a.hl, gl: a.gl, location: a.location })
+  const response = await collect({ prompt, apiKey, hl: a.hl, gl: a.gl, location: a.location, timeoutMs })
   if (!response.rawText) throw new Error('SerpApi returned no AI-Mode answer text')
   if (!response.webSearchUsed) throw new Error('no answer — backend rejects webSearchUsed=false')
   // google_ai_mode is submitted as a 'browser' cell with an empty servedModel.

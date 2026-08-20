@@ -7,15 +7,23 @@
 // by hand alongside it.
 //
 // Usage:
-//   node collect-pool.mjs --grid grid.json [--concurrency api=4,serpapi=4]
+//   node collect-pool.mjs --grid "$RUN/grid.json" [--concurrency api=4,serpapi=4]
+//
+// --grid <file> is REQUIRED — there is no default and nothing is discovered; the caller (SKILL.md
+// P4) builds grid.json itself from the approved prompts (Q2) and the live grid, and writes it to
+// the run directory ($RUN, see RECOVERY.md "The run directory") before calling this script.
 //
 // grid.json is an array of jobs:
 //   { "route": "api", "provider": "anthropic", "model": "<grid apiModelId>", "platform": "claude",
-//     "intent": "where_to_buy", "prompt": "...", "out": "cells/where_to_buy.claude.json" }
+//     "intent": "where_to_buy", "prompt": "...", "out": "$RUN/cells/where_to_buy.claude.json" }
 //   { "route": "api", "provider": "openai", "model": "gpt-5.5", "platform": "chatgpt", ... }
 //   { "route": "api", "provider": "gemini", "model": "gemini-3.5", "platform": "gemini", ... }
-//   { "route": "serpapi", "hl": "ar", "gl": "SA", "intent": "...", "platform": "google_ai_mode",
-//     "prompt": "...", "out": "..." }
+//   { "route": "serpapi", "hl": "ar", "gl": "SA", "location": "Riyadh", "intent": "...",
+//     "platform": "google_ai_mode", "prompt": "...", "out": "..." }
+//     — "location" is OPTIONAL (Q1's city question, SKILL.md P2 "City"); omit it for the
+//     country-level default. It threads straight to collect-serpapi.mjs's own --location.
+//   Every job may also carry "timeoutMs" (passed through as --timeout-ms to the collector; see
+//   collect-api.mjs's DEFAULT_TIMEOUT_MS for what happens when it's omitted).
 //
 // Each job is handed to the matching collect-*.mjs unchanged — this script only pools and
 // retries at the process level; the collectors keep their own retry/backoff for 429/503
@@ -24,11 +32,13 @@
 // agent to triage per RECOVERY.md — never silently dropped, never retried forever.
 //
 // Prints a JSON summary to stdout: { total, ok, failed: [{ job, log }], durationMs }. Exits 1 if
-// any cell is still failed after its retry.
+// any cell is still failed after its retry. Per-job stdout+stderr is written to
+// "<run dir>/logs/<cell file>.log" (a SIBLING of `job.out`'s directory, never inside it) — RECOVERY.md
+// requires `cells/` to hold nothing but cell files, so a job's own output never lands next to it.
 
 import { spawn } from 'node:child_process'
-import { readFileSync, writeFileSync, realpathSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { readFileSync, writeFileSync, mkdirSync, realpathSync } from 'node:fs'
+import { dirname, join, basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 function isMainModule(moduleUrl, argv1 = process.argv[1]) {
@@ -88,16 +98,22 @@ export function buildArgs(job) {
   if (!SCRIPT_BY_ROUTE[job.route]) throw new Error(`unknown route "${job.route}" (want api|serpapi)`)
   const common = ['--intent', job.intent, '--out', job.out]
   if (job.platform) common.push('--platform', job.platform)
+  if (job.timeoutMs) common.push('--timeout-ms', String(job.timeoutMs))
   if (job.route === 'api') {
     if (!job.provider || !job.model) throw new Error(`api job for intent "${job.intent}" needs "provider" and "model"`)
     return ['--provider', job.provider, '--model', job.model, ...common]
   }
   // serpapi
   if (!job.hl || !job.gl) throw new Error(`serpapi job for intent "${job.intent}" needs "hl" and "gl"`)
-  return ['--hl', job.hl, '--gl', job.gl, ...common]
+  const serpArgs = ['--hl', job.hl, '--gl', job.gl]
+  // Optional — Q1's city question (SKILL.md P2 "City"). Country-level stays the default when a
+  // job carries no location, exactly like every other engine.
+  if (job.location) serpArgs.push('--location', job.location)
+  return [...serpArgs, ...common]
 }
 
-// Runs one job as a child process, prompt on stdin, stdout+stderr captured to `<out>.log`.
+// Runs one job as a child process, prompt on stdin, stdout+stderr captured in-memory (written to
+// disk by runJob, below, via logPathFor — never next to `job.out` itself).
 // Injectable `spawnFn` for tests — default is the real node:child_process.spawn.
 export function runOnce(job, { spawnFn = spawn } = {}) {
   return new Promise((resolve) => {
@@ -114,6 +130,15 @@ export function runOnce(job, { spawnFn = spawn } = {}) {
   })
 }
 
+// RECOVERY.md: "cells/ — one <intent>.<platform>.json per cell — nothing else in here", enforced
+// by submit.mjs treating every *.json there as a cell. So the pool's own retry log for a job
+// cannot live next to `job.out` — it goes into a sibling "logs/" directory instead, one level up
+// from wherever `job.out`'s parent (normally "cells/") sits: "<run dir>/cells/x.json" logs to
+// "<run dir>/logs/x.json.log".
+export function logPathFor(out) {
+  return join(dirname(out), '..', 'logs', `${basename(out)}.log`)
+}
+
 export async function runJob(job, deps = {}) {
   let result = await runOnce(job, deps)
   let attempts = 1
@@ -122,9 +147,12 @@ export async function runJob(job, deps = {}) {
     result = await runOnce(job, deps)
     attempts = 2
   }
-  const logPath = `${job.out}.log`
+  const logPath = logPathFor(job.out)
   if (!deps.skipLogWrite) {
-    try { writeFileSync(logPath, result.log) } catch { /* best-effort — a bad --out dir surfaces via the job's own failure */ }
+    try {
+      mkdirSync(dirname(logPath), { recursive: true })
+      writeFileSync(logPath, result.log)
+    } catch { /* best-effort — a bad --out dir surfaces via the job's own failure */ }
   }
   return { job, ok: result.ok, attempts, log: logPath }
 }

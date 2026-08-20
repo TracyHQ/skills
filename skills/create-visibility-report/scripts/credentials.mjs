@@ -13,9 +13,11 @@
 //     `get` that prints raw values — consume them by sourcing the file.
 //   - dir 0700, file 0600.
 //
-// Every lane this skill has is an API key, so everything it needs is storable here: one LLM key
-// (ANTHROPIC_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY) to write the diagnosis prose, SERPAPI_API_KEY
-// for the off-store signals, and MENTION_NETWORK_KEY for the MCP the finished audit is stored on.
+// Every engine in this skill's 4-platform grid is an API key, so everything it needs is storable
+// here: ANTHROPIC_API_KEY collects `claude`, OPENAI_API_KEY collects `chatgpt`, GEMINI_API_KEY
+// collects `gemini`, and SERPAPI_API_KEY collects `google_ai_mode` (which has no model API of its
+// own — SerpApi fetches the real Google AI Mode answer). MENTION_NETWORK_KEY is not an engine: it
+// is the Mention Network MCP the finished visibility report is submitted to and exported from.
 //
 // Usage:
 //   node credentials.mjs status                  # masked list of what's stored

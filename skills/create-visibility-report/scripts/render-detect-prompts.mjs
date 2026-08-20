@@ -109,8 +109,14 @@ const KNOWN_PLACEHOLDERS = new Set([
   '{model}', '{question}', '{answerText}', '{citations}',
 ])
 
+// `[a-zA-Z]+` used to be the whole character class here, so a spec that grew `{shop_name}`,
+// `{product_title}` or `{answerText2}` (underscore or digit) didn't even register as a
+// placeholder — it sailed through both this guard and the "unfilled after render" one below and
+// reached the analyzer as a literal string, exactly what these two guards exist to prevent.
+const PLACEHOLDER = /\{[a-zA-Z0-9_]+\}/g
+
 export function renderPrompt({ spec, meta, cell }) {
-  const unknown = [...new Set(spec.promptTemplate.match(/\{[a-zA-Z]+\}/g) ?? [])].filter((p) => !KNOWN_PLACEHOLDERS.has(p))
+  const unknown = [...new Set(spec.promptTemplate.match(PLACEHOLDER) ?? [])].filter((p) => !KNOWN_PLACEHOLDERS.has(p))
   if (unknown.length > 0) {
     throw new Error(`spec carries placeholder(s) this renderer cannot fill: ${unknown.join(', ')} — re-read get_detect_extraction_spec and teach render-detect-prompts.mjs the new field`)
   }
@@ -118,23 +124,41 @@ export function renderPrompt({ spec, meta, cell }) {
   const product = meta.product ?? {}
   const response = cell.response ?? {}
 
-  // Everything up to the CITATIONS header is the substitutable part; the citations block itself
-  // is rebuilt from this cell's own citations.
-  const head = spec.promptTemplate.split('## CITATIONS')[0]
+  // Fill every placeholder except {citations} across the WHOLE template first — including
+  // whatever sits after the CITATIONS header (e.g. output rules that reference {productTitle}
+  // again). {citations} is deliberately skipped here: the template carries it inside an
+  // already-rendered one-entry example, so a plain substitution doesn't work and the section is
+  // rebuilt below instead.
+  let filled = spec.promptTemplate
+  filled = fillLine(filled, '{shopAliases}', (shop.nameAliases ?? shop.aliases ?? []).join(', '))
+  filled = fillLine(filled, '{shopDomains}', (shop.domains ?? [shop.primaryDomain, shop.storeUrl].filter(Boolean)).join(', '))
+  filled = filled.split('{shopName}').join(shop.name ?? meta.shopDomain ?? '(unnamed shop)')
+  filled = filled.split('{productTitle}').join(product.title ?? meta.product ?? '')
+  filled = filled.split('{model}').join(response.servedModel || cell.platformSlug || 'unknown')
+  filled = filled.split('{question}').join(cell.promptText ?? '')
+  filled = filled.split('{answerText}').join(truncate(String(response.rawText ?? ''), spec.limits?.answerTextMaxChars))
 
-  let out = head
-  out = fillLine(out, '{shopAliases}', (shop.nameAliases ?? shop.aliases ?? []).join(', '))
-  out = fillLine(out, '{shopDomains}', (shop.domains ?? [shop.primaryDomain, shop.storeUrl].filter(Boolean)).join(', '))
-  out = out.split('{shopName}').join(shop.name ?? meta.shopDomain ?? '(unnamed shop)')
-  out = out.split('{productTitle}').join(product.title ?? meta.product ?? '')
-  out = out.split('{model}').join(response.servedModel || cell.platformSlug || 'unknown')
-  out = out.split('{question}').join(cell.promptText ?? '')
-  out = out.split('{answerText}').join(truncate(String(response.rawText ?? ''), spec.limits?.answerTextMaxChars))
-  out = `${out}## CITATIONS\n${renderCitations(response.citations)}\n`
+  // Rebuild the CITATIONS section from this cell's own citations, but preserve everything the
+  // template puts AFTER it. `split('## CITATIONS')[0]` used to discard that tail outright —
+  // output rules ADR-0027 requires to be used exactly, placed after the citations block, were
+  // silently dropped from the rendered prompt. Anything from the NEXT top-level `## ` header
+  // onward is not part of the citations block, so it survives the rebuild verbatim.
+  const CITATIONS_HEADER = '## CITATIONS'
+  const citationsIdx = filled.indexOf(CITATIONS_HEADER)
+  let out
+  if (citationsIdx === -1) {
+    out = filled
+  } else {
+    const head = filled.slice(0, citationsIdx)
+    const afterHeader = filled.slice(citationsIdx + CITATIONS_HEADER.length)
+    const nextHeaderAt = afterHeader.search(/\n##(?!#)/)
+    const tail = nextHeaderAt === -1 ? '' : afterHeader.slice(nextHeaderAt + 1) // keep the '## ...' line onward
+    out = `${head}${CITATIONS_HEADER}\n${renderCitations(response.citations)}\n${tail ? `\n${tail}` : ''}`
+  }
 
   // Template drift is silent otherwise: an unreplaced placeholder reaches the analyzer as the
   // literal string and it happily analyzes "{productTitle}".
-  const left = out.match(/\{[a-zA-Z]+\}/g)
+  const left = out.match(PLACEHOLDER)
   if (left) throw new Error(`unfilled placeholder(s) after render: ${[...new Set(left)].join(', ')} — the spec changed shape, re-read get_detect_extraction_spec`)
   return out
 }

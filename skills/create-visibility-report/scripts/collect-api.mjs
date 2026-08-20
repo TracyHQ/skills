@@ -17,9 +17,12 @@
 //
 // Usage:
 //   node collect-api.mjs --provider anthropic --model <servedModel> \
-//        --prompt-file prompt.txt --out cell-response.json
+//        --prompt-file prompt.txt --out cell-response.json [--timeout-ms 120000]
 // Prompt may also come from --prompt "<text>" or stdin. Output is written to
 // --out (and echoed to stdout); it is the `response` object for one cell.
+// --timeout-ms bounds EACH HTTP attempt with a real AbortSignal (default 120000 = 2 minutes, see
+// DEFAULT_TIMEOUT_MS below) — a provider that accepts the connection and never answers now fails
+// the cell instead of hanging the whole run. Raise it if a genuinely slow route keeps tripping it.
 
 import { readFileSync, writeFileSync, mkdirSync, realpathSync } from 'node:fs'
 import { dirname } from 'node:path'
@@ -29,8 +32,10 @@ import { fileURLToPath } from 'node:url'
 // `main()` never runs — when the script is reached through a symlink: `.claude/skills/*` here is
 // a symlink into `agent-pack/skills/*`, and Node's ESM loader resolves import.meta.url through
 // the symlink target while process.argv[1] keeps the path actually invoked. realpath both sides.
-// Exported so the sibling collectors (collect-cli/collect-agent-sdk/collect-serpapi), which
-// already import from this file, share one implementation instead of re-copying it.
+// Exported so the sibling collector (collect-serpapi.mjs), which already imports from this
+// file, shares this implementation instead of re-copying it. It is the only sibling that ships
+// here — the subscription-lane collectors (collect-cli / collect-agent-sdk) belonged to the
+// agent pack this skill was ported from and were dropped, see SKILL.md "Where this came from".
 export function isMainModule(moduleUrl, argv1 = process.argv[1]) {
   if (!argv1) return false
   try {
@@ -41,8 +46,8 @@ export function isMainModule(moduleUrl, argv1 = process.argv[1]) {
 }
 
 export function parseArgs(argv) {
-  const out = { provider: null, model: null, prompt: null, promptFile: null, out: null, intent: null, platform: null }
-  const keys = { provider: 'provider', model: 'model', prompt: 'prompt', 'prompt-file': 'promptFile', out: 'out', intent: 'intent', platform: 'platform' }
+  const out = { provider: null, model: null, prompt: null, promptFile: null, out: null, intent: null, platform: null, timeoutMs: null }
+  const keys = { provider: 'provider', model: 'model', prompt: 'prompt', 'prompt-file': 'promptFile', out: 'out', intent: 'intent', platform: 'platform', 'timeout-ms': 'timeoutMs' }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     if (!a.startsWith('--')) continue
@@ -90,21 +95,35 @@ export function dedupeCitations(list) {
 // A retryable status is 429 or ≥500; anything else (incl. 4xx auth errors) returns as-is
 // for the caller to surface. Honors Retry-After when the server sends it.
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+// No request here ever carried an AbortSignal before this existed, so a provider that accepts
+// the connection and then never answers hung the cell forever — indistinguishable, from the
+// caller's side, from a slow but working request. 2 minutes is generous for a single web-search-
+// augmented turn (measured Anthropic/OpenAI/Gemini calls land well under 30s) while still being
+// a real bound; `--timeout-ms` on every collector overrides it per run.
+export const DEFAULT_TIMEOUT_MS = 120_000
+
 export async function fetchWithRetry(
   url,
   init,
-  { retries = 3, baseDelayMs = 800, fetchImpl = fetch, sleepImpl = sleep } = {},
+  { retries = 3, baseDelayMs = 800, fetchImpl = fetch, sleepImpl = sleep, timeoutMs = DEFAULT_TIMEOUT_MS } = {},
 ) {
   let lastErr
   for (let attempt = 0; ; attempt++) {
+    const ctl = new AbortController()
+    const timer = timeoutMs
+      ? setTimeout(() => ctl.abort(new Error(`request timed out after ${timeoutMs}ms`)), timeoutMs)
+      : null
     let res
     try {
-      res = await fetchImpl(url, init)
+      res = await fetchImpl(url, { ...init, signal: ctl.signal })
     } catch (e) {
-      lastErr = e
-      if (attempt >= retries) throw e
+      lastErr = ctl.signal.aborted ? new Error(`request timed out after ${timeoutMs}ms`) : e
+      if (attempt >= retries) throw lastErr
       await sleepImpl(baseDelayMs * 2 ** attempt)
       continue
+    } finally {
+      if (timer) clearTimeout(timer)
     }
     if (res.status !== 429 && res.status < 500) return res
     if (attempt >= retries) return res // exhausted: let caller read the error body
@@ -143,6 +162,12 @@ export function writeOutput({ out, response, intent, platform, prompt, collectio
 export function parseOpenAI(body, requestedModel) {
   const output = Array.isArray(body.output) ? body.output : []
   const searchCalls = output.filter((o) => o.type === 'web_search_call')
+  // A `web_search_call` item proves the model ASKED for a search; only `status: 'completed'`
+  // proves one actually came back (the Responses API also emits 'searching' / 'in_progress' /
+  // 'failed'). Counting every call regardless of status would mark a search that failed or never
+  // finished as web-grounded — the same class of bug the Anthropic route already guards against
+  // (see `searchesReturned` below) — so `webSearchUsed` must require completed evidence here too.
+  const completedSearches = searchCalls.filter((s) => s.status === 'completed')
   const citations = []
   let rawText = ''
   for (const item of output) {
@@ -161,7 +186,7 @@ export function parseOpenAI(body, requestedModel) {
   const searchQueries = searchCalls
     .map((s) => s.action?.query)
     .filter((q) => typeof q === 'string' && q.length)
-  const webSearchUsed = searchCalls.length > 0 || citations.length > 0
+  const webSearchUsed = completedSearches.length > 0 || citations.length > 0
   const u = body.usage || {}
   return {
     rawText: rawText.trim(),
@@ -183,12 +208,12 @@ export function parseOpenAI(body, requestedModel) {
   }
 }
 
-export async function collectOpenAI({ model, prompt, apiKey, fetchImpl = fetch }) {
+export async function collectOpenAI({ model, prompt, apiKey, fetchImpl = fetch, timeoutMs }) {
   const res = await fetchWithRetry('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({ model, input: prompt, tools: [{ type: 'web_search' }] }),
-  }, { fetchImpl })
+  }, { fetchImpl, timeoutMs })
   const text = await res.text()
   if (!res.ok) throw new Error(`OpenAI ${res.status}: ${text.slice(0, 500)}`)
   return parseOpenAI(JSON.parse(text), model)
@@ -207,7 +232,12 @@ export function parseGemini(body, requestedModel) {
     if (c) citations.push(c)
   }
   const searchQueries = Array.isArray(gm.webSearchQueries) ? gm.webSearchQueries.filter(Boolean) : []
-  const webSearchUsed = chunks.length > 0 || searchQueries.length > 0
+  // `webSearchQueries` proves Gemini ISSUED a search; only `groundingChunks` proves one actually
+  // came back with results to ground the answer in. A query with zero chunks (e.g. the search
+  // returned nothing usable) is not the same event as a search that returned — counting the
+  // query alone would let a cell claim grounding it never got, same bug class as OpenAI/
+  // Anthropic above.
+  const webSearchUsed = chunks.length > 0
   const u = body.usageMetadata || {}
   return {
     rawText,
@@ -229,7 +259,7 @@ export function parseGemini(body, requestedModel) {
   }
 }
 
-export async function collectGemini({ model, prompt, apiKey, fetchImpl = fetch }) {
+export async function collectGemini({ model, prompt, apiKey, fetchImpl = fetch, timeoutMs }) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`
   const res = await fetchWithRetry(url, {
     method: 'POST',
@@ -238,7 +268,7 @@ export async function collectGemini({ model, prompt, apiKey, fetchImpl = fetch }
       contents: [{ parts: [{ text: prompt }] }],
       tools: [{ google_search: {} }],
     }),
-  }, { fetchImpl })
+  }, { fetchImpl, timeoutMs })
   const text = await res.text()
   if (!res.ok) throw new Error(`Gemini ${res.status}: ${text.slice(0, 500)}`)
   return parseGemini(JSON.parse(text), model)
@@ -333,7 +363,7 @@ export function parseAnthropic(body, requestedModel, { trim = true } = {}) {
  * expects the turn to be handed straight back so it can carry on. Returning that as a finished
  * answer submits whatever half-sentence it had reached, so continue up to `maxTurns` and merge.
  */
-export async function collectAnthropic({ model, prompt, apiKey, fetchImpl = fetch, maxTurns = 4 }) {
+export async function collectAnthropic({ model, prompt, apiKey, fetchImpl = fetch, maxTurns = 4, timeoutMs }) {
   const messages = [{ role: 'user', content: prompt }]
   let merged = null
 
@@ -351,7 +381,7 @@ export async function collectAnthropic({ model, prompt, apiKey, fetchImpl = fetc
         messages,
         tools: [{ type: 'web_search_20260209', name: 'web_search' }],
       }),
-    }, { fetchImpl })
+    }, { fetchImpl, timeoutMs })
     const text = await res.text()
     if (!res.ok) throw new Error(`Anthropic ${res.status}: ${text.slice(0, 500)}`)
     const body = JSON.parse(text)
@@ -408,11 +438,19 @@ export async function main(argv, env = process.env) {
   if (!apiKey) throw new Error(`missing ${provider.keyEnv} in the environment`)
   const prompt = a.prompt ?? (a.promptFile ? readFileSync(a.promptFile, 'utf8') : readFileSync(0, 'utf8'))
   if (!prompt.trim()) throw new Error('empty prompt (pass --prompt, --prompt-file, or pipe via stdin)')
+  let timeoutMs = DEFAULT_TIMEOUT_MS
+  if (a.timeoutMs != null) {
+    timeoutMs = Number(a.timeoutMs)
+    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) throw new Error('--timeout-ms must be a positive number of milliseconds')
+  }
 
-  const response = await provider.collect({ model: a.model, prompt, apiKey })
+  const response = await provider.collect({ model: a.model, prompt, apiKey, timeoutMs })
   if (!response.rawText) throw new Error('provider returned no text')
   if (!response.webSearchUsed) {
-    throw new Error('web search did not run — backend rejects webSearchUsed=false. Retry, or collect this cell in the browser.')
+    // There is no browser lane in this skill (SKILL.md "Clean-room collection") — don't tell the
+    // operator to fall back to one that was deliberately removed. RECOVERY.md's "Web search
+    // didn't run" row is the actual escalation path.
+    throw new Error('web search did not run — backend rejects webSearchUsed=false. Retry the cell (see RECOVERY.md, "Web search didn\'t run").')
   }
   // anthropic → claude, openai → chatgpt, gemini → gemini. All are `api` cells.
   const platform = a.platform ?? provider.platform

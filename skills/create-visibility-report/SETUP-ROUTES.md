@@ -103,9 +103,15 @@ Registering it with the host as well:
 
 ```bash
 claude mcp add mention-network --transport http \
-  https://shopify-mcp-dev.mention.network/api/v1/mcp \
+  https://shopify-mcp.mention.network/api/v1/mcp \
   --header "Authorization: Bearer ${MENTION_NETWORK_KEY}"     # then reload the session
 ```
+
+That's the production host — the one to use. `MENTION_NETWORK_MCP_URL` overrides it for
+development against `https://shopify-mcp-dev.mention.network/api/v1/mcp`, but **the two hosts do
+not share keys**: a dev-issued key is rejected by prod (measured: `401 "Internal API key không hợp
+lệ"`). If a user's key stops working right after you point them back at production, this is why —
+they need a production key, not just the production URL.
 
 **Say this out loud when you hand that over:** unlike everything else here, it puts the live key in
 a command-line argument, where another local user can read it out of `ps` while it runs, and
@@ -121,12 +127,19 @@ Re-run the check and say what changed before spending anything:
 node "$HERE/scripts/credentials.mjs" check
 ```
 
-Read the three states separately, because the fix differs:
+Read it as **six** distinct states, because the fix differs (`scripts/credentials.mjs:253-258`):
 
 - **`missing`** — no key. Offer to add one.
-- **`REJECTED`** — a key that is wrong, revoked, or out of quota. Offer to replace it, and name the
-  provider that refused it. This is a different conversation from having no key.
+- **`ok`** — the provider accepted it. Nothing to do.
+- **`REJECTED`** — the provider answered `401`/`403`: a key that is wrong or revoked, **and only
+  on those two statuses**. Offer to replace it, and name the provider that refused it. This is a
+  different conversation from having no key.
+- **`inconclusive — provider answered <status>`** — any other non-2xx status, most often `429`.
+  **This, not `REJECTED`, is where "out of quota" actually lands** — a rate limit is not proof the
+  key is bad. Retry before saying anything about the key.
 - **`unreachable`** — a network problem, not a verdict on the key. Retry before telling the user
   anything about it.
+- **`not probed here`** — `MENTION_NETWORK_KEY` only; this tool has no cheap probe for it, P1's own
+  MCP call is the real check.
 
 Then re-state coverage (`N/4 engines`) and only then collect.

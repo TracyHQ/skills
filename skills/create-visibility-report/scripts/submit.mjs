@@ -201,7 +201,7 @@ export async function main(argv, env = process.env, deps = {}) {
   if (!imageUrl) {
     throw new Error(
       'product.imageUrl is empty and no image could be found on the storefront ' +
-        `(${storefrontDomain(meta.shop) ?? 'không rõ domain'}). ` +
+        `(${storefrontDomain(meta.shop) ?? 'domain unknown'}). ` +
         'Set meta.product.imageUrl and run again — submitting without one leaves that product ' +
         'with a permanently blank thumbnail in both Recent checks and the Website Audit.',
     )

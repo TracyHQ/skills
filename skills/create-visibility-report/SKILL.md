@@ -162,12 +162,16 @@ Alongside it, in the same batch:
   ```bash
   export MENTION_NETWORK_KEY=<their-key>       # from mention.network — never invent one
   claude mcp add mention-network --transport http \
-    https://shopify-mcp-dev.mention.network/api/v1/mcp \
+    https://shopify-mcp.mention.network/api/v1/mcp \
     --header "Authorization: Bearer ${MENTION_NETWORK_KEY}"
   ```
   (Running this bundle *as* a plugin? The shipped `.mcp.json` already declares it — they only need
   `export MENTION_NETWORK_KEY=...` and a reload.) A **401** is a wrong key, not a missing one — see
-  `RECOVERY.md`.
+  `RECOVERY.md`. `mcp-client.mjs`'s own default points at this same production host; override with
+  `MENTION_NETWORK_MCP_URL` only to point at the `-dev` host for development — and note that a
+  **dev-issued key is rejected by prod** (measured: prod answers it with `401 "Internal API key
+  không hợp lệ"`), so switching hosts back to production needs a production key, not just a URL
+  change.
 
   > **No key stored at all is the first-run blocker — handle it before Q1, not after.** This is the
   > most common way a brand-new user lands here, and there is no way to work around it: the MCP is
@@ -194,10 +198,19 @@ Alongside it, in the same batch:
   discovering a revoked key at cell 9 of 20 has already spent cells 1-8 and still fails the grid,
   because a short submission is rejected outright (design contract 5).
 
-  Read its output as three distinct states, because the fix differs: `missing` (no key — offer to
-  add one), `REJECTED` (a key that is wrong, revoked or out of quota — offer to replace it, and say
-  which provider refused it), `unreachable` (a network problem, not a verdict on the key — retry
-  before telling the user anything about their key).
+  Read its output as **six** distinct states, because the fix differs — `credentials.mjs check`
+  (`scripts/credentials.mjs:253-258`) emits more than the two obvious ones:
+  - **`missing`** — no key. Offer to add one.
+  - **`ok`** — the provider accepted it. Nothing to do.
+  - **`REJECTED`** — the provider answered `401`/`403`: a key that is wrong, revoked, or out of
+    quota **on those exact statuses only**. Offer to replace it, and say which provider refused it.
+  - **`inconclusive — provider answered <status>`** — any other non-2xx status, most often a `429`.
+    **Not** the same as `REJECTED` — a rate-limited key is not a bad key. Retry before saying
+    anything about the key itself.
+  - **`unreachable`** — a network problem, not a verdict on the key. Retry before telling the user
+    anything about it.
+  - **`not probed here`** — `MENTION_NETWORK_KEY` only: this tool has no cheap probe for it: P1's
+    own MCP call is the real check.
 - **Store + catalog** — `get_shop` (reuse `primaryLocale` as the language hint; `SHOP_NOT_FOUND`
   just means never-checked) and `list_shop_products`. The backend's product view is often sparse
   (measured: **1** product for a store whose storefront listed a full catalog), so also read
@@ -426,6 +439,20 @@ that don't need a human yourself.
 
 ## P3 — Build the prompts
 
+**Establish `$RUN` here, before anything gets written — Q2 needs it for `prompts.md`.** An unset
+`$RUN` does not stop anything — it silently turns `"$RUN/prompts.md"` into `"/prompts.md"` and
+fails much later with a confusing permissions error, the same trap the sibling `visibility-audit`
+skill documents for its own `$RUN`. `scripts/run-dir.mjs` creates and prints the run directory
+RECOVERY.md documents (`.mn-runs/<slugged shopDomain>/<timestamp>/`) — always get the path from it,
+never by hand-typing `.mn-runs/<domain>/…` (it slugs the domain, e.g. `kbeautyarabia.com` →
+`kbeautyarabia-com`, so a hand-typed path looks plausible and is wrong):
+
+```bash
+HERE="$(dirname "$(readlink -f "<abs path to this SKILL.md>")")"
+RUN="$(node "$HERE/scripts/run-dir.mjs" --domain "<shopDomain>")"
+echo "$RUN"   # confirm this is a real path before writing anything into "$RUN/…"
+```
+
 Fetch the live catalog: `get_byok_skill` (the authoritative playbook — follow it), then
 `describe_check_grid` (its `intents` field IS the `list_intents` data — don't call it twice),
 `get_prompt_templates({language})`, `get_product_name_rules`, `get_template_localization_rules`.
@@ -445,17 +472,19 @@ If they edit, preserve two invariants or the submit is rejected:
 - **one prompt per intent, identical across platforms** (`INCONSISTENT_PROMPT_TEXT`);
 - `where_to_buy` stays in the set (`MISSING_WHERE_TO_BUY`).
 
-Write the approved table to `prompts.md` in the run directory — it's the record of what was asked.
+Write the approved table to `"$RUN/prompts.md"` — it's the record of what was asked.
 
 ## P4 — Collect
 
-Create the run directory (`RECOVERY.md`) and collect **every declared cell** with the approved
-prompt. Source the credential store first so the collectors see the stored keys:
+`$RUN` is already set (established at the start of P3, above) — use it for every path from here on;
+this is a new tool call, so **source the credential store again** as well, so the collectors see the
+stored keys (shell state does not persist between tool calls):
 
 ```bash
 HERE="$(dirname "$(readlink -f "<abs path to this SKILL.md>")")"
 CREDS="${MENTION_NETWORK_CREDENTIALS:-$HOME/.config/mention-network/credentials}"
 set -a; [ -f "$CREDS" ] && . "$CREDS"; set +a
+mkdir -p "$RUN/cells"
 ```
 
 **Web search must actually run for every cell** (`WEB_SEARCH_REQUIRED`). Every collector requests
@@ -469,8 +498,8 @@ results that came back, not the requests that went out. Citations are *not* requ
 the flag** — re-run the cell.
 
 **Collect in parallel — this is where the wall-clock time goes.** Each collector is an independent
-process writing its own `cells/<intent>.<platform>.json`, so cells share no state. Group by route
-and run each group as a pool:
+process writing its own `"$RUN/cells/<intent>.<platform>.json"`, so cells share no state. Group by
+route and run each group as a pool:
 
 - **All four engines** — safe to run concurrently; cap ~4–6 in flight **per provider key**, which
   is what `collect-pool.mjs` does by default. Pooling per provider rather than globally matters:
@@ -481,12 +510,41 @@ and run each group as a pool:
   a long one may return `stop_reason: 'pause_turn'`; `collect-api.mjs` continues the turn itself and
   merges the halves, so this costs wall-clock rather than a failed cell.
 
-**Use `scripts/collect-pool.mjs`.** It pools the whole grid from a grid file (one job per cell:
-`{route, provider|hl/gl, model, intent, platform, prompt, out}`), capped at 4 per provider by
-default and overridable with `--concurrency`, with one outer retry per cell. Every route now has a
-collector script, so the pool covers the entire grid — there is nothing left to run by hand
-alongside it. Measured 2026-07-28: a hand-rolled fan-out drifted serial and collection alone took
-5m41s of an 8m54s run, which is what this script exists to prevent.
+**Use `scripts/collect-pool.mjs`.** `--grid <file>` is **required** — the script throws
+`--grid <file> is required` with no file, and there is no default or discovery. Build it yourself,
+after Q2, from the approved prompts and the live grid, and write it to `"$RUN/grid.json"`:
+
+```json
+[
+  { "route": "api", "provider": "anthropic", "model": "<apiModelId from describe_check_grid>",
+    "platform": "claude", "intent": "where_to_buy", "prompt": "<the approved prompt text>",
+    "out": "$RUN/cells/where_to_buy.claude.json" },
+  { "route": "api", "provider": "openai", "model": "<apiModelId>", "platform": "chatgpt",
+    "intent": "where_to_buy", "prompt": "<...>", "out": "$RUN/cells/where_to_buy.chatgpt.json" },
+  { "route": "api", "provider": "gemini", "model": "<apiModelId>", "platform": "gemini",
+    "intent": "where_to_buy", "prompt": "<...>", "out": "$RUN/cells/where_to_buy.gemini.json" },
+  { "route": "serpapi", "hl": "<lang>", "gl": "<country>", "location": "<city, optional>",
+    "platform": "google_ai_mode", "intent": "where_to_buy", "prompt": "<...>",
+    "out": "$RUN/cells/where_to_buy.google_ai_mode.json" }
+]
+```
+
+One entry per cell of the grid (platforms × intents), same shape repeated for every intent.
+`location` is optional and threads straight to `collect-serpapi.mjs --location` — this is where the
+Q1 city answer actually reaches an engine; omit it for the country-level default. Every job may
+also carry `timeoutMs`, passed through as that collector's `--timeout-ms` (see *The collectors*
+below for the default). Then:
+
+```bash
+node "$HERE/scripts/collect-pool.mjs" --grid "$RUN/grid.json" [--concurrency api=4,serpapi=4]
+```
+
+It pools the whole grid, capped at 4 per provider by default and overridable with `--concurrency`,
+with one outer retry per cell. Every route now has a collector script, so the pool covers the
+entire grid — there is nothing left to run by hand alongside it. Measured 2026-07-28: a hand-rolled
+fan-out drifted serial and collection alone took 5m41s of an 8m54s run, which is what this script
+exists to prevent. Per-cell stdout+stderr lands in `"$RUN/logs/<cell file>.log"` — a sibling of
+`cells/`, never inside it (RECOVERY.md: `cells/` holds cell files and nothing else).
 
 If you do fan out by hand instead, wait for **all** cells (fail none silently) and update
 `state.json` as each finishes.
@@ -514,14 +572,25 @@ If you do fan out by hand instead, wait for **all** cells (fail none silently) a
 Every `collect-*.mjs` takes `--intent <slug>` (and optional `--platform`); with it, `--out` is
 written as the whole `byokCellShape` — `{ intentSlug, platformSlug, promptText, collectionMethod:
 'api'|'browser', response: {…} }` — so a `cells/` dir drops straight into `submit.mjs` with no
-hand-wrapping. Without `--intent` you get the bare `response` and must wrap it yourself.
+hand-wrapping. Without `--intent` you get the bare `response` and must wrap it yourself. This table
+is for collecting one cell by hand (debugging a single failure, say); `collect-pool.mjs` above is
+what actually runs the grid.
+
+Every collector also takes `--timeout-ms <ms>` — a real `AbortSignal` bound to each HTTP attempt,
+default **120000** (2 minutes; `collect-api.mjs`'s `DEFAULT_TIMEOUT_MS`). A provider that accepts
+the connection and never answers now fails the cell instead of hanging the run forever; raise it
+only if a genuinely slow route keeps tripping it (see RECOVERY.md's *Timeout* rows).
 
 | Engine | Command |
 |---|---|
-| `claude` | `printf '%s' "<prompt>" \| node "$HERE/scripts/collect-api.mjs" --provider anthropic --model "<apiModelId>" --intent where_to_buy --out cells/where_to_buy.claude.json` |
-| `chatgpt` | `printf '%s' "<prompt>" \| node "$HERE/scripts/collect-api.mjs" --provider openai --model "<apiModelId>" --intent where_to_buy --out cells/where_to_buy.chatgpt.json` |
-| `gemini` | `printf '%s' "<prompt>" \| node "$HERE/scripts/collect-api.mjs" --provider gemini --model "<apiModelId>" --intent where_to_buy --out cells/where_to_buy.gemini.json` |
-| `google_ai_mode` | `printf '%s' "<prompt>" \| node "$HERE/scripts/collect-serpapi.mjs" --hl <lang> --gl <country> --intent where_to_buy --out cells/where_to_buy.google_ai_mode.json` |
+| `claude` | `printf '%s' "<prompt>" \| node "$HERE/scripts/collect-api.mjs" --provider anthropic --model "<apiModelId>" --intent where_to_buy --out "$RUN/cells/where_to_buy.claude.json"` |
+| `chatgpt` | `printf '%s' "<prompt>" \| node "$HERE/scripts/collect-api.mjs" --provider openai --model "<apiModelId>" --intent where_to_buy --out "$RUN/cells/where_to_buy.chatgpt.json"` |
+| `gemini` | `printf '%s' "<prompt>" \| node "$HERE/scripts/collect-api.mjs" --provider gemini --model "<apiModelId>" --intent where_to_buy --out "$RUN/cells/where_to_buy.gemini.json"` |
+| `google_ai_mode` | `printf '%s' "<prompt>" \| node "$HERE/scripts/collect-serpapi.mjs" --hl <lang> --gl <country> [--location <city>] --intent where_to_buy --out "$RUN/cells/where_to_buy.google_ai_mode.json"` |
+
+`--location` is optional (the Q1 city answer, SKILL.md P2 "City") — omit it for the country-level
+default. It's the only way that answer reaches this engine at all; `--hl`/`--gl` alone never
+narrows past the country.
 
 - **API key** (`anthropic` / `openai` / `gemini`) — a genuine `api` cell: `collectionMethod:'api'`,
   `servedModel` = the `apiModelId` from the live grid, echoed back exactly as passed in `--model`
@@ -574,8 +643,15 @@ merchant guards, the self-check command, and the three legitimate reasons to ski
 
 ## P5 — Validate
 
+`submit.mjs` needs `MENTION_NETWORK_KEY` (`mcp-client.mjs`) — **source the credential store again
+here**: shell state does not persist between tool calls, so the sourcing at P4 does not carry over
+if this runs as a separate call. This is the source of `missing MENTION_NETWORK_KEY in the
+environment` far more often than an actually-missing key.
+
 ```bash
-node "$HERE/scripts/submit.mjs" --cells cells/ --validate-only
+CREDS="${MENTION_NETWORK_CREDENTIALS:-$HOME/.config/mention-network/credentials}"
+set -a; [ -f "$CREDS" ] && . "$CREDS"; set +a
+node "$HERE/scripts/submit.mjs" --cells "$RUN/cells/" --validate-only
 ```
 
 Runs `validate_byok_submission` over the whole dir and prints each error. **Don't inline the cells
@@ -583,8 +659,8 @@ array into the MCP tool call by hand** — a full grid is tens of KB of answer t
 measured at ~66 KB), slow to reproduce and easy to mis-escape.
 
 Fix and re-run until clean. `RECOVERY.md` maps every error code to its fix; auto-repair up to two
-rounds before involving the user. Keep only cell files in `cells/` — `submit.mjs` reads every
-`*.json` there as a cell, so `meta.json` and `state.json` live outside it.
+rounds before involving the user. Keep only cell files in `"$RUN/cells/"` — `submit.mjs` reads every
+`*.json` there as a cell, so `meta.json` and `state.json` live in `$RUN` directly, outside it.
 
 `submit.mjs` prints a `detection` coverage note every time it runs (validate-only or full submit):
 silent when every cell carries one, a warning when 0 do (P4.5 didn't run — the backend will
@@ -599,10 +675,13 @@ todo list an agent can forget to write — measured twice before this existed.
 
 ## P6 — Submit and poll
 
-1. Write `meta.json` (`{ shop, product, locationCountry, locationCity?, language }` — see
-   **Snapshots**) **outside** `cells/`, then:
+1. Write `"$RUN/meta.json"` (`{ shop, product, locationCountry, locationCity?, language }` — see
+   **Snapshots**) **outside** `"$RUN/cells/"`, then **source the credential store again** — this is
+   a new tool call, same reason as P5 — and submit:
    ```bash
-   node "$HERE/scripts/submit.mjs" --cells cells/ --meta meta.json     # → { checkRunId, deduped }
+   CREDS="${MENTION_NETWORK_CREDENTIALS:-$HOME/.config/mention-network/credentials}"
+   set -a; [ -f "$CREDS" ] && . "$CREDS"; set +a
+   node "$HERE/scripts/submit.mjs" --cells "$RUN/cells/" --meta "$RUN/meta.json"   # → { checkRunId, deduped }
    ```
    It generates a **fresh `idempotencyKey`** each call; reusing one returns the prior run
    (`deduped: true`) and produces no new report.
@@ -634,6 +713,15 @@ the invocation carried `audit=yes` or `audit=no`.
   shopDomain})` (≤15× / 12s) to `completed` → `get_website_audit_report({auditId, shopDomain})` →
   `export_website_audit_pdf({auditId})`, and **show that link too**.
 - **No:** stop — the visibility PDF is the finished deliverable.
+
+**This `Yes` always spends the backend's own AI budget** — `create_website_audit` has no BYOK
+option in this skill. If the user would rather pay for the audit's grading with their own key too
+(the same shape as this report — API-key-only, no subscription or browser lane), point them at the
+sibling `visibility-audit` skill instead of answering "yes" here: it shares this skill's credential
+store (`~/.config/mention-network/credentials`) and `SETUP-ROUTES.md` keys, and produces the same
+hosted PDF via `submit_byok_website_audit`. Worth naming this option whenever the user is
+keeping the run BYOK for cost reasons in the first place — a backend-paid audit at Q3 would
+otherwise quietly reintroduce the spend they avoided at Q1.
 
 **Return** the PDF link(s), the lane and routes actually used, whether the run was reused or fresh,
 and — for BYOK — the `source: byok` disclosure.
