@@ -167,10 +167,26 @@ function yiqDelta(d, i, j) {
   return 0.5053 * y * y + 0.299 * iq * iq + 0.1957 * q * q;
 }
 
-// Squared YIQ distance at which two pixels are "different". 35 is pixelmatch's default
-// threshold 0.1 expressed in the same units (0.1 * 35215), and it is the number every
-// screenshot-diff tool converges on.
-const PIXEL_DELTA = 0.1 * 35215;
+// Squared YIQ distance at which two pixels count as "different".
+//
+// NOT pixelmatch's default of 0.1, and the reason matters. That default is calibrated for a
+// tool where the per-pixel threshold is the ONLY gate, so it has to absorb antialiasing noise
+// by itself. Here there are two gates in series: this one, and the 0.5% changed-AREA gate in
+// judgePixelDiff. The area gate is what absorbs noise — antialiased text differs on the thin
+// edges of glyphs, a tiny fraction of a page — so leaving this one loose as well is loose
+// twice over, and it produced a real miss.
+//
+// Measured, on a page whose header background was changed outright from #102040 to #7a1030:
+//
+//   header navy -> maroon           score  1923   MISSED at 0.1 (3522), caught at 0.05 (1761)
+//   accent orange -> green          score  8786   caught either way
+//   antialiasing, #000 -> #080808   score    32   ignored, 55x below the threshold
+//   white -> #f8f8f8                score    25   ignored, 70x below the threshold
+//
+// A wholesale repaint of the site's chrome reading as "0% of pixels changed" is precisely the
+// regression this tier exists to catch, and two dark colours can sit well inside 0.1 of each
+// other. 0.05 catches it with two orders of magnitude of headroom over the noise cases.
+const PIXEL_DELTA = 0.05 * 35215;
 
 /**
  * Compare two RGBA images of identical size.

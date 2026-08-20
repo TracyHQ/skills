@@ -222,9 +222,30 @@ precisely because both sides are the same page: any difference is a change someb
   reality, not taste. Two renders of an *unchanged* page are not bit-identical: antialiased text,
   a lazy image landing one frame later and an animation mid-flight move ~0.1-0.3% of a
   1440×6000 page. Below 0.5% is render noise. Above it, something moved.
-- **Colour distance is perceptual (YIQ), not RGB.** A red-channel shift of 120 is a large RGB
-  number and a small perceptual one, which is exactly what antialiasing produces. Compare in RGB
+- **Colour distance is perceptual (YIQ), not RGB.** A shift of 90 in the red channel and the
+  same shift in green are one number in RGB and nothing like the same to an eye. Compare in RGB
   and the noise floor rises until the threshold has to be raised past anything worth catching.
+- **There are TWO thresholds in series, and only one of them absorbs noise.** The per-pixel
+  colour distance decides whether a pixel changed; the 0.5% area gate decides whether the page
+  changed. Antialiasing lives on the thin edges of glyphs — a tiny share of a page — so the AREA
+  gate is what tolerates it, and the per-pixel one can be tight.
+
+  This was got wrong the first time, and only a deliberately broken page found it. The per-pixel
+  threshold was taken from pixelmatch's default of 0.1 without asking what that default is
+  calibrated for: in pixelmatch it is the ONLY gate, so it has to absorb noise by itself. Used as
+  one of two, it is loose twice over. Measured consequence — a page whose header background was
+  repainted from `#102040` to `#7a1030` scored 1923 against a threshold of 3522 and was reported
+  as **"0% of pixels changed"**. Two dark colours sit comfortably inside that default, and
+  repainting the site's chrome is the canonical thing this tier exists to notice. At 0.05 the
+  same page reports 3.3% and fails, while antialiasing cases (`#000` → `#080808` scores 32,
+  white → `#f8f8f8` scores 25) stay two orders of magnitude below.
+
+  The general rule: **a constant borrowed from another tool is calibrated for that tool's number
+  of filters.** Same number, different architecture, different meaning.
+- **The noise floor is asserted, not measured, in the local fixture.** Two renders of the test
+  page are bit-identical, because it loads no webfont, runs no animation and lazy-loads nothing —
+  so it exercises no source of render noise at all. The 0.1-0.3% figure comes from real pages.
+  Anyone tightening the area gate should measure it on a real site first, not on the fixture.
 - **A size change is its own finding, not a percentage.** When the page height changes the two
   images no longer describe the same page, and a percentage over the overlap would understate a
   page that grew back a whole missing section.

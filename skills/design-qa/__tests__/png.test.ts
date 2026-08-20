@@ -125,22 +125,39 @@ describe("diffImages", () => {
     expect(diffImages(white, black).changed).toBe(W * H);
   });
 
+  // Alpha is written explicitly here: `Buffer.alloc(n, 128)` fills the alpha byte too, and a
+  // half-transparent fixture gets blended toward white before comparison, which silently
+  // halves every delta being asserted on.
+  const solid = (r: number, g: number, b: number) => {
+    const data = Buffer.alloc(8 * 8 * 4);
+    for (let i = 0; i < data.length; i += 4) { data[i] = r; data[i + 1] = g; data[i + 2] = b; data[i + 3] = 255; }
+    return { width: 8, height: 8, data };
+  };
+
   it("weighs colour perceptually, not by raw RGB distance", () => {
-    // A red-channel-only shift of 120 is a large RGB number (perceptual score 2305) and
-    // still below the threshold of 3521; lifting red AND green by the same amount scores
-    // 7196 and registers. That gap is the property keeping antialiased text under the noise
-    // floor — without it the 0.5% area threshold would have to be raised until it caught
-    // nothing. Alpha is written explicitly: `Buffer.alloc(n, 128)` fills the alpha byte too,
-    // and a half-transparent fixture is blended toward white before the comparison, which
-    // silently halves every delta being asserted on.
-    const solid = (r: number, g: number, b: number) => {
-      const data = Buffer.alloc(8 * 8 * 4);
-      for (let i = 0; i < data.length; i += 4) { data[i] = r; data[i + 1] = g; data[i + 2] = b; data[i + 3] = 255; }
-      return { width: 8, height: 8, data };
-    };
+    // The same RGB magnitude in two different channels gets two different verdicts, because
+    // vision weighs green far above red. A shift of 90 scores 1297 in red and 2023 in green
+    // against a threshold of 1761. This is the property that lets the per-pixel threshold sit
+    // tight enough to catch a repaint while antialiasing stays far below it.
     const flat = solid(128, 128, 128);
-    expect(diffImages(flat, solid(248, 128, 128)).changed).toBe(0);
-    expect(diffImages(flat, solid(255, 255, 128)).changed).toBe(64);
+    expect(diffImages(flat, solid(218, 128, 128)).changed).toBe(0);
+    expect(diffImages(flat, solid(128, 218, 128)).changed).toBe(64);
+  });
+
+  it("catches a wholesale repaint of two dark colours", () => {
+    // The regression this locks: a page header changed outright from #102040 to #7a1030
+    // scored 1923 and was reported as "0% of pixels changed" under pixelmatch's default
+    // threshold of 0.1. Two dark colours can sit well inside that default, and repainting the
+    // site's chrome is precisely what this tier exists to notice.
+    expect(diffImages(solid(16, 32, 64), solid(122, 16, 48)).changed).toBe(64);
+  });
+
+  it("keeps antialiasing far below the threshold", () => {
+    // Text edges between two renders of an unchanged page move by a step or two. These score
+    // 32 and 25 against 1761 — the margin has to stay large, or the 0.5% area gate would be
+    // absorbing noise this gate should never have produced.
+    expect(diffImages(solid(0, 0, 0), solid(8, 8, 8)).changed).toBe(0);
+    expect(diffImages(solid(255, 255, 255), solid(248, 248, 248)).changed).toBe(0);
   });
 
   it("paints changed pixels red and leaves the rest as a legible grey ghost", () => {
