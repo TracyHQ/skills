@@ -39,7 +39,7 @@ from __future__ import annotations
 
 import re
 
-CORE, MATCHED, UNRECOGNISED = "core", "matched", "unrecognised"
+CORE, MATCHED, UNRECOGNISED, PART = "core", "matched", "unrecognised", "part"
 
 #: Element prefixes Joomla gives its own extension types. Stripped before comparing to a
 #: listing slug, which never carries them.
@@ -283,9 +283,14 @@ def classify(extension: dict, registry: dict, *, core_version: str,
         "type": str(extension.get("type") or ""),
         "version": version,
         "enabled": bool(extension.get("enabled")),
+        # The plugin group, when the read gave one. Two products ship a plugin called
+        # `com_k2`; the group is what tells them apart.
+        "group": str(extension.get("group") or ""),
         "state": UNRECOGNISED,
+        "part_of": "",
         "match": None,
         "isJ6": None,
+        "evidence": "",
     }
 
     # The name Joomla itself gives the extension, first. Then the version, which still catches a
@@ -308,27 +313,108 @@ def classify(extension: dict, registry: dict, *, core_version: str,
     joomla = (record.get("platformData") or {}).get("joomla") or {}
     row["state"] = MATCHED
     row["match"] = record.get("slug")
+    # Where the answer came from, carried down so the report can say it. A verdict measured in
+    # the public directory and one the publisher declared about its own product are different
+    # claims, and collapsing them here would make the report assert the wrong one. Absent means
+    # absent: nobody said, so nothing is claimed.
+    row["evidence"] = str(((record.get("provenance") or {}).get("*") or {}).get("evidence") or "")
     # None rather than False when the registry has the product but says nothing about Joomla 6.
     # "We have no reading" and "it does not support 6" are different answers to a customer.
     row["isJ6"] = joomla.get("isJ6") if "isJ6" in joomla else None
     return row
 
 
-def read_state(*, version: str, extensions: list, registry: dict) -> dict:
+def _as_extension(package: dict) -> dict:
+    """A package in the shape the rest of this module already reads.
+
+    `element` is the `packagename` from the manifest, because that is the word the registry has
+    a chance of knowing: `xmap`, `regularlabs`, `akeeba`. The display name is a sentence
+    ("Xmap Package") and matches nothing.
+    """
+    return {"name": str(package.get("name") or package.get("element") or ""),
+            "element": str(package.get("element") or ""),
+            "type": "package",
+            "version": str(package.get("version") or ""),
+            "enabled": True}
+
+
+def _claimed_by(packages: list | None) -> dict:
+    """Every piece a package declares, keyed the way a site row can be keyed back to it.
+
+    Two keys per piece, and the strict one is tried first. `(plugin, com_k2, xmap)` is Xmap's
+    K2 plugin; `(plugin, com_k2, "")` is whatever a read that could not report groups gave us.
+    Without the group in the key, K2's own rows would answer to Xmap's claim.
+    """
+    claims = {}
+    for package in packages or []:
+        label = str(package.get("name") or package.get("element") or "")
+        for child in package.get("children") or []:
+            kind = str(child.get("type") or "").lower()
+            element = str(child.get("element") or "").lower()
+            group = str(child.get("group") or "").lower()
+            if not element:
+                continue
+            claims[(kind, element, group)] = label
+            claims.setdefault((kind, element, ""), label)
+    return claims
+
+
+def _fold(rows: list, claims: dict) -> None:
+    """Mark each row a package speaks for, in place.
+
+    Core is left alone. Joomla ships Weblinks and Search as packages of its own, and a core row
+    already makes no claim: folding it in would move a row the customer cannot act on into a
+    product line they can, and inflate the package with parts that were never its business.
+    """
+    for row in rows:
+        if row["state"] == CORE or row["type"] == "package":
+            continue
+        kind, element, group = row["type"].lower(), row["element"].lower(), row["group"].lower()
+        label = claims.get((kind, element, group)) or (claims.get((kind, element, ""))
+                                                       if not group else None)
+        if not label:
+            continue
+        row["state"] = PART
+        row["part_of"] = label
+        # A part carries no verdict of its own. It never had one worth having: the lookup that
+        # produced it asked the registry about a piece, and the registry lists products.
+        row["match"], row["isJ6"] = None, None
+        if "evidence" in row:
+            row["evidence"] = ""
+
+
+def read_state(*, version: str, extensions: list, registry: dict,
+               packages: list | None = None) -> dict:
     """The whole picture, with the counts that must never be quiet.
 
     `version` empty is a real state, not an error: in relay-only mode `list_extensions` works
     but the relay's own capability service says it cannot tell Joomla 4 from 5+, so the core
     stays unanswered while the extensions are still answerable. The report has to say which.
+
+    `packages` is the second read, and it is optional because not every route can make it. A
+    package is how one product arrives as many rows: Xmap installs a component and seven
+    plugins, RSForm! Pro six pieces, and `#__extensions` holds each one separately with nothing
+    in it to say they are one purchase. Measured on a real site: 34 of 86 non-core rows, one
+    product counted up to eight times, in the number the whole report is built around.
+
+    The manifests under `administrator/manifests/packages/` are the authority, and they are
+    readable by every route that can read anything at all. When they are missing this behaves
+    exactly as it did before. When `extension.list` starts returning `package_id` (Joomla has
+    had the column all along, the component does not send it) that becomes the better route
+    and this one stays as the fallback for reads that never see the database.
     """
     index = _index(registry)
     rows = [classify(e, registry, core_version=version, index=index) for e in (extensions or [])]
+    rows += [classify(_as_extension(p), registry, core_version=version, index=index)
+             for p in (packages or [])]
+    _fold(rows, _claimed_by(packages))
 
     counts = {
         "total": len(rows),
         "core": sum(1 for r in rows if r["state"] == CORE),
         "matched": sum(1 for r in rows if r["state"] == MATCHED),
         "unrecognised": sum(1 for r in rows if r["state"] == UNRECOGNISED),
+        "part": sum(1 for r in rows if r["state"] == PART),
     }
 
     warnings = []
@@ -345,7 +431,9 @@ def read_state(*, version: str, extensions: list, registry: dict) -> dict:
         # site carries 241 core rows that were never going to be in a third-party directory, and
         # a first real run reported "1 of 249" where the honest figure was one in four.
         # Understating uncertainty is the same class of mistake as overstating a verdict.
-        lookups = counts["total"] - counts["core"]
+        # Parts are not lookups. Each one belongs to a package that was looked up on its
+        # behalf, and counting them here would put the sevenfold back in the denominator.
+        lookups = counts["total"] - counts["core"] - counts["part"]
         warnings.append(
             f"{counts['unrecognised']} of {lookups} non-core extensions are not in the public "
             "registry, so their Joomla 6 status is unknown rather than fine. The registry is "

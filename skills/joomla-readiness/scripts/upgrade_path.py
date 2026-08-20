@@ -83,16 +83,34 @@ def profile_from_state(state: dict) -> SiteProfile:
     for row in state.get("extensions") or []:
         if row.get("state") == "core":
             continue
+        # A part of a package is not a product a customer bought, and the package it belongs to
+        # is in this same list carrying the one verdict that answers for all of them. Seven
+        # Xmap plugins beside Xmap is one product wearing eight lines.
+        if row.get("state") == "part":
+            continue
 
         if row.get("state") == "matched":
             status = _STATUS.get(row.get("isJ6"), "unknown")
-            source = "registry"
-            note = {
-                "available": "The extension directory records a Joomla 6 build for this.",
-                "none": "The extension directory records no Joomla 6 build for this.",
-                "unknown": "The extension directory has this product but says nothing about "
-                           "Joomla 6, so its status is unknown rather than fine.",
-            }[status]
+            # Two kinds of answer wear the same shape here. One is a reading of the public
+            # directory; the other is the publisher speaking about its own product, which the
+            # directory may never have listed. Printing "the extension directory records" over
+            # a publisher's declaration asserts a measurement that was never taken.
+            if row.get("evidence") == "declared":
+                source = "vendor"
+                note = {
+                    "available": "The publisher declares a Joomla 6 build for this.",
+                    "none": "The publisher declares that this has no Joomla 6 build yet.",
+                    "unknown": "The publisher lists this product but has not stated its Joomla 6 "
+                               "status, so it is unknown rather than fine.",
+                }[status]
+            else:
+                source = "registry"
+                note = {
+                    "available": "The extension directory records a Joomla 6 build for this.",
+                    "none": "The extension directory records no Joomla 6 build for this.",
+                    "unknown": "The extension directory has this product but says nothing about "
+                               "Joomla 6, so its status is unknown rather than fine.",
+                }[status]
         else:
             # A source of its own, because the verdict answers it differently: an extension no
             # directory lists is nobody at JoomlArt's to confirm.

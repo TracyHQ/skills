@@ -5,7 +5,7 @@ description: >-
   stand in the way. Reads the site's own version and installed extensions, looks each one up in
   the public extension registry, and says out loud what it could not find out. Use when someone
   asks if a site is ready for Joomla 6, what is blocking an upgrade, or how far behind a site is.
-version: 1.0.0
+version: 1.1.0
 platforms: joomla
 tags:
   - joomla
@@ -17,7 +17,9 @@ provenOn: >-
   Live registry of 5,604 Joomla extensions, 2026-08-19: K2, JomSocial and Akeeba Backup resolved
   correctly against a simulated 5.4.8 site, and a 3.10.12 site was correctly told it faces three
   upgrades. Never yet run against a connected site, so the reading half is unproven even though
-  the tools for it now exist.
+  the tools for it now exist. Package roll-up measured on a real Joomla 6.1.2 webroot,
+  2026-08-20: 34 of 86 non-core rows were parts of ten packages, and reading them as ten
+  products rather than forty-four cut the unrecognised count from 65 to 50.
 ---
 
 # Joomla readiness
@@ -77,6 +79,29 @@ scripts/upgrade_path.py   the chain, and the bridge into the verdict rules
 scripts/verdict.py        one of three levels, with its scope attached
 scripts/catalog.py        the registry client
 ```
+
+### One product arrives as many rows
+
+A package installs a component and its plugins as separate rows, and `#__extensions` holds
+nothing that says they were one purchase. Xmap arrives as eight rows, RSForm! Pro as six. Left
+alone they become eight unknown products in a count the whole report is built around, and the
+customer reads a problem seven times larger than the one they have.
+
+`read_state` takes an optional `packages` list to close this. Each entry is what one package
+manifest says about itself:
+
+```
+{"name": "Xmap Package", "element": "xmap", "version": "2.3.3",
+ "children": [{"type": "plugin", "element": "com_k2", "group": "xmap"}, ...]}
+```
+
+Where it comes from: `administrator/manifests/packages/pkg_*.xml`, a plain file in the webroot.
+`list_extensions` cannot supply it today, because it returns neither `package_id` nor the plugin
+group even though Joomla has both columns. Until it does, pass `packages` from whatever route
+read those manifests, or pass nothing: without them this behaves exactly as it did before.
+
+Keep the group. Two products ship a plugin whose element is `com_k2`, and without the group in
+the key one product's row answers to the other's claim.
 
 ## The one rule
 
