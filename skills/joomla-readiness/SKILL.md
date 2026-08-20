@@ -11,17 +11,13 @@ tags:
   - joomla
   - upgrade
   - maintenance
-# Deliberately empty, and the reason belongs here rather than in a commit nobody reads.
-# Two inputs are needed: which Joomla the site runs, and what is installed on it. No fixed
-# MCP server answers either today. `tracy-site` offers `scan_now` and `reload_preview`; the
-# Scan harvests pages, not extensions. The Joomla relay does have `list_extensions`, but it is
-# configured per seat under whatever name that seat chose (ADR 0038), so there is no name to
-# declare in advance. Naming a server that cannot answer would be worse than naming none.
-requires-mcp: []
+requires-mcp:
+  - tracy-site
 provenOn: >-
   Live registry of 5,604 Joomla extensions, 2026-08-19: K2, JomSocial and Akeeba Backup resolved
   correctly against a simulated 5.4.8 site, and a 3.10.12 site was correctly told it faces three
-  upgrades. Never run against a connected customer site, because no tool reads one yet.
+  upgrades. Never yet run against a connected site, so the reading half is unproven even though
+  the tools for it now exist.
 ---
 
 # Joomla readiness
@@ -51,16 +47,16 @@ the hosting provider rather than in the site. Name it; do not promise it.
 
 ## Getting the two inputs, which is the awkward part
 
-Nothing here reads a site by itself yet. Before anything else, get these two and say where each
-came from:
+Two tools, and neither takes arguments because they read the Site this agent belongs to:
 
-1. **The Joomla version.** If the seat has a Joomla relay configured, ask it. If the site has
-   Tracy's component installed, its `info` action returns the exact version. Otherwise ask the
-   person, and if they do not know, that is a real answer: say the version is unknown and never
-   call the site ready.
-2. **The installed extensions.** The relay's `list_extensions`, or the component's
-   `extension.list`, or a list the person pastes. Each row needs a name and an element; a
-   version and an enabled flag help and are not required.
+1. **`mcp__tracy-site__read_versions`** gives the Joomla version and the PHP version, read from
+   the site itself. If it says it could not read them, that is a real answer: the version is
+   unknown and nothing may be called ready. Do not go looking for a second opinion in the HTML.
+2. **`mcp__tracy-site__list_extensions`** gives every installed extension with its name, type,
+   element, version and whether it is enabled. The element is what the registry lookup joins on.
+
+Both reach the site through Tracy's component. Where the component is not installed they fail
+rather than guess, and a failure is not an empty site: say the site could not be read.
 
 Do not guess either one from the site's HTML. A generator meta tag is frequently wrong, often
 removed, and the whole point of this skill is not to be confidently wrong.
