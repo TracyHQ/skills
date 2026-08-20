@@ -172,14 +172,16 @@ SVGs travel with the template and are not ported.
   rebuild); `layout=fullwidth` goes **in the link**, not in params. *(trap 10)*
 - `modules_menu` assigned the right Itemid; Joomla cache cleared after every write.
 
-**8. `design-qa.sh <path> <expected>`** — machine acceptance, per page:
+**8. Machine acceptance, per page** — one gate became two when the two kinds of judgment were
+separated. What is broken on any site went to `design-qa`; what THIS dressing promised went to
+`reskin-qa`. Both take `--host/--port/--pages` (or `--expect`), not the old positional pair.
 
-- HTTP 200; the expected number of ACM blocks; real-copy markers present ("JA Template", "$149"…).
-- **No demo text remaining** outside fields flagged as placeholders; no literal `{loadposition}`;
-  no leaked PHP errors.
-- Every image `src` on the rendered page answers 200; orphan classes and empty FA icons checked
-  against the vocabulary.
-- Grep the **branding deny-list** across every sample page: zero hits outside flagged areas.
+- `design-qa.sh --host <h> --port <n> --pages "/a,/b" [--variant <slug>]` — HTTP 200, no literal
+  `{loadposition}`, no leaked PHP errors, and every internal link and image answers < 400.
+- `reskin-verify.sh --host <h> --port <n> --expect expect-pages.json [--variant <slug>]` — the
+  expected markers present ("JA Template", "$149"…), forbidden demo strings absent, and the
+  **branding deny-list** nowhere a reader can reach it: visible text plus `alt`, `title`,
+  `aria-label`, `placeholder` and meta `content`.
 - **Accessibility**: axe/pa11y against the demo's baseline — no worse, and no new faults from the
   real copy; render both schemes when the demo has dark mode.
 - **Whole-site link crawl**: every routable internal link answers 200; a failure returns to the
@@ -567,16 +569,25 @@ Grepping HTML cannot see a broken menu. The visual tier splits in two, running o
 **headless Playwright inside Docker** — the client's site installs nothing, and it depends on no AI
 vendor of theirs:
 
-1. **Deterministic geometry** (built — `visual-qa.sh` + `visual-qa.mjs`): render each page at
-   desktop/tablet/mobile and assert from the DOM: horizontal overflow (`scrollWidth > clientWidth`),
-   **nav-overlap** (header link bounding boxes intersecting, 4px tolerance), edge bleed, clipped
-   labels, images with `naturalWidth = 0`. Screenshots are kept as the record. The exit code is the
-   gate.
-2. **Vision LLM** (a later tier, optional): hand the screenshots to *Tracy's* vision model
-   (Settings → AI Scan) to judge what geometry cannot measure — rhythm, contrast, aesthetics. Only
-   when tier 1 is green, and only on representative pages. "Claude in Chrome" is not relevant here:
-   that is an extension for a browser with a person sitting at it, and this pipeline needs headless
-   on a server.
+1. **Deterministic geometry** (built — `visual-qa.sh`, now a wrapper over `browser-qa.mjs`):
+   render each page at desktop/tablet/mobile and assert from the DOM: horizontal overflow
+   (`scrollWidth > clientWidth`), **nav-overlap** (header link bounding boxes intersecting, 4px
+   tolerance), edge bleed, clipped labels, images with `naturalWidth = 0`, and any asset this
+   site's own server answers 4xx/5xx for — a CSS `background-image` that 404s was invisible to
+   every gate until the browser's response stream became the witness. Screenshots are kept as the
+   record. The exit code is the gate.
+2. **Deterministic pictures** (built 2026-08-19 — `pixel-diff.sh`, `skin-diff.sh`): what a rule
+   written in advance cannot catch, because the point of a regression is that nobody predicted it.
+   `pixel-diff` compares a page against its own last accepted render and marks in red what moved.
+   `skin-diff` compares a dressed page against the demo — not pixel for pixel, which is worthless
+   when the two share a template and nothing else, but on what the demo DEFINES and content cannot
+   change: palette by painted area, typeface, container bands. It also writes the contact sheet
+   the "your own eyes" step never had a command for.
+3. **Vision LLM** (still not built, still optional): hand the screenshots to *Tracy's* vision model
+   (Settings → AI Scan) to judge what even a picture diff cannot measure — rhythm, contrast,
+   aesthetics. Only when the tiers above are green, and only on representative pages. "Claude in
+   Chrome" is not relevant here: that is an extension for a browser with a person sitting at it,
+   and this pipeline needs headless on a server.
 
 First outing: it caught exactly the broken menu a person could see —
 `nav-overlap Solutions×Sign in (39px), FAQ×Pricing (41px)` across all 7 desktop pages; after the
@@ -773,12 +784,24 @@ absolute undress is ever needed.
     chevrons have generous padding and `overflow: visible`, and nothing is lost. `visual-qa` only
     counts a clip when the element is a genuine clipping context (overflow ≠ visible).
 50. **A Bootstrap-3 float grid is invisible to a colsOf built for flex/grid/`.row`** — the wrapper is
-    `display: block` and carries no `row` class, so column counting was wrong in both directions
-    (the glossary "failed" for not folding). `responsive-qa` now recognises a container by having
-    ≥2 children carrying `col-*` classes, and the desktop baseline is computed PER PAGE (the same
-    block type has different column variants on different pages). After changing the ruler, both
+    `display: block` and carries no `row` class, so column counting is wrong in both directions
+    (the glossary "failed" for not folding). The fix is to recognise a container by having ≥2
+    children carrying `col-*` classes, and to compute the desktop baseline PER PAGE (the same block
+    type has different column variants on different pages). After changing the ruler, both
     reference and compare must be re-measured, and the negative test re-run (force 3 columns at
     mobile → correct FAIL → remove → clean).
+
+    ⚠ **NOT IN THIS REPO.** This entry read "`responsive-qa` now recognises…" until 2026-08-19,
+    when the git history was checked: `col-` has never appeared in `responsive-qa.mjs` in any
+    commit here, and the desktop baseline is keyed `type|viewport`, not per page. The fix was made
+    somewhere else and never travelled. The gate published from this repo still carries the
+    pre-fix ruler, so on a float grid it reports one column everywhere — which reads as "collapsed"
+    at every viewport and therefore never fails, on either side of the comparison.
+
+    The lesson is the entry itself, not the grid. A trap log written in the past tense is a claim
+    about code, and this one went un-checked long enough to be quoted as fact. Any line here that
+    says a script "now does X" is worth grepping for before it is relied on — the `--variant`
+    contract was lost the same way, asserted in three files and honoured by three of five gates.
 51. **An SVG logo with no declared width/height collapses to 0 in a shrink-to-fit chain**
     (inline-block + `max-width:100%` loop; a PNG escapes thanks to its intrinsic size — which is why
     the demo never showed it). Two branding satellites: the client has no white logo variant, so a
@@ -787,12 +810,21 @@ absolute undress is ever needed.
     origin site — on the copy it must be replaced with a real link (looked up internally, or
     absolute to the origin for the parts outside Joomla).
 
-## Toolkit status (2026-08-12)
+## Toolkit status (2026-08-19)
 
-**12/12 scripts live** (layout-qa and responsive-qa joined 2026-08-12):
-`scan-demo` · `scan-client-site` · `scan-extensions` · `install-demo-frame` · `sync-extensions` ·
-`port-assets` · `fill-block` (takes a JSON job — the agent writes no SQL) · `design-qa` (text gate) ·
-`visual-qa` (geometry gate, headless Playwright) · `layout-qa` · `responsive-qa` · `undress`.
+Build scripts, unchanged: `scan-demo` · `scan-client-site` · `scan-extensions` ·
+`install-demo-frame` · `sync-extensions` · `port-assets` · `fill-block` (takes a JSON job — the
+agent writes no SQL) · `undress`.
+
+Gates, reorganised 2026-08-19 into the two skills that own them:
+
+- `design-qa`: `design-qa.sh` (text) · `visual-qa.sh` · `layout-qa.sh` · `pixel-diff.sh` (new).
+  The three browser tiers are wrappers over one engine, `browser-qa.sh --tiers …`; naming several
+  in one call renders each page once instead of once per tier (63 page loads became 28 on a
+  seven-page loop).
+- `reskin-qa`: `reskin-verify.sh` (expectations) · `responsive-qa.sh` · `skin-diff.sh` (new).
+  Both differential gates render through `design-qa`'s engine, so that skill must be installed
+  beside this one.
 
 The joomlart × stratum fixture is fully dressed: chrome plus 7 pages, design-qa 6/7 (home waiting on
 the last placeholder), visual-qa 21/21.

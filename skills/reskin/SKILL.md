@@ -141,11 +141,15 @@ read-only step that looks free is the one that costs the rollback.
    render preconditions), `sync-extensions.sh` (only ticked rows), `port-assets.sh` (demo
    image namespaces, never overwriting client files), then `fill-block.sh` per page — it takes
    a **job JSON** you write and verifies the render immediately after writing.
-4. **QA, looped until clean** — run `design-qa` (absolute: text tier, geometry tier, box
-   model) and `reskin-qa` (this dressing's promises: markers, deny-list, responsive vs the
-   demo's reference), then your own eyes on the screenshots. Every gate takes
-   `--variant <slug>`; every FAIL comes back here as a mapping decision, never as a patch
-   on the preview. Details and discipline live in those two skills.
+4. **QA, looped until clean** — run `design-qa` (absolute: text tier, geometry and box
+   model in one browser pass, plus a pixel diff against the last accepted render) and
+   `reskin-qa` (this dressing's promises: markers, deny-list, responsive vs the demo's
+   reference, and a skin diff that puts the demo and the dressed page side by side in one
+   image). Every gate takes `--variant <slug>` and every gate now sends the header — two of
+   them used to accept it nowhere, so a proposal run graded the live site and passed.
+   Then look at the contact sheets: the machine tiers cannot see a block that is arranged
+   validly and still wearing demo content. Every FAIL comes back here as a mapping decision,
+   never as a patch on the preview. Details and discipline live in those two skills.
 5. **Rollback** when asked: `undress.sh` restores the client copy from the snapshot. Pass
    `--keep-files` when another proposal of the same site is still standing: only the database is
    per-proposal, so stripping a stylesheet reaches every one of them.
@@ -230,7 +234,9 @@ The person who asked cannot see your terminal. When a stage finishes, tell them:
 now wear the new layout and which deliberately still wear the old one, what each gate returned,
 what went into the customer report (parts of the site this CMS does not serve, defects that
 exist on the live site too), and what still carries demo content behind a placeholder flag.
-Screenshots from `visual-qa` are the fastest way to show it.
+Screenshots from `visual-qa` are the fastest way to show it, and `skin-diff`'s contact
+sheets — demo beside dressed page, one image per viewport — are the fastest way to show a
+customer what changed.
 
 **Answer in the language the person is writing in.** File names, script names, slugs and job
 keys stay as they are — they are addresses, not prose, and translating one makes it wrong.
