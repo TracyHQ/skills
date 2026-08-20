@@ -5,7 +5,7 @@ description: >-
   stand in the way. Reads the site's own version and installed extensions, looks each one up in
   the public extension registry, and says out loud what it could not find out. Use when someone
   asks if a site is ready for Joomla 6, what is blocking an upgrade, or how far behind a site is.
-version: 1.3.0
+version: 1.4.0
 platforms: joomla
 tags:
   - joomla
@@ -129,7 +129,10 @@ scripts/php_step.py       the one PHP change to ask for now, or none
 scripts/upgrade_path.py   the chain, and the bridge into the verdict rules
 scripts/verdict.py        one of three levels, with its scope attached
 scripts/catalog.py        the registry client
+tests/run.sh              every check this skill makes about itself, one command
 ```
+
+Run `tests/run.sh` before trusting a change to any of them. 202 checks, no pytest, no network.
 
 ### One product arrives as many rows
 

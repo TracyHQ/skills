@@ -18,6 +18,20 @@ jobs:
       # without this the first parser to see those files is the fleet host that needs them.
       - run: pnpm check-scripts
       - run: pnpm test
+      # A skill whose scripts decide what a customer is told should be verifiable by whoever
+      # installed it, not only by the vendor who wrote it. Any skill that ships a
+      # tests/run.sh gets it run here; a skill without one is not failed for that.
+      - name: Run each skill's own checks
+        run: |
+          set -e
+          found=0
+          for r in skills/*/tests/run.sh; do
+            [ -f "$r" ] || continue
+            found=1
+            echo "== $r"
+            bash "$r"
+          done
+          [ "$found" = 1 ] && echo "skill checks: done" || echo "no skill ships tests/run.sh yet"
       - run: pnpm validate
       - name: Build index against the real repos
         run: pnpm build-index
