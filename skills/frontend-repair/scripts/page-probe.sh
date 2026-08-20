@@ -48,9 +48,12 @@ resolve_host_port() {
 # the copy gave no answer at all, records the honest miss, clears
 # PROBE_HTTP_CODE and returns 1, so a caller can tell "no page" from "a page
 # that answered badly" — the second is a finding, the first is not measurable.
-#   probe_page "$LABEL" "$HOST_PORT" "$PAGE" "$BODY_FILE" || …
+#   probe_page "$LABEL" "$HOST_PORT" "$PAGE" "$BODY_FILE" [PART] || …
+# PART is the unavailable[] part name a no-answer records under, defaulting to
+# "probe"; a caller keying its findings under another name passes that name so
+# the miss lands beside the finding it belongs to.
 probe_page() {
-  local label="$1" host_port="$2" page="$3" body_file="$4" out
+  local label="$1" host_port="$2" page="$3" body_file="$4" part="${5:-probe}" out
   PROBE_URL="http://127.0.0.1:${host_port}${page}"
   out="$(curl -sS -o "$body_file" -w '%{http_code} %{time_total}' --max-time 60 \
     -H "Host: ${label}.tracy.ai" -H "X-Forwarded-Proto: https" \
@@ -58,7 +61,7 @@ probe_page() {
   PROBE_HTTP_CODE="$(printf '%s' "$out" | awk '{print $1}')"
   PROBE_TIME_TOTAL="$(printf '%s' "$out" | awk '{print $2}')"
   if [[ -z "$PROBE_HTTP_CODE" || "$PROBE_HTTP_CODE" == "000" ]]; then
-    envelope_unavailable "probe" "No HTTP response from $PROBE_URL"
+    envelope_unavailable "$part" "No HTTP response from $PROBE_URL"
     PROBE_HTTP_CODE=""
     return 1
   fi
