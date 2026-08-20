@@ -1,6 +1,6 @@
 ---
 name: create-visibility-report
-description: 'Use to create an AI Visibility Report for a Shopify store, end to end, on the user''s own API keys. Probes everything first — the Mention Network MCP, stored keys, which of the four engines are reachable, the storefront catalog, any recent run — then asks the user at most three times, each a click on pre-filled options: one confirm card (shop, product, market, language, city (optional, defaults to country-level), the key behind each AI engine, cells/time/cost), one prompt approval, one optional website audit. Every engine is collected with an API key and nothing else: chatgpt on OPENAI_API_KEY, claude on ANTHROPIC_API_KEY, gemini on GEMINI_API_KEY, and google_ai_mode — which has no model API — on SERPAPI_API_KEY. There is no subscription lane and no browser lane, so a missing key is a setup step the skill walks through and stores, and a key can be checked, replaced or removed at any time. Accepts a one-line shorthand (`/create-visibility-report kbeautyarabia.com byok country=SA`) with tokens in any order and misspellings corrected silently. A logged-in consumer chat UI is never used: its memory and custom instructions personalize the answer and the report would no longer measure what a neutral shopper sees. Collects, analyzes the answers client-side by default (the backend then spends nothing and the report is ready on the first poll), validates, submits, exports the PDF, and hands back the link.'
+description: 'Use to create an AI Visibility Report for a Shopify store, measured entirely on the user''s own machine and the user''s own API keys. Collection, detection and analysis all run locally; the Mention Network MCP is used for two things only — fetching the live catalog (intents, prompt templates, model ids) when reachable, and storing/exporting the finished report at the end. Probes everything first — stored keys, which of the four engines are reachable, the storefront catalog, any recent run — then asks the user at most three times, each a click on pre-filled options: one confirm card (shop, product, market, language, city (optional, defaults to country-level), the key behind each AI engine, cells/time/cost), one prompt approval, one optional website audit. Every engine is an API key and nothing else: chatgpt on OPENAI_API_KEY, claude on ANTHROPIC_API_KEY, gemini on GEMINI_API_KEY, and google_ai_mode — which has no model API and no alternative route — on SERPAPI_API_KEY. A missing or rejected key is never a dead end: the skill names the engine, then offers two real choices — supply the key now, or skip that engine for this run — and the declared platform set threads through the grid, the submission and the local report so a skipped engine is never a silent hole or a false zero. Accepts a one-line shorthand (`/create-visibility-report kbeautyarabia.com byok country=SA`) with tokens in any order and misspellings corrected silently. A logged-in consumer chat UI is never used: its memory and custom instructions personalize the answer and the report would no longer measure what a neutral shopper sees. Collects, analyzes the answers client-side by default, and writes a local report before touching the network again — submitting to Mention Network for storage and the hosted PDF is a separate, optional last step that can fail or be declined without losing the run.'
 version: 1.0.0
 platforms: shopify
 requires-mcp: [mention-network]
@@ -19,19 +19,32 @@ API keys collect the answers) and **backend-run** (the backend spends its own AI
    `AskUserQuestion` with concrete pre-filled options; typing is the fallback, not the path.
 3. **The confirm card always shows** — even when the shorthand supplied everything. Only the `yes`
    flag skips it.
-4. **A gap is a setup task, not a verdict.** Never end a turn with "only 1 of 4 engines is possible"
-   as if that settled it.
-5. **The grid is all 4 engines × every declared intent — there is no partial BYOK run.** The backend
-   rejects a short submission (`INCOMPLETE_PLATFORM_GRID` / `INCOMPLETE_INTENT_GRID`), so "drop the
-   engine we can't reach" is not a lighter option, it is a run that spends the full quota and then
-   fails. A missing key is added (P1 walks the user through it) or the run moves to the backend lane.
-6. **Secrets are handled, never echoed.** Every key goes through `scripts/credentials.mjs`, which
+4. **A gap is a decision, not a verdict.** Never end a turn with "only 1 of 4 engines is possible"
+   as if that settled it. Say, per engine, whether a usable key exists, and then give the user the
+   two real choices: supply the key now, or skip that engine for this run. Never silently skip
+   (a hole nobody agreed to), never silently fail (a missing key is not a reason to stop measuring
+   the other three).
+5. **A declared platform has no holes; an undeclared one is never in the grid at all.** The backend
+   rejects a submission with a hole in a platform it WAS declared for (`INCOMPLETE_PLATFORM_GRID` /
+   `INCOMPLETE_INTENT_GRID`) — but declaring fewer than 4 platforms is a legitimate outcome now:
+   skipping an engine means never declaring it, never collecting a cell for it, and never
+   submitting one for it. It never means declaring the engine and leaving its cells empty, and a
+   skipped engine's cells must never reappear later as an empty row or a false zero.
+   `scripts/engine-preflight.mjs` turns the Q1 answer into the declared/skipped/blocked split every
+   later step (`grid.json`, the submission, the local report) reads — see *Credentials* below.
+6. **The run is local-first.** Collection (P4), detection (P4.5) and validation (P5) all complete
+   on this machine and produce a local report before the MCP is touched again for anything but the
+   live catalog. Submitting the finished run to Mention Network (P6) is a separate, final, optional
+   step — it can fail, be declined, or wait on a key without erasing what was already measured.
+   `MENTION_NETWORK_KEY` missing means "cannot store yet," never "cannot measure."
+7. **Secrets are handled, never echoed.** Every key goes through `scripts/credentials.mjs`, which
    reads values from the environment and never from argv. Do not print a key, do not repeat one
    back, and do not write one into a file inside this skill directory.
 
 ```
-P0 parse → P1 preflight → P2 resolve → [Q1 confirm] → P3 prompts → [Q2 approve]
-        → P4 collect → P4.5 analyze → P5 validate → P6 submit+poll → P7 export → [Q3 audit]
+P0 parse → P1 preflight → P2 resolve → [Q1 confirm: engines + gaps] → P3 prompts → [Q2 approve]
+        → P4 collect → P4.5 analyze → P5 validate + local report
+        → P6 submit (optional, needs MENTION_NETWORK_KEY) + poll → P7 export → [Q3 audit]
 ```
 
 Companion files — read the one the situation calls for, not all of them up front:
@@ -73,19 +86,48 @@ the other needs a browser MCP in the session and a profile nobody can verify fro
 If a route would require signing in to a consumer chat account, it is not a route — offer to set up
 the key instead (`SETUP-ROUTES.md`).
 
-## Live data comes from the MCP, never from memory
+## Live data comes from the MCP, never from memory — with a documented fallback when it's unreachable
 
 The intent slugs, the platform list, the prompt templates, and the exact `servedModel` /
 `apiModelId` each platform requires are **live catalog** from the backend's own tables — they have
 already changed by migration more than once (`gpt-4o`→`gpt-5.5`, `gemini-2.5-pro`→`gemini-3.5-flash`,
 and 2026-07-29 `gemini-3.5-flash`→`gemini-3.6-flash`, with `3.5-flash` kept as the managed lane's
-in-platform fallback — see the fallback ADR). Never hardcode, recall, or invent them — that history is
-exactly why. Fetch every run: `get_byok_skill`, `describe_check_grid` (its response already carries
-the full `intents` list — no separate `list_intents` call needed), `get_prompt_templates`,
-`get_product_name_rules`, `get_template_localization_rules`, and — for the client-side analysis at
-P4.5, which runs **by default** — `get_detect_extraction_spec`.
-The validator that rejects your payload reads the same catalog — the MCP is the only source that
-can't drift.
+in-platform fallback — see the fallback ADR, and 2026-08 `fastest_shipping`→`free_shipping`). Never
+hardcode, recall, or invent them — that history is exactly why. Fetch every run: `get_byok_skill`,
+`describe_check_grid` (its response already carries the full `intents` list — no separate
+`list_intents` call needed), `get_prompt_templates`, `get_product_name_rules`,
+`get_template_localization_rules`, and — for the client-side analysis at P4.5, which runs **by
+default** — `get_detect_extraction_spec`. The validator that rejects your payload reads the same
+catalog — the MCP is the only source that can't drift.
+
+**The MCP now answers these anonymously** (verified 2026-08-19: prod accepts a request with no
+Bearer at all, principal `anonymous`, and `tools/list`/`describe_check_grid` both return real data —
+`scripts/mcp-client.mjs` already omits the header rather than sending a stale one, which is worse
+than none because a *wrong* key still 401s). So a missing `MENTION_NETWORK_KEY` is not a reason
+this fetch should fail — only real unreachability (network outage, MCP genuinely down) is.
+
+**When the fetch itself fails, degrade to the local fallback — never stop the run and never invent
+a value.** `scripts/catalog-cache.mjs` keeps a dated copy of the last catalog each name
+successfully returned, in the same config directory as the credential store (outside this bundle,
+never in git):
+
+```bash
+# after every successful fetch this run:
+node "$HERE/scripts/catalog-cache.mjs" save describe_check_grid /path/to/the/response.json
+
+# when the live fetch fails:
+node "$HERE/scripts/catalog-cache.mjs" load describe_check_grid   # {fetchedAt, age, data} or throws
+```
+
+If nothing is cached yet (a brand-new machine's first run, and the MCP happens to be down), there
+is genuinely no local path — say so, and offer `dry-run` or waiting rather than guessing a value.
+If something is cached, use it, but **say so out loud, with its age, everywhere the run would
+otherwise have shown live data**: on the confirm card ("catalog: local fallback, fetched 3 days
+ago — intents/model ids may be stale"), in `state.json`, and in the local report P5 writes. What
+goes stale fastest is exactly the two things that migrate — the intent list and each platform's
+`apiModelId` — so a stale `apiModelId` is not fatal (ADR-0036: a mismatch is a warning, not a
+block, see P4's collector table) but it does mean the report may show a different model than the
+one actually serving that engine today. Re-run once the MCP is reachable to refresh the cache.
 
 ## Credentials — enter once, reuse, never echo
 
@@ -108,8 +150,44 @@ It never enters the bundle, the `.tgz`, or git.
   each. Run it before a grid, not after: a revoked key found at cell 9 has already spent cells 1-8.
 - `credentials.mjs remove <NAME>` drops one; saving again replaces it.
 - `MENTION_NETWORK_KEY` can be stored, but the MCP is launched by the Claude host — what actually
-  persists the connection is `claude mcp add` / the host config / the shell profile.
+  persists the connection is `claude mcp add` / the host config / the shell profile. It gates
+  **storage** only (P6) — see *Local-first* below for why its absence never stops P1–P5.
 - **Never print a secret.** `status` masks to the last 4; consume values only by sourcing the file.
+
+### A missing key is a conversation, not a dead end
+
+Four keys are engines (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `SERPAPI_API_KEY`);
+`MENTION_NETWORK_KEY` is storage, handled separately below. For the four engine keys, run
+`credentials.mjs check` (P1) and feed its lines to `scripts/engine-preflight.mjs`'s
+`engineStatuses()` — it classifies each engine into the same six states `check` prints (`missing` /
+`ok` / `rejected` / `inconclusive` / `unreachable` / `not-probed`), then `classifyGaps()` separates
+the two that need a **retry, not a conversation** (`inconclusive` — usually a `429`, and
+`unreachable` — a network blip; neither is a verdict on the key) from the two that do
+(`missing`, `rejected`).
+
+For every engine still in a gap state after a retry, say so plainly and offer **exactly two real
+choices** — never a silent skip, never a silent fail:
+
+1. **Supply it now** — hand over the `read -rs` one-liner (below) so the value never enters this
+   conversation. Re-run `check` once they say it's done.
+2. **Skip this engine for this run** — a legitimate, first-class outcome now, not a failure mode.
+   The engine is left out of the declared platform set entirely (see design contract 5): no cell is
+   collected for it, none is submitted, and the local report states the real denominator — "2 of 4
+   engines measured" — with the reason next to the engine that's missing, not as a footnote.
+
+`scripts/engine-preflight.mjs`'s `resolveDeclaredPlatforms({ statuses, decisions })` is where this
+turns into data: an `ok` engine declares itself with no decision needed; a gap engine with **no**
+decision yet is `blocked` — neither declared nor skipped, because Q1 hasn't actually asked yet;
+`decisions[engine] = 'skip'` moves it to `skipped` with a `reason` string the local report prints
+verbatim; `decisions[engine] = 'include'` on an engine that is **not** `ok` is refused into
+`blocked` rather than honored — forcing an unready engine into the grid is exactly the silent hole
+this exists to prevent.
+
+**`SERPAPI_API_KEY` is not one of several options — it is the only route to `google_ai_mode`.**
+There is no fallback engine, no alternative provider, nothing else that answers "what does Google
+AI Mode say" (SETUP-ROUTES.md). Say that explicitly when this key is the gap, so the user
+understands skipping it means the report has nothing at all for that engine, not a lesser version
+of it.
 
 ---
 
@@ -129,11 +207,14 @@ unrecognized token becomes a note on the confirm card.
 Everything here runs before the user is asked anything, so every option in Q1 is backed by a real
 value. Run it as one batch and read the results together.
 
-> **One stop condition fires inside P1, before any question:** `MENTION_NETWORK_KEY` missing **and**
-> no host MCP tool answering ends the run right here with a request for the key — see *No key stored
-> at all* below. It **outranks `dry-run`**, which stops at the confirm card; when both apply, the
-> key blocker wins because there is no plan to confirm. The batch below is only half of P1 — the
-> bulleted probes after it carry the rules that decide whether the run can proceed at all.
+> **Nothing in P1 stops the run anymore.** The old rule here — no `MENTION_NETWORK_KEY` and no host
+> MCP tool answering ends the run before any question — is gone (design contract 6, *Local-first*).
+> `MENTION_NETWORK_KEY` gates **storage** (P6) only, and the MCP now answers the catalog calls
+> anonymously (below), so its absence rarely blocks anything at all. What *does* still shape Q1 is
+> the **per-engine** key state (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY` /
+> `SERPAPI_API_KEY`) — that's a real gap, handled as the conversation in *Credentials* above, never
+> a stop condition either. The batch below is only half of P1 — the bulleted probes after it carry
+> the rules that decide what Q1 actually offers.
 
 ```bash
 HERE="$(dirname "$(readlink -f "<abs path to this SKILL.md>")")"   # this skill's folder
@@ -146,10 +227,12 @@ curl -s -o /dev/null -w '%{http_code}' "https://<shopDomain>/products.json?limit
 
 Alongside it, in the same batch:
 
-- **MCP alive?** One cheap call (`get_shop({shopDomain})`).
+- **MCP alive?** One cheap call (`get_shop({shopDomain})`), tried **without** a key first — since
+  2026-08-19 prod answers anonymously (*Live data comes from the MCP*, above). This is a catalog
+  freshness probe now, not an access gate: it succeeds for almost everyone, key or no key.
   **No `mention-network` tools in the session is *not* a blocker.** `scripts/mcp-client.mjs` speaks
-  the same MCP over plain HTTP using `MENTION_NETWORK_KEY`, so a stored key is enough to run the
-  whole skill (measured 2026-07: a full 20-cell run completed in a session where the host had no
+  the same MCP over plain HTTP, so it works whether or not a `MENTION_NETWORK_KEY` is stored
+  (measured 2026-07: a full 20-cell run completed in a session where the host had no
   `mention-network` tools at all). Try that path before asking the user for anything:
   ```bash
   node --input-type=module -e "
@@ -157,8 +240,12 @@ Alongside it, in the same batch:
   console.log(JSON.stringify(await callTool('get_shop',{shopDomain:'<domain>'})))"
   ```
   Use `callTool` for every MCP call in that case — the tool names and arguments are identical.
-  Only when **both** the host tools are absent **and** that HTTP call fails is the MCP genuinely not
-  set up. Then, and only then:
+  Only when **both** the host tools are absent **and** that anonymous HTTP call fails is the MCP
+  genuinely unreachable this run. That is no longer a stop condition (*Local-first*): fall back to
+  `scripts/catalog-cache.mjs load <name>` for whatever catalog calls P3 needs, note the fallback and
+  its age on the confirm card, and carry on — see *Live data comes from the MCP* above for exactly
+  what goes stale and how it's disclosed. If the user separately wants the MCP registered as a host
+  tool, or wants to store this run at the end, that is what a `MENTION_NETWORK_KEY` is for:
   ```bash
   export MENTION_NETWORK_KEY=<their-key>       # from mention.network — never invent one
   claude mcp add mention-network --transport http \
@@ -167,50 +254,24 @@ Alongside it, in the same batch:
   ```
   (Running this bundle *as* a plugin? The shipped `.mcp.json` already declares it — they only need
   `export MENTION_NETWORK_KEY=...` and a reload.) A **401** is a wrong key, not a missing one — see
-  `RECOVERY.md`. `mcp-client.mjs`'s own default points at this same production host; override with
-  `MENTION_NETWORK_MCP_URL` only to point at the `-dev` host for development — and note that a
-  **dev-issued key is rejected by prod** (measured: prod answers it with `401 "Internal API key
-  không hợp lệ"`), so switching hosts back to production needs a production key, not just a URL
-  change.
-
-  > **No key stored at all is the first-run blocker — handle it before Q1, not after.** This is the
-  > most common way a brand-new user lands here, and there is no way to work around it: the MCP is
-  > where the prompt templates, the intent list, the grid and the validator live, so **every lane
-  > needs it**. Without it you cannot render a prompt (P3), cannot validate (P5), cannot submit
-  > (P6), and cannot state a real cell count on the confirm card.
-  >
-  > So when `credentials.mjs status` says `MENTION_NETWORK_KEY: missing` **and** no host tool
-  > answers, **stop before the confirm card** and say plainly: the run needs a key, here is where to
-  > get one (log in at mention.network), and here is how to store it —
-  > ```bash
-  > MENTION_NETWORK_KEY='<pasted>' node "$HERE/scripts/credentials.mjs" save MENTION_NETWORK_KEY
-  > ```
-  > Then re-probe and continue the run. **Do not build a speculative confirm card with UNKNOWN in
-  > the coverage line** to look like progress — an estimate you can't compute is not a plan, and the
-  > user would be approving a run that cannot start. Asking for the key *is* the useful next step.
+  `RECOVERY.md`; a wrong key is worse than none (*Live data comes from the MCP*, above), so don't
+  send a stored key you have not verified with `check`. `mcp-client.mjs`'s own default points at
+  this same production host; override with `MENTION_NETWORK_MCP_URL` only to point at the `-dev`
+  host for development — and note that a **dev-issued key is rejected by prod** (measured: prod
+  answers it with `401 "Internal API key không hợp lệ"`), so switching hosts back to production
+  needs a production key, not just a URL change.
 - **A key per engine** — `ANTHROPIC_API_KEY` covers `claude`, `OPENAI_API_KEY` covers `chatgpt`,
   `GEMINI_API_KEY` covers `gemini`, `SERPAPI_API_KEY` covers `google_ai_mode`. That mapping is the
   whole routing problem: there is one route per engine, so P1 is not choosing between routes, it is
-  establishing which of the four keys exist and still work.
+  establishing which of the four keys exist and still work — see *Credentials → A missing key is a
+  conversation, not a dead end* above for the full six-state read and what Q1 does with a gap.
 
   **A key in the store is not proof it works**, so `credentials.mjs check` is part of the batch
   above rather than an optional extra. It is one list call per provider and it costs nothing;
-  discovering a revoked key at cell 9 of 20 has already spent cells 1-8 and still fails the grid,
-  because a short submission is rejected outright (design contract 5).
-
-  Read its output as **six** distinct states, because the fix differs — `credentials.mjs check`
-  (`scripts/credentials.mjs:253-258`) emits more than the two obvious ones:
-  - **`missing`** — no key. Offer to add one.
-  - **`ok`** — the provider accepted it. Nothing to do.
-  - **`REJECTED`** — the provider answered `401`/`403`: a key that is wrong, revoked, or out of
-    quota **on those exact statuses only**. Offer to replace it, and say which provider refused it.
-  - **`inconclusive — provider answered <status>`** — any other non-2xx status, most often a `429`.
-    **Not** the same as `REJECTED` — a rate-limited key is not a bad key. Retry before saying
-    anything about the key itself.
-  - **`unreachable`** — a network problem, not a verdict on the key. Retry before telling the user
-    anything about it.
-  - **`not probed here`** — `MENTION_NETWORK_KEY` only: this tool has no cheap probe for it: P1's
-    own MCP call is the real check.
+  discovering a revoked key at cell 9 of a declared 20 has already spent cells 1-8 and still fails
+  the grid, because a hole in a *declared* platform is rejected outright (design contract 5) — the
+  fix for a bad key is to add a working one or to declare fewer platforms, decided **before**
+  collecting, never discovered mid-grid.
 - **Store + catalog** — `get_shop` (reuse `primaryLocale` as the language hint; `SHOP_NOT_FOUND`
   just means never-checked) and `list_shop_products`. The backend's product view is often sparse
   (measured: **1** product for a store whose storefront listed a full catalog), so also read
@@ -260,10 +321,11 @@ block afterwards.
   signal you used (recognizable brand, price band, the market's category). Pre-selecting one is
   fine; passing off an arbitrary pick as "the flagship" is not.
 - **Key per engine** — one route each, so there is nothing to rank. What P2 resolves instead is
-  which engines are *ready*: a key that is stored and passed `check`. An engine whose key is
-  missing or rejected is a **setup task carried onto the confirm card**, never a reason to drop the
-  engine — a 3-of-4 grid is rejected by the backend after spending the full quota (design
-  contract 5). Record one repair line per engine whose key is not ready.
+  which engines are *ready*: a key that is stored and passed `check`. Feed `credentials.mjs check`'s
+  lines through `engine-preflight.mjs`'s `engineStatuses()` to get that per-engine state. An engine
+  whose key is missing or rejected is **not yet declared** — it carries a gap line onto the confirm
+  card with the two real choices (*Credentials*, above): add the key, or skip it for this run. P2
+  does not decide which; it only makes sure every gap is visible so Q1 can ask.
 - **Estimate** — cell count (platforms × intents), rough minutes, and cost. API cells are separate
   processes and **fan out** (`collect-pool.mjs` runs 4 per provider by default), so the three model
   engines finish in roughly the time of the slowest single cell. Name the metered ones explicitly:
@@ -284,6 +346,24 @@ Keys      chatgpt         OPENAI_API_KEY     ****a91f   ✓ checked
           gemini          GEMINI_API_KEY     ****FHEQ   ✓ checked
           google_ai_mode  SERPAPI_API_KEY    ****075c   ✓ checked · ~4 of your free 100
 Coverage  4/4 engines · 20 cells · ~8 min · ~$0.40 · clean room (no logged-in chat UI)
+```
+
+A gap looks like this instead — the card still shows, the estimate is still real, it's just built
+from the declared set rather than assuming all four (and note there is no `google_ai_mode` row
+pretending to be checked when it isn't — a skipped engine gets one clear ⚠ line, never a silent
+absence):
+
+```
+Shop      kbeautyarabia.com  ·  SA  ·  Arabic
+City      country-level (no city set — optional, say one to narrow the market)
+Product   COSRX Advanced Snail 96 Mucin Power Essence
+Lane      BYOK (your own API keys — the backend spends nothing)
+Keys      chatgpt         OPENAI_API_KEY     ⚠ missing — no key stored
+          claude          ANTHROPIC_API_KEY  ****0c47   ✓ checked
+          gemini          GEMINI_API_KEY     ****FHEQ   ✓ checked
+          google_ai_mode  SERPAPI_API_KEY    ⚠ REJECTED 401 — key is wrong, revoked or out of quota
+Coverage  2/4 engines ready (claude, gemini) · 2 need a decision (chatgpt, google_ai_mode)
+          10 cells · ~4 min · ~$0.20 if run at 2/4 · clean room (no logged-in chat UI)
 ```
 
 ### What goes in the Q1 call
@@ -312,13 +392,14 @@ can still be corrected, and ask nothing about them.
 answer. Design contract 3: the card always shows.
 
 **A missing key usually needs no question of its own.** When another question is firing, the gap
-rides along inside it as a ⚠ row on the affected engine (*"gemini: no GEMINI_API_KEY → free key,
-~1 min"*) — the user accepts the setup step in the same click.
+rides along inside it as a ⚠ row on the affected engine, worded with both real choices
+(`engine-preflight.mjs`'s `gapLine()` — *"gemini: no GEMINI_API_KEY. Supply it now (free AI Studio
+key, ~1 min) or skip gemini for this run."*) — the user picks either in the same click.
 
 It becomes a **separate question only when there is nothing else to attach it to**. In that case
-**don't drop one of the four to fit it** — ask the four, then handle the gap in the next turn:
-saving a key needs a round trip anyway (the user runs the `read -rs` line, you re-check), so it was
-never going to fit in the same breath.
+ask it directly rather than folding it into an unrelated question — *Access gap*, below, is that
+question's exact shape. Adding a key needs a round trip anyway (the user runs the `read -rs` line,
+you re-check), so it was never going to fit in the same breath either way.
 
 > ### Never decide the product or the language for the user
 >
@@ -377,34 +458,45 @@ about collection is really a question about whether a key exists:
 | `gemini` | `generateContent` + `google_search` | `GEMINI_API_KEY` | AI Studio free tier |
 | `google_ai_mode` | SerpApi (no model API exists) | `SERPAPI_API_KEY` | ~1 search per cell of a free ~100/month |
 
-> ## Never offer to drop an engine.
+> ## Skipping an engine is a real option — but a declared one, never a silent one.
 >
-> **There is no "skip it" / "drop that engine" / "run without it" option.** Not because it is impure
-> — because it **cannot work**: the backend requires the full platform × intent grid and rejects a
-> short submission with `INCOMPLETE_PLATFORM_GRID` / `INCOMPLETE_INTENT_GRID` (`get_byok_skill` §0:
-> *"If you cannot reach one engine, fix the access rather than dropping the engine."*). Offering a
-> partial BYOK run spends the user's whole quota and then fails at submit. Measured 2026-07-28: a
-> real run was offered exactly that option before this rule existed.
+> **There is no "leave it out and say nothing" option, and no "declare it anyway and hope."** Those
+> are the two things that actually cannot work: a submission with a hole in a platform it declared
+> is rejected (`INCOMPLETE_PLATFORM_GRID` / `INCOMPLETE_INTENT_GRID`), and a report that quietly
+> drops an engine's row without saying so misrepresents what was measured. **Skipping the engine
+> outright is fine** — the owner's own framing for this skill: a missing key gets a plain statement
+> of the gap and two real choices, supply it or skip it. "Skip" means the engine is never declared:
+> no cell collected, no cell submitted, and the local report's coverage line names it and why
+> (design contract 5, *Credentials* above). Measured 2026-07-28, before this rule existed: a real
+> run was offered a THIRD thing — collect fewer engines while still declaring all four — which is
+> the one shape that is never legitimate, because that is exactly the hole `INCOMPLETE_PLATFORM_GRID`
+> exists to catch.
 >
-> The only legitimate answers to "this engine has no working key" are **add the key** or **switch
-> the whole run to the backend lane** — never a smaller grid.
+> The three real answers to "this engine has no working key" are **add the key**, **skip the
+> engine for this run** (declare fewer, still get a full report on the rest), or **switch the whole
+> run to the backend lane** if the user wants all four without creating any keys at all.
 
-Build the card from what `credentials.mjs check` actually reported (P1), and label every engine with
-its key state. A real question from a machine with two keys missing:
+Build the card from what `credentials.mjs check` actually reported (P1), run through
+`engine-preflight.mjs`'s `engineStatuses()`, and label every engine with its key state. A real
+question from a machine with two keys missing:
 
 ```
 Two engines have no key yet — how do you want to cover them?
   ▸ Add both keys now (Recommended)   I print one command per key; the value never enters this chat
                                       gemini:         free AI Studio key      (~1 min, no cost)
-                                      google_ai_mode: free SerpApi key        (~1 min, ~100/month)
-  ▸ Add the free ones, skip the run   save the keys now, collect later
+                                      google_ai_mode: free SerpApi key        (~1 min, ~100/month) —
+                                                       the ONLY route to this engine, no fallback
+  ▸ Skip both for this run            report covers chatgpt + claude only; the other two are named,
+                                      with why, on the confirm card and in the local report — not
+                                      silently absent
   ▸ Backend-run instead               the backend queries all four on its own keys — no longer BYOK
 ```
 
-Note what the ⚠ rows do **not** say: they don't demote the engine and they don't propose leaving it
-out. They state the gap and the one command that closes it. After the user picks, walk
-`SETUP-ROUTES.md` for exactly those engines, re-run `credentials.mjs check`, and confirm coverage
-before collecting.
+Note what the ⚠ rows say and don't: they never demote the engine to a lesser cell, and a "skip"
+pick is recorded with its reason, not just dropped. After the user picks, either walk
+`SETUP-ROUTES.md` for exactly the engines being added and re-run `credentials.mjs check`, or record
+the skip via `resolveDeclaredPlatforms({ statuses, decisions })` and move on — either way, re-state
+coverage from the result before spending anything.
 
 Never fold `google_ai_mode` into a question about the model engines: it is a different provider with
 a different key, and a missing cell fails the submit with `MISSING_CELL`.
@@ -415,19 +507,25 @@ the key setup instead. If the user insists after hearing that, it is their call:
 plan block and in the handover that those cells came from a personalized account, so the report
 measures that account rather than the market.
 
-**Access gap** — if an engine has no working key yet, the question is **how to get one**, never
-whether to live without it. There are exactly two answers, because a short grid is rejected:
+**Access gap** — if an engine has no working key yet, the question names the gap and offers all
+three real answers:
 
 1. **Add the key now (Recommended)** — walk `SETUP-ROUTES.md` for exactly the engines that need it,
    with the concrete command and its real cost (*"a free AI Studio key covers gemini and a free
    SerpApi key covers Google AI Mode — about two minutes, no cost"*). Then re-check and re-state
    coverage before spending anything.
-2. **Backend-run instead** — the backend queries all four on its own keys. The right call when the
-   user does not want to create keys; it costs the backend's AI budget and the run is no longer BYOK.
+2. **Skip it for this run** — the engine is never declared (design contract 5). Say what the run
+   will cover instead ("2 of 4 engines: claude, gemini") and carry the reason onto the confirm card
+   and the local report — never a bare "N/4" with no explanation attached.
+3. **Backend-run instead** — the backend queries all four on its own keys. The right call when the
+   user wants full coverage without creating any keys; it costs the backend's AI budget and the run
+   is no longer BYOK.
 
-**Do not add a third option.** "Run it with 3 engines", "skip gemini for now", "we can add chatgpt
-later" — all of these end in `INCOMPLETE_PLATFORM_GRID` after the quota is spent. If the user asks
-for one anyway, say plainly that the backend rejects partial grids, and offer these same two.
+**The one thing never to do is a fourth option: declare an engine and collect fewer than its full
+intent set anyway.** "Declare all four, but only actually collect 3" is not a lighter version of
+skipping — it is the exact hole `INCOMPLETE_PLATFORM_GRID` rejects, after the quota for those cells
+is already spent. If the user asks for that shape, say plainly that a declared platform must be
+complete, and offer skip-it-outright instead.
 
 Getting a key is the user's to do — hand them the `read -rs` one-liner rather than asking them to
 paste the secret to you, and **wait for them to say it's done before re-checking**. Do the parts
@@ -453,12 +551,23 @@ RUN="$(node "$HERE/scripts/run-dir.mjs" --domain "<shopDomain>")"
 echo "$RUN"   # confirm this is a real path before writing anything into "$RUN/…"
 ```
 
+**Write `state.json` now, with the Q1 decision already in it** — `declaredPlatforms` (the engines
+this run measures) and `skippedEngines` (the ones it doesn't, each with the reason from
+`resolveDeclaredPlatforms`). RECOVERY.md documents the full shape. Every later step — the grid file
+below, the collectors, P5's local report, P6's submission — reads `declaredPlatforms` from here
+rather than re-deriving it, so there is exactly one place the declared set is decided.
+
 Fetch the live catalog: `get_byok_skill` (the authoritative playbook — follow it), then
 `describe_check_grid` (its `intents` field IS the `list_intents` data — don't call it twice),
 `get_prompt_templates({language})`, `get_product_name_rules`, `get_template_localization_rules`.
+On success, cache each with `catalog-cache.mjs save <name> <file>` (*Live data comes from the MCP*,
+above) so a future run's fetch failure has something dated to fall back to. On failure, load the
+cache instead, print its age, and carry the same "local fallback, fetched N days ago" note into
+`state.json` and onto the confirm-card-equivalent summary you show before P4.
 
-- **Decide the grid** — platforms × intents. `where_to_buy` is **mandatory**; every declared cell
-  must be collected.
+- **Decide the grid** — `declaredPlatforms` (from `state.json`) × intents. `where_to_buy` is
+  **mandatory** on every declared platform; every declared cell must be collected, and no cell is
+  ever built for a platform NOT in `declaredPlatforms` (design contract 5).
 - **Render the actual prompt per intent** — apply the template with the normalized product name, in
   the prompt's language (localization rules).
 
@@ -529,7 +638,13 @@ after Q2, from the approved prompts and the live grid, and write it to `"$RUN/gr
 ]
 ```
 
-One entry per cell of the grid (platforms × intents), same shape repeated for every intent.
+One entry per cell of the **declared** grid (`declaredPlatforms` × intents from `state.json`), same
+shape repeated for every intent — a skipped engine gets **no entry at all**, not an entry with an
+empty prompt or a placeholder response; that is what keeps it from ever reappearing as a false zero
+downstream. Before running the pool, `engine-preflight.mjs`'s `assertRectangularGrid(jobs.map(j =>
+({platformSlug: j.platform, intentSlug: j.intent})), {declaredPlatforms, declaredIntents})` is a
+cheap local check that the file you're about to run has no hole and no stray platform — worth
+running on `grid.json` itself, before spending a single request, not only on the cells afterward.
 `location` is optional and threads straight to `collect-serpapi.mjs --location` — this is where the
 Q1 city answer actually reaches an engine; omit it for the country-level default. Every job may
 also carry `timeoutMs`, passed through as that collector's `--timeout-ms` (see *The collectors*
@@ -641,39 +756,83 @@ Read **`ANALYSIS.md`** now for the full playbook: fetching `get_detect_extractio
 one prompt per cell, delegating to one sub-agent per cell safely, the price/shipping and non-Latin
 merchant guards, the self-check command, and the three legitimate reasons to skip it.
 
-## P5 — Validate
+## P5 — Validate, then write the local report — this is where "local-first" pays off
 
-`submit.mjs` needs `MENTION_NETWORK_KEY` (`mcp-client.mjs`) — **source the credential store again
-here**: shell state does not persist between tool calls, so the sourcing at P4 does not carry over
-if this runs as a separate call. This is the source of `missing MENTION_NETWORK_KEY in the
-environment` far more often than an actually-missing key.
+Everything in this step is designed to succeed even when `MENTION_NETWORK_KEY` is absent — only P6
+(actual storage) hard-requires it. Do the local checks first, in this order, because each is
+cheaper than the one after it:
 
-```bash
-CREDS="${MENTION_NETWORK_CREDENTIALS:-$HOME/.config/mention-network/credentials}"
-set -a; [ -f "$CREDS" ] && . "$CREDS"; set +a
-node "$HERE/scripts/submit.mjs" --cells "$RUN/cells/" --validate-only
-```
+1. **The declared grid has no holes and no strays — checked locally, for free.**
+   ```bash
+   node --input-type=module -e "
+   import { readdirSync, readFileSync, statSync } from 'node:fs'
+   import { assertRectangularGrid } from '$HERE/scripts/engine-preflight.mjs'
+   const state = JSON.parse(readFileSync('$RUN/state.json', 'utf8'))
+   const cells = readdirSync('$RUN/cells').filter(f => f.endsWith('.json'))
+     .map(f => JSON.parse(readFileSync('$RUN/cells/' + f, 'utf8')))
+   console.log(JSON.stringify(assertRectangularGrid(cells, {
+     declaredPlatforms: state.declaredPlatforms, declaredIntents: [...new Set(cells.map(c => c.intentSlug))]
+   })))"
+   ```
+   `holes` means a declared platform × intent never got collected — go collect it. `extraPlatforms`
+   means a cell exists for an engine that was never declared (a skipped engine that reappeared, or
+   a leftover from a resumed run whose declared set changed) — delete that cell file, it must not
+   ship. Fix both before spending anything else.
+2. **The P4.5 guards** — `check-detections.mjs --cells "$RUN/cells/" --meta "$RUN/meta.json" --fix`
+   (ANALYSIS.md).
+3. **`validate_byok_submission` against the MCP, best-effort.** Try it, but don't treat a failure to
+   reach the MCP here as fatal — unlike `describe_check_grid`/`tools/list` (verified anonymous
+   2026-08-19), whether this specific tool accepts an unauthenticated call has not been verified the
+   same way, so source the credential store first if a `MENTION_NETWORK_KEY` exists:
+   ```bash
+   CREDS="${MENTION_NETWORK_CREDENTIALS:-$HOME/.config/mention-network/credentials}"
+   set -a; [ -f "$CREDS" ] && . "$CREDS"; set +a
+   node "$HERE/scripts/submit.mjs" --cells "$RUN/cells/" --validate-only
+   ```
+   Runs `validate_byok_submission` over the whole dir and prints each error. **Don't inline the
+   cells array into the MCP tool call by hand** — a full grid is tens of KB of answer text (15
+   Arabic cells measured at ~66 KB), slow to reproduce and easy to mis-escape. Fix and re-run until
+   clean; `RECOVERY.md` maps every error code to its fix, auto-repair up to two rounds before
+   involving the user. Keep only cell files in `"$RUN/cells/"` — `submit.mjs` reads every `*.json`
+   there as a cell, so `meta.json` and `state.json` live in `$RUN` directly, outside it. If the call
+   itself can't be reached at all (no key, and the MCP is down), that is not a stop condition either
+   — say so, rely on steps 1–2 above, and let P6 retry validation as part of the real submit once
+   the MCP is reachable.
 
-Runs `validate_byok_submission` over the whole dir and prints each error. **Don't inline the cells
-array into the MCP tool call by hand** — a full grid is tens of KB of answer text (15 Arabic cells
-measured at ~66 KB), slow to reproduce and easy to mis-escape.
+   `submit.mjs` prints a `detection` coverage note every time it runs (validate-only or full
+   submit): silent when every cell carries one, a warning when 0 do (P4.5 didn't run — the backend
+   will analyze every cell itself) or when it's partial (`DETECTION_PARTIAL`, which the validator
+   also rejects). That note is there so a skipped P4.5 shows up in the tool output itself, not only
+   in a todo list an agent can forget to write — measured twice before this existed.
 
-Fix and re-run until clean. `RECOVERY.md` maps every error code to its fix; auto-repair up to two
-rounds before involving the user. Keep only cell files in `"$RUN/cells/"` — `submit.mjs` reads every
-`*.json` there as a cell, so `meta.json` and `state.json` live in `$RUN` directly, outside it.
+   > **A clean validate does not mean the submit will pass.** `validate_byok_submission` reads the
+   > **cells only** — it never looks at `meta.json`. The shop/product snapshot is checked by
+   > `submit_byok_check`'s own input schema, which rejects with a raw zod error, not a validator
+   > code. So **check the meta shape yourself before submitting** (*Snapshots*, below, for the
+   > types that bite).
+4. **Write the local report — always, regardless of whether step 3 reached the MCP.** This is the
+   local artifact design contract 6 requires: a full record of what was measured, with no MCP
+   round-trip needed to read it.
+   ```bash
+   node "$HERE/scripts/local-report.mjs" --cells "$RUN/cells/" --meta "$RUN/meta.json" \
+     --state "$RUN/state.json" --out "$RUN/report.md"
+   ```
+   It reads `declaredPlatforms`/`skippedEngines` straight from `state.json`, states the real
+   denominator ("Measured 2 of 4 engines...") in the body — never a footnote — and reports each
+   cell's target-shop position as a plain readout of `detection`, never a computed score (that
+   number belongs to the backend's own formula, fetched only once P6 actually submits — see
+   *ANALYSIS.md → From detection to a local verdict*). **Show this file's path to the user now,
+   before P6** — if the run stops here (no `MENTION_NETWORK_KEY`, the user declines to submit, the
+   MCP is down), this is still the deliverable, not a half-finished run.
 
-`submit.mjs` prints a `detection` coverage note every time it runs (validate-only or full submit):
-silent when every cell carries one, a warning when 0 do (P4.5 didn't run — the backend will
-analyze every cell itself) or when it's partial (`DETECTION_PARTIAL`, which the validator also
-rejects). That note is there so a skipped P4.5 shows up in the tool output itself, not only in a
-todo list an agent can forget to write — measured twice before this existed.
+## P6 — Submit (optional, final) and poll
 
-> **A clean validate does not mean the submit will pass.** `validate_byok_submission` reads the
-> **cells only** — it never looks at `meta.json`. The shop/product snapshot is checked by
-> `submit_byok_check`'s own input schema, which rejects with a raw zod error, not a validator code.
-> So **check the meta shape yourself before submitting** (see *Snapshots* for the types that bite).
-
-## P6 — Submit and poll
+**This is the one step that genuinely needs `MENTION_NETWORK_KEY`** — everything up to and
+including the local report (P5) already happened without it. If it's missing, this is the right
+moment to have that conversation, not before: offer to add it now (`credentials.mjs save
+MENTION_NETWORK_KEY`, RECOVERY.md), or stop here — `"$RUN/report.md"` from P5 is a real, complete
+deliverable, and say so plainly rather than implying the run failed. A user who declines is not
+losing anything they already had; they're only deferring storage and the hosted PDF.
 
 1. Write `"$RUN/meta.json"` (`{ shop, product, locationCountry, locationCity?, language }` — see
    **Snapshots**) **outside** `"$RUN/cells/"`, then **source the credential store again** — this is
@@ -684,11 +843,15 @@ todo list an agent can forget to write — measured twice before this existed.
    node "$HERE/scripts/submit.mjs" --cells "$RUN/cells/" --meta "$RUN/meta.json"   # → { checkRunId, deduped }
    ```
    It generates a **fresh `idempotencyKey`** each call; reusing one returns the prior run
-   (`deduped: true`) and produces no new report.
+   (`deduped: true`) and produces no new report. The cells submitted here are exactly the ones
+   `state.json`'s `declaredPlatforms` names — nothing narrower, nothing wider — so the backend's own
+   `INCOMPLETE_PLATFORM_GRID` check is validating the same declared set P5 already checked locally.
 2. Poll `get_visibility_check_status({checkRunId, shopDomain})` (≤15× / 12s) to **top-level
    `stage: done` / `status: completed`** — read those, *not* the per-engine states: an engine you
    didn't submit stays `queued` forever. Save `checkRunId` to `state.json` as soon as you have it.
-3. `get_visibility_report({checkRunId, shopDomain})` → the report + its `reportId`.
+3. `get_visibility_report({checkRunId, shopDomain})` → the report + its `reportId`. Re-run
+   `local-report.mjs` (P5, step 4) once more with these now in `state.json` — the local file then
+   links to the hosted one instead of saying "not submitted yet."
 
 ## P7 — Export and show the link immediately
 
@@ -726,17 +889,23 @@ otherwise quietly reintroduce the spend they avoided at Q1.
 **Return** the PDF link(s), the lane and routes actually used, whether the run was reused or fresh,
 and — for BYOK — the `source: byok` disclosure.
 
-**There is no local PDF.** The hosted export is the only renderer this skill has — the branded
-template, its fonts and its logos live on the backend, not in this directory. A run whose export
-keeps failing has a finished report and a `reportId`; hand those over rather than implying a
-document is on its way.
+**There is no local PDF, but there is a local report.** The hosted export is the only *branded*
+renderer this skill has — its template, fonts and logos live on the backend, not in this directory
+— but P5 already wrote `"$RUN/report.md"` before P6 ever ran, and that file does not depend on the
+PDF export succeeding. A run whose export keeps failing has a finished hosted report (`reportId`)
+**and** a finished local one; hand over both rather than implying nothing is ready.
 
 ---
 
 ## Lane A — backend-run
 
 The backend queries the providers on *its* keys; the user supplies nothing but
-`MENTION_NETWORK_KEY`. P3–P5 don't run.
+`MENTION_NETWORK_KEY`. P3–P5 don't run **because the backend does that collection/detection work
+itself, server-side** — a different reason than *Local-first* (design contract 6), which is about
+BYOK never needing `MENTION_NETWORK_KEY` for *its own* P3–P5. Lane A is the one path that always
+needs `MENTION_NETWORK_KEY`, from the first call: there is no local fallback for a lane whose whole
+point is "the backend does it," so if this key is genuinely missing, Lane A itself is the blocked
+option — offer BYOK instead, where P1–P5 run regardless.
 
 1. **Reuse or fresh.** P1 already fetched `list_visibility_checks({shopDomain})` — each item has
    `id` (= **checkRunId**) and `reportId`. A `status: completed` item finished within 7 days was
@@ -781,11 +950,12 @@ scope by it.
 
 ## Gate
 
-- [ ] P1 ran **before** any question: MCP answered, credential store loaded, every stored key
-      checked, catalog and recent runs fetched. The user was asked only for what genuinely
-      couldn't be resolved.
-- [ ] **No `MENTION_NETWORK_KEY` at all → the run stopped at the key request**, not at a confirm card
-      with an uncomputable estimate on it.
+- [ ] P1 ran **before** any question: MCP probed anonymously (or from cache — *Live data comes from
+      the MCP*), credential store loaded, every stored key checked, catalog and recent runs
+      fetched. The user was asked only for what genuinely couldn't be resolved.
+- [ ] **`MENTION_NETWORK_KEY` missing never stopped P1–P5.** BYOK collection, analysis, validation
+      and the local report all completed without it; only P6 (submit/store) asked for it, and only
+      once the run had something ready to store.
 - [ ] Every key on the confirm card was **verified, not assumed** — `credentials.mjs check` ran, so
       no engine was presented as ready on the strength of a key merely being present in the file.
 - [ ] The user was asked **at most three times** (Q1 / Q2 / Q3), each with pre-filled options.
@@ -799,15 +969,21 @@ scope by it.
       narrowing answer inside the Market + language question, or left at its `(Recommended)`
       country-level default. It never needed its own question, and it was never guessed from the
       domain or shop address.
-- [ ] **Every engine with a missing or rejected key was surfaced at Q1 as a setup step**, with the
-      command that closes it — never as a demotion, and never as a reason to leave the engine out.
+- [ ] **Every engine with a missing or rejected key was surfaced at Q1 with the two real choices** —
+      supply it now, or skip it for this run — never silently skipped and never silently failed.
 - [ ] **Clean room held:** every cell came from an API request, so none carried an account's memory
       or custom instructions. If the user overrode this after being told why, the personalization
       was disclosed in the handover.
-- [ ] **No engine dropped, no grid shrunk** (design contract 5) — the submitted grid was the full 4 × N.
+- [ ] **The declared grid has no holes and no strays** (design contract 5) —
+      `assertRectangularGrid` came back clean before P6: every declared platform × declared intent
+      has a cell, and no cell exists for an engine the user chose to skip. A skipped engine is named
+      by `state.json`'s `skippedEngines`, with its reason, and never appears in the grid at all.
 - [ ] Prompts were shown and confirmed (Q2); any edits kept one-prompt-per-intent + `where_to_buy`.
 - [ ] No secret was invented, echoed, repeated back, or written inside this skill directory; any
       new one was saved through `credentials.mjs`, with its value taken from the environment.
+- [ ] **The local report (`"$RUN/report.md"`) was written at P5**, before P6 ran — its coverage
+      line states the real "measured N of 4" denominator in the body, never a footnote, and it
+      names every skipped engine with its reason. It was shown to the user even if P6 never ran.
 - [ ] BYOK only: `validate_byok_submission` returned **no errors** before submit; a **fresh**
       `idempotencyKey` was used; `webSearchUsed` reflects a search that actually **returned**, not
       one that was merely requested.
@@ -844,6 +1020,12 @@ Three differences from the pack are deliberate:
 - **Hardened credential store.** `credentials.mjs` here is the sibling skill's version: it gains
   `check`, `remove` and `export`, creates the store at 0600 rather than chmodding it afterwards,
   and refuses to write through a symlink.
+- **Local-first, and a missing key is a conversation.** The pack's original design treated a full
+  4-engine grid as the only legitimate BYOK run and a missing `MENTION_NETWORK_KEY` as a hard stop
+  before Q1. This copy diverges on both, following this repo's own owner decision: skipping an
+  engine is now a declared, first-class outcome (`scripts/engine-preflight.mjs`), and BYOK's P1–P5
+  never need `MENTION_NETWORK_KEY` at all — only P6 (storage) does, and P5 always writes a local
+  report (`scripts/local-report.mjs`) so a run that never reaches P6 still has a real deliverable.
 
 Anything else that differs from the pack is a bug in this copy. When re-porting, take the detection
 spec handling and the prompt text verbatim — the wording is the calibration, and the backend

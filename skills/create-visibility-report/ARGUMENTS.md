@@ -44,7 +44,7 @@ rejected — someone with a saved invocation should get a run, not a syntax erro
 |---|---|---|
 | **domain** | `kbeautyarabia.com`, `store.myshopify.com`, `https://kbeautyarabia.com/` | Any position. Strip scheme, path, trailing slash, `www.`. This one string threads through every later call — see *Snapshots* in SKILL.md. |
 | **lane** | `byok` (default) · `backend` \| `server` \| `lane-a` | `backend` skips P3–P5 entirely. |
-| **key=value** | `country=` `lang=` `city=` `product=` `intents=` `audit=` `model=` | See *Key-value* below. |
+| **key=value** | `country=` `lang=` `city=` `product=` `intents=` `audit=` `model=` `skip=` | See *Key-value* below. |
 | **flags** | `yes` · `resume` · `dry-run` | Bare words, no value. |
 
 Engine names are still recognized where one is needed (`model=`): `chatgpt` \| `gpt` \| `openai` ·
@@ -58,9 +58,10 @@ Engine names are still recognized where one is needed (`model=`): `chatgpt` \| `
 | `lang=` | ISO code, e.g. `ar` | **Asked at Q1** — never assumed. The market's local language leads the options (a non-English market measured in English ranks differently), then English. `get_shop.primaryLocale` only hints at the ordering, and is often `null`. |
 | `city=` | free text, e.g. `Riyadh` | **Never asked as its own question.** Omitted → defaults to country-level (no city) on the confirm card. In a guided run it can still be set without shorthand — it rides inside the Market + language question at Q1 as a free-text narrowing answer. |
 | `product=` | quoted title, or an `externalProductId` | **Asked at Q1** — 3–4 real titles from the catalog as options. Never invented, and never silently taken from position 1 (`/products.json` is collection-sorted, not sales-sorted). |
-| `intents=` | comma list of intent slugs | Whatever `describe_check_grid`'s `intents` field returns as the default set. **Every declared intent must then be collected on all 4 engines** — the backend rejects a short grid (`INCOMPLETE_INTENT_GRID`), so this narrows the *question set*, never the engines. `where_to_buy` is always kept. |
+| `intents=` | comma list of intent slugs | Whatever `describe_check_grid`'s `intents` field returns as the default set. **Every declared intent must then be collected on every declared platform** — the backend rejects a hole (`INCOMPLETE_INTENT_GRID`), so this narrows the *question set*, never which platforms get asked. `where_to_buy` is always kept. |
 | `audit=` | `yes` \| `no` | Ask at Q3. `audit=yes` runs it without asking; `audit=no` skips Q3. |
 | `model=` | `<engine>:<id>`, comma-separated — `model=gemini:gemini-2.5-pro` | The live grid's `apiModelId` for each engine. See below — this is a narrower tool than it used to be. |
+| `skip=` | comma list of engine names, e.g. `skip=chatgpt,google_ai_mode` | Pre-declares the Q1 skip decision for those engines, the same way `product=` pre-answers the product question — Q1 shows them as ⚠ skipped rather than asking. Skipping is always the user's call (`engine-preflight.mjs`'s `resolveDeclaredPlatforms` honors `decisions[engine]='skip'` even on an engine whose key is `ok`), but naming a **working** engine here is unusual, so say so loudly on the confirm card rather than folding it in silently. `skip=` never narrows an *intent* — it removes the whole engine from `declaredPlatforms`, so no cell is ever built or collected for it (design contract 5). |
 
 **`model=` is now a last resort, not a routine override.** Every cell is an `api` cell, and on the
 API route the grid dictates `servedModel` (`describe_check_grid`), so overriding the model raises
@@ -80,7 +81,7 @@ note on the card, never an error.
 | `yes` | Skip the Q1 confirm card and start collecting. Still print the resolved plan and every repair line first, so the record exists. |
 | `resume` | Reuse the newest run directory for this domain instead of starting one (see RECOVERY.md). |
 | `dry-run` | Stop after the confirm card. Nothing is collected, nothing is submitted, no quota spent. |
-| ~~`partial-ok`~~ | **Removed — it never worked.** It promised a grid narrowed to "whatever is collectable", but the backend rejects any submission missing a platform (`INCOMPLETE_PLATFORM_GRID`), so the flag bought a full-quota run that failed at submit. If it appears in an invocation, ignore it and say why: an engine without a key is fixed, or the run moves to the backend lane. |
+| ~~`partial-ok`~~ | **Still not a token — use `skip=<engine,...>` instead.** `partial-ok` never said *which* engines to drop, so honoring it meant guessing; `skip=` says exactly which, so the declared/undeclared split stays explicit. If `partial-ok` appears in an invocation, ignore it and say why: name the gap and offer `skip=` for it, or add the key. This is a real fix now, not a dead end — before `skip=`/Q1's skip option existed, the only recovery was "add the key or move to backend," which is why this flag used to be flatly refused. |
 
 ---
 
@@ -92,19 +93,25 @@ never silently do something different.
 | Situation | Repair | Say on the card |
 |---|---|---|
 | An old route token (see the table above) | the engine's key route | one line naming the retired lane |
-| An engine whose key is **missing** | keep the engine, carry a setup step | "gemini: no GEMINI_API_KEY — free key, ~1 min" |
-| An engine whose key is **REJECTED** by `check` | keep the engine, carry a replace step | "chatgpt: your OpenAI key came back 401 — replace it" |
-| An engine whose key is **unreachable** | retry before saying anything about the key | "couldn't reach Google to check that key — retrying" |
-| No `MENTION_NETWORK_KEY` | **stop at P1** and ask for it | "I can't store the report or give you a link until this is set" |
+| An engine whose key is **missing**, not named in `skip=` | surfaced at Q1 as a gap — supply or skip, never assumed | "gemini: no GEMINI_API_KEY. Supply it now (free key, ~1 min) or skip gemini for this run" |
+| An engine whose key is **REJECTED** by `check`, not named in `skip=` | surfaced at Q1 the same way, worded as rejected not absent | "chatgpt: your OpenAI key came back 401 — replace it, or skip chatgpt for this run" |
+| An engine whose key is **unreachable** | retry before saying anything about the key — not yet a gap | "couldn't reach Google to check that key — retrying" |
+| An engine named in `skip=` | declared skip, no question asked about it | "google_ai_mode: skipped per `skip=google_ai_mode`" |
+| No `MENTION_NETWORK_KEY` | **not a repair at P1 anymore** — continue; it only matters at P6 (SKILL.md *Local-first*) | (nothing said until P6, where it becomes: "I can't store the report yet — add the key, or keep the local report as-is") |
 | `intents=` naming a slug the grid doesn't have | drop the unknown slug, keep the rest | "no such intent `<slug>` — using the rest" |
 | `intents=` without `where_to_buy` | add it back | "`where_to_buy` is always included" |
 | `model=` for an engine that isn't running | ignore it | "`model=` for an engine not in this run" |
+| `skip=` naming an engine that isn't one of the four | drop the unknown name, keep the rest | "no such engine `<name>` in `skip=` — using the rest" |
 
 One repair line per changed value, on the confirm card. A repair is never silent.
 
-**No repair ever shrinks the grid.** There is no combination of arguments that produces a 3-engine
-run: the backend rejects it after the quota is spent (SKILL.md design contract 5). An engine without
-a working key is a setup step or a reason to switch the whole run to `backend`.
+**No repair ever silently shrinks the grid — but a declared decision can, on purpose.** There is no
+combination of arguments that silently produces a smaller run: an engine without a working key
+always surfaces as a gap, asked or pre-answered by `skip=`, never assumed. What changed is that
+"smaller, on purpose" is now a real, named outcome (`skip=`, or the Q1 skip answer) rather than a
+dead end — the backend still rejects a hole in whatever IS declared (SKILL.md design contract 5),
+so the one thing no repair or argument can ever produce is a platform that's declared but
+incomplete.
 
 ## Worked examples
 
@@ -126,7 +133,19 @@ it does not skip the *check*.
 
 Both route tokens are retired. The run proceeds on keys, with two repair lines: *"no subscription
 lane any more — using your API keys"* and *"no browser lane any more — Google AI Mode goes through
-SerpApi"*. If a key behind any engine is missing, that is the Q1 setup step.
+SerpApi"*. If a key behind any engine is missing, that is the Q1 gap — supply it or skip it.
+
+### Declaring fewer engines up front
+
+```
+/create-visibility-report kbeautyarabia.com byok skip=chatgpt,google_ai_mode yes
+```
+
+Neither engine's key is even checked for readiness before being asked about — `skip=` already
+answered that. `declaredPlatforms` is `["claude", "gemini"]` from the start; `grid.json` never
+carries a `chatgpt`/`google_ai_mode` entry; the local report's coverage line reads "Measured 2 of 4
+engines: claude, gemini." throughout. `yes` still prints the plan (with both skips marked) before
+collecting.
 
 ### Minimal
 
@@ -168,3 +187,6 @@ See RECOVERY.md — the newest run directory is reused and only the missing cell
 - **A key.** Never read from anywhere but the credential store and the environment, never invented,
   never assumed to work because it is present.
 - **Coverage.** An engine is only ready when `check` said so this run.
+- **A skip decision.** A gap key never becomes "skipped" on its own — only `skip=` in the
+  invocation or an explicit Q1 answer moves an engine out of `declaredPlatforms`. A `missing` or
+  `rejected` state with no decision attached is `blocked` (`engine-preflight.mjs`), not skipped.

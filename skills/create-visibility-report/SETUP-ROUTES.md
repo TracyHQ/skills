@@ -1,14 +1,20 @@
-# Setting up keys — how to reach **full engine coverage**
+# Setting up keys — how to reach **full engine coverage**, and what to do instead of that
 
-Read this when an engine has no working key. Every gap here is a setup step measured in minutes;
-none of them is a reason to run a smaller grid.
+Read this when an engine has no working key. Every gap here is a setup step measured in minutes —
+worth doing, because more coverage is a better report. But it is no longer the *only* legitimate
+answer: skipping the engine for this run is a real, declared option too (SKILL.md *Credentials → A
+missing key is a conversation, not a dead end*). This file is about getting the key when you want
+full coverage; the skip path is documented there, not here.
 
-## Why coverage is all-or-nothing
+## Why a declared engine must be complete, even though you don't have to declare all four
 
-The backend requires the full platform × intent grid and rejects a short submission
-(`INCOMPLETE_PLATFORM_GRID` / `INCOMPLETE_INTENT_GRID`). So "collect the three we can reach and
-skip the fourth" is not the cheaper option it looks like — it spends the whole quota and then fails
-at submit. Either every engine has a key, or the run moves to the backend lane.
+The backend rejects a **hole** in a platform the submission declares (`INCOMPLETE_PLATFORM_GRID` /
+`INCOMPLETE_INTENT_GRID`). So "collect three cells for chatgpt and none for the fourth intent" is
+never the cheaper option it looks like — it spends part of the quota and then fails at submit. What
+IS a legitimate, cheaper option: never declare chatgpt at all. Declaring fewer than 4 engines and
+submitting a complete grid over the ones you did declare is accepted; declaring 4 and delivering
+fewer is not. The distinction is entirely in `state.json`'s `declaredPlatforms` — set it, and every
+later step (`grid.json`, the collectors, the submission, the local report) stays consistent with it.
 
 ## One key per engine
 
@@ -22,7 +28,8 @@ There is no ranking and nothing to choose between. Each engine has exactly one r
 | `google_ai_mode` | `SERPAPI_API_KEY` | serpapi.com → Dashboard | free ~100 searches/month |
 
 Plus `MENTION_NETWORK_KEY` (mention.network), which is not an engine — it is how the finished
-report is stored and exported. Without it the run stops at P1.
+report is stored and exported. **Without it the run does not stop.** It gates P6 (storage) only;
+P1–P5 measure, analyze and write a local report regardless (SKILL.md *Local-first*).
 
 **Get the free ones first.** `GEMINI_API_KEY` and `SERPAPI_API_KEY` cost nothing and cover two of
 the four engines, so a user with no keys at all is two free signups away from half the grid.
@@ -93,11 +100,14 @@ all** — Google AI Mode is not exposed as one — so SerpApi is not a fallback 
 One search per cell, so a 5-intent grid is ~5 of the free 100. That is the number to quote when
 asking the user to approve a run.
 
-### `MENTION_NETWORK_KEY` → not an engine
+### `MENTION_NETWORK_KEY` → not an engine, and not required to measure anything
 
 Log in at mention.network for a key. Two things want it: `scripts/mcp-client.mjs`, which speaks to
-the MCP over plain HTTP, and the Claude host if the MCP is registered as a host tool. Storing the
-key is enough for the former, which is enough to finish a run.
+the MCP over plain HTTP (and now works anonymously for the catalog reads, unauthenticated, since
+2026-08-19), and the Claude host if the MCP is registered as a host tool. Storing the key unlocks
+**P6** — submitting the finished run for storage and the hosted PDF — it does not unlock the run
+itself; P1–P5 already worked without it. Get this key when the user wants the run stored and
+exported, not as a precondition for starting.
 
 Registering it with the host as well:
 

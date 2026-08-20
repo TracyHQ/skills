@@ -4,6 +4,37 @@ Read this once you've reached P4.5 in the pipeline (right after collection, righ
 validate). It never runs for the backend lane (P3–P5 don't run there) or when the user declined
 client-side analysis — don't load it earlier than you need it.
 
+## The method, in one place
+
+Four questions someone should be able to answer after reading only this file — not a paraphrase,
+the actual rules this skill applies:
+
+1. **What is extracted from each answer?** Every merchant the answer names as a place to buy the
+   product: its `name`, `domain` (when the answer or its citations give one), `position` (order of
+   first appearance in `rawText`, `1..n`), `price`/`priceRaw`/`shipping`/`shippingPolicy` when the
+   answer states them, and `mentionSources` (below). One `detection` object per cell, built from
+   that cell's own `response` and nothing else — a per-cell analyzer never reads a neighbouring cell.
+2. **How is a retailer mention identified?** A merchant is only real if the cell itself supports it
+   — see *the evidence rule* and the `isSupported`/`fuzzMatches` code below. Support means the NAME
+   is findable in `rawText` (fold-matched — diacritics folded, every script's own letters/numbers
+   kept, not a plain lowercase compare), **or** its `domain` is among that cell's citations, **or**
+   a verbatim `evidence` quote from the answer contains the name. A merchant with none of the three
+   is `DETECTION_UNSUPPORTED_MERCHANT` — dropped, never invented to fill a gap.
+3. **How is "our shop" told apart from a shop merely named?** `isTargetShop` goes on the merchant
+   whose name/alias or domain matches the shop from `meta.json` (`targetFromMeta`, below) — **and
+   only when the answer names it as a place to buy the product**, not merely discusses the product
+   or the brand. See *"Don't add the target shop just because the product is discussed"* in the
+   guards table — a product mention is not a merchant mention. Exactly one merchant per cell may
+   carry the flag (`DETECTION_MULTIPLE_TARGETS`); `WARN_TARGET_MISSED` / `WARN_TARGET_NOT_FLAGGED` /
+   `WARN_TARGET_MISLABELED` catch the three ways this goes wrong (RECOVERY.md).
+4. **What counts as a citation, and how does a cell become a verdict?** `mentionSources` records
+   *how* the answer surfaced the merchant — `'text'` when it's named in prose, `'citation'` when it
+   appears via a cited URL/domain the answer actually returned, both when both — and at least one is
+   required (`DETECTION_MISSING_SOURCE`). A cell's own "verdict" is not a score this skill computes:
+   it is the plain fact of whether the target shop is in `merchants` and flagged, and if so at what
+   `position` — see *From detection to a local verdict*, at the end of this file, for exactly what
+   that local read can and cannot claim.
+
 ---
 
 **This step runs on every BYOK run unless the user says otherwise.** It is the default, and the
@@ -202,3 +233,28 @@ quiet omission. Only these count as reasons:
 "It's faster to skip it" is not on that list. Everything downstream is identical either way; only
 the `source` differs (`byok` vs `byok_client_analysis`), because supplying the analysis means
 supplying the interpretation too, and the disclosure has to say so.
+
+## From detection to a local verdict — what P5's local report can and cannot claim
+
+Once every cell carries a `detection`, P5 (SKILL.md) writes `scripts/local-report.mjs`'s output
+before ever touching the MCP again (design contract 6, *Local-first*). It is worth being precise
+about what that local file is actually reporting, because it is deliberately **not** the same thing
+as the hosted report's score:
+
+- **What it computes: a plain readout.** For each cell, `cellVerdict()` asks two things of
+  `detection.merchants` alone — is the merchant flagged `isTargetShop` present at all, and if so
+  what is its `position`. That is arithmetic over data already produced by the rules above; there
+  is no weighting, no aggregation across cells or intents, and no notion of "score" anywhere in it.
+- **What it deliberately does not compute: a score or an overall verdict.** The backend's hosted
+  report combines every cell's result into a single number and a verdict label through its own
+  (private) formula — this skill was never given that formula, and reproducing a plausible-looking
+  approximation of it would be inventing scoring weights this repository does not have. So the
+  local report never prints one; it says, per cell, "target at position #2" or "not listed," and
+  leaves the aggregate to the moment the run actually submits (P6) and reads back
+  `get_visibility_report`.
+- **Why this split is safe, not a missing feature.** Position-per-cell is exactly what a reader
+  already sees by opening `cells/<intent>.<platform>.json` and its `detection` field — the local
+  report just collects that reading into one table instead of twenty files, plus the coverage line
+  that says which engines were even asked. Nothing about the aggregate score changes what the local
+  report is for: a local, honest record of what was directly observed, that exists whether or not
+  the run ever reaches P6.
