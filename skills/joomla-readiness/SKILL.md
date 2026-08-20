@@ -5,7 +5,7 @@ description: >-
   stand in the way. Reads the site's own version and installed extensions, looks each one up in
   the public extension registry, and says out loud what it could not find out. Use when someone
   asks if a site is ready for Joomla 6, what is blocking an upgrade, or how far behind a site is.
-version: 1.5.1
+version: 1.6.0
 platforms: joomla
 tags:
   - joomla
@@ -43,6 +43,10 @@ package only to 4.4.x, and 3.10.x goes straight to 4.4:
 
 A site on Joomla 3 is **three upgrades away**, not one. Saying "upgrade to Joomla 6" without
 saying that is telling somebody the job is smaller than it is.
+
+Count the hops rather than the major. A Joomla **5.2** site is two upgrades away, not one: a 6
+package is offered only to 5.4, so it has to reach its own launch point first. It looks like one
+hop to anybody counting majors, and it was told so until 2026-08-20.
 
 PHP is the second chain, and it is a **floor, never a ceiling**:
 
@@ -178,6 +182,8 @@ An extension the registry has never heard of is **unknown**, and unknown is a th
 not a gap you fill. A wrong assertion of the same shape, *"this is ready for Joomla 6"*, has
 white-screened live sites. Concretely:
 
+- **a site nothing could be read from is not a cleared site.** The headline says the reading
+  failed; it does not describe what was never read
 - an extension not in the registry is unknown, not fine
 - a registry record with no Joomla 6 field is unknown, not false
 - a site whose version could not be read is never "ready", whatever its extensions say

@@ -86,6 +86,21 @@ def _collapse(blocking: list) -> list[str]:
     return lines
 
 
+#: Said the same way wherever it is said, because it is the one sentence a reader must not be
+#: able to mistake for a finding about the site's extensions.
+_NOTHING_READ = ("No extensions could be read from this site, so nothing below is a statement "
+                 "about what is installed on it. That is a report with nothing to work from "
+                 "rather than a site with nothing wrong.")
+
+#: Two, three and four read better than a numeral in the middle of a sentence a customer reads
+#: once. Anything longer falls back to the digit rather than inventing an English word for it.
+_WORDS = {2: "two", 3: "three", 4: "four"}
+
+#: Replaces the level's headline when nothing was read. The level still says work is needed,
+#: because an unread site is not a cleared one; the headline stops pretending to describe it.
+_NOTHING_READ_HEADLINE = "We could not read what this site has installed."
+
+
 def _already_there(profile, blocking) -> Verdict:
     """The verdict for a site that is already on Joomla 6.
 
@@ -100,6 +115,8 @@ def _already_there(profile, blocking) -> Verdict:
         "before updates, as always."
     ]
     blockers = []
+    if not profile.products:
+        blockers.append(_NOTHING_READ)
     if unknown:
         listed = ", ".join(sorted(p.product for p in unknown)[:5])
         more = f" and {len(unknown) - 5} more" if len(unknown) > 5 else ""
@@ -124,6 +141,7 @@ def decide(profile) -> Verdict:
     next_steps: list[str] = []
 
     major = _joomla_major(profile.joomla_version)
+    hops = profile.hops_to_six if getattr(profile, "hops_to_six", None) is not None else None
 
     # A site already running Joomla 6 has answered the question by running. Every extension in
     # this list is installed on it, which is an observation; the registry having no record is
@@ -144,16 +162,30 @@ def decide(profile) -> Verdict:
     else:
         level = READY
 
+    # Nothing read is not nothing wrong. "Everything we checked has a Joomla 6 build" is true in
+    # the way that matters least when the checked set is empty, and it is the one word a
+    # customer reads first. Seen on real sites 2026-08-20.
+    if not profile.products:
+        if level == READY:
+            level = WORK_NEEDED
+        blockers.insert(0, _NOTHING_READ)
+
     # A Joomla 3 or 4 site is not one upgrade away from 6 whatever its products say,
     # and a report silent about that is a wrong report. Seen on a real account today:
     # a customer asking about Joomla 6 while running 3.10.
-    if major is not None and major < 5:
+    # More than one upgrade stands in the way. Counted from the chain when it could be worked
+    # out, and from the major otherwise: a Joomla 5.2 site is two upgrades away and looks like
+    # one to anybody counting majors, because it has to reach 5.4 before a 6 is offered at all.
+    staged = hops is not None and hops > 1 or (hops is None and major is not None and major < 5)
+    if staged:
         if level == READY:
             level = WORK_NEEDED
+        count = _WORDS.get(hops, str(hops)) if hops is not None else "more than one"
         blockers.insert(0, (
-            f"This site runs Joomla {profile.joomla_version}. Moving to Joomla 6 from "
-            f"Joomla {major} is a staged migration, not a single upgrade, and it has to "
-            "be planned as one regardless of which products are ready."))
+            f"This site runs Joomla {profile.joomla_version}, which is {count} upgrades away "
+            "from Joomla 6, not one. Joomla's update server refuses to skip a release line, so "
+            "this is a staged migration and has to be planned as one regardless of which "
+            "products are ready."))
         next_steps.append(
             "Plan the move in stages rather than as one upgrade. Our migration service "
             "does exactly this and can quote for it.")
@@ -230,6 +262,10 @@ def decide(profile) -> Verdict:
             "You can plan the upgrade. Take a full backup first, and upgrade on a "
             "staging copy before the live site.")
 
-    return Verdict(level=level, headline=_HEADLINE[level],
+    # The headline is the line a customer reads first and often the only one, so it must not be
+    # the line that overclaims. "Some of what you run is not ready for Joomla 6 yet" describes a
+    # reading that did not happen when nothing could be read.
+    headline = (_NOTHING_READ_HEADLINE if not profile.products else _HEADLINE[level])
+    return Verdict(level=level, headline=headline,
                    scope_line=_scope_line(profile),
                    blockers=blockers, next_steps=next_steps)
