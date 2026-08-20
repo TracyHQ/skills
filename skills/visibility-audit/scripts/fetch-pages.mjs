@@ -136,6 +136,66 @@ export async function fetchProductJson(pdpUrl, opts) {
   }
 }
 
+// Did we actually receive the STORE'S page, or something standing in front of it?
+//
+// Measured 2026-08-20 on gymshark.com: the fetch returned HTTP 200 and 60,037 characters, so
+// every check we had (`res.ok`, `html.length > 0`) passed. Strip the script and style tags and
+// what remained was 14 characters — "Redirecting..." — on a document carrying captcha and bot
+// markers. We never saw Gymshark's page at all.
+//
+// The audit scored it anyway: 22/100, verdict "weak", and a ten-item "Fix these first" list
+// telling a merchant their product schema was missing and their page text was empty. For a real
+// store owner that is worse than an error. An error they would retry; a plausible, actionable,
+// confidently wrong report they would act on.
+//
+// So length is not evidence of arrival. A product page a shopper can read has visible prose, at
+// least one heading, and links out. A bot wall, a JS shell and a redirect stub all have none of
+// those while still being large — the weight is all in <script>. Judge the page by what a reader
+// would see, never by the size of the payload.
+const SHELL_MARKERS = /captcha|are you a robot|just a moment|checking your browser|enable javascript|access denied|cf-browser-verification/i
+
+export function visibleTextOf(html) {
+  return String(html || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/**
+ * `{ received, reason, signals }` — whether this document is plausibly the store's own page.
+ * `received:false` means NOTHING on-page was measured; it must never be scored as a finding
+ * about the store.
+ */
+export function assessPageArrival(html) {
+  const text = visibleTextOf(html)
+  const signals = {
+    htmlLength: String(html || '').length,
+    visibleTextLength: text.length,
+    headings: (String(html || '').match(/<h[1-3]\b/gi) || []).length,
+    links: (String(html || '').match(/<a\b/gi) || []).length,
+    shellMarker: SHELL_MARKERS.test(String(html || '')),
+  }
+  // Thresholds are deliberately far below any real product page rather than tuned close to one:
+  // the job here is to catch a wall, not to grade a thin page. A genuinely sparse PDP should
+  // still be SCORED (and score badly) — that is a true finding about the store. Only a document
+  // with essentially no reader-visible content at all is treated as "never arrived".
+  if (signals.visibleTextLength < 200 && signals.headings === 0 && signals.links <= 2) {
+    return {
+      received: false,
+      reason: signals.shellMarker
+        ? 'bot-wall'
+        : signals.htmlLength > 2000
+          ? 'js-shell'
+          : 'empty-response',
+      signals,
+    }
+  }
+  return { received: true, reason: null, signals }
+}
+
 export async function collectPages(pdpUrl, { renderedHtml = null, timeoutMs = 30000 } = {}) {
   const origin = new URL(pdpUrl).origin
   const opts = { timeoutMs }
@@ -148,8 +208,14 @@ export async function collectPages(pdpUrl, { renderedHtml = null, timeoutMs = 30
 
   const rendered = renderedHtml ?? raw.html
   const renderer = renderedHtml ? 'browser' : 'plain'
+  const arrival = assessPageArrival(rendered)
   const page = {
+    // `ok` keeps its old meaning (the transport worked) so nothing downstream changes silently.
+    // `received` is the new, stricter question — see assessPageArrival: a 200 with 60KB of
+    // <script> and 14 characters of text is `ok:true, received:false`.
     ok: raw.ok && rendered.length > 0,
+    received: raw.ok && arrival.received,
+    arrival,
     renderedHtml: rendered,
     rawSourceHtml: raw.html,
     status: raw.status,

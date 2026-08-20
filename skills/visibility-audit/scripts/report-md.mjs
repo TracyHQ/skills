@@ -19,13 +19,42 @@ export function renderMarkdown(report) {
   // verdictTier) — that is "unknown", never "weak". Printing the tier only when one was
   // actually earned is what incident C required.
   const verdictText = report.verdict ?? 'unrated — nothing was scored'
-  L.push(`**Score ${pct(report.score)}** (${verdictText}) · ${report.coverage.scored}/${report.coverage.totalDefined} criteria scored`)
-  L.push('')
+
+  // The page never arrived: lead with that, before any number, and do not print a scorecard the
+  // reader will act on. A merchant shown "22/100 · weak" plus a ten-item fix list does not read
+  // the disclaimer underneath — they open a ticket about their product schema. Measured on
+  // gymshark.com 2026-08-20; see `score.mjs` runScorers.
+  if (report.notMeasured) {
+    const why = {
+      'bot-wall': 'The site answered with a bot check, not the product page',
+      'js-shell': 'The site answered with an empty shell that builds its content in the browser',
+      'empty-response': 'The site answered with an empty document',
+    }[report.notMeasured.why] ?? 'The response was not the product page'
+    const sig = report.notMeasured.signals
+    L.push('## This audit did not measure your page')
+    L.push('')
+    L.push(`**No score.** ${why}${sig ? ` — ${sig.htmlLength.toLocaleString()} characters came back, but only ${sig.visibleTextLength} of them were text a reader would see, with ${sig.headings} heading${sig.headings === 1 ? '' : 's'} and ${sig.links} link${sig.links === 1 ? '' : 's'}.` : '.'}`)
+    L.push('')
+    L.push('Nothing below is a finding about your store. Every on-page criterion is `na` because there was no page to read — that is different from scoring badly, and it would be wrong to report it as a weakness.')
+    L.push('')
+    L.push('**To get a real audit, do one of these:**')
+    L.push('')
+    L.push('1. Open the product page in your browser, save the fully-loaded DOM to a file, and re-run with `--rendered-html <file>`. This is the reliable route for a store behind a bot check.')
+    L.push('2. If your store is behind Cloudflare or similar, allow-list the machine running this audit, then re-run.')
+    L.push('')
+    L.push('Off-store signals were collected from elsewhere and are still valid — they are listed below and are the only rows here that say anything true about your brand.')
+    L.push('')
+  } else {
+    L.push(`**Score ${pct(report.score)}** (${verdictText}) · ${report.coverage.scored}/${report.coverage.totalDefined} criteria scored`)
+    L.push('')
+  }
   // The score is the weighted mean over the SCORED rows only — `na`/`gated` leave the
   // denominator, they are not zeros (see FRAMEWORK.md, "How the score is built"; aggregate.mjs
   // is where the maths lives). Said once, in plain words, next to the number itself so a
   // fewer-than-40 run is never read as a complete one that happened to score low.
-  if (report.coverage.scored < report.coverage.totalDefined) {
+  // Suppressed when the page never arrived: the block above already said there is no score,
+  // and explaining how a score nobody published was averaged reads as a contradiction.
+  if (!report.notMeasured && report.coverage.scored < report.coverage.totalDefined) {
     L.push(
       `> This score is the weighted mean over the ${report.coverage.scored} criteria that were actually measured. The other ${report.coverage.totalDefined - report.coverage.scored} are \`na\`/\`gated\` and do not pull the number down — they are absent from the average, not zeros in it. See "Not scored" below for exactly which, and why.`,
     )

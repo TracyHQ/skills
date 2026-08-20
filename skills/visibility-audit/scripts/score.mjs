@@ -30,6 +30,7 @@ import {
   SUBGROUP_UI,
   verdictTier,
 } from './framework.mjs'
+import { OFFSTORE_LANE_CRITERIA } from './preflight.mjs'
 import { pickRoute } from './llm.mjs'
 import { generateNarratives } from './narrate.mjs'
 import { renderMarkdown } from './report-md.mjs'
@@ -85,9 +86,34 @@ export function buildContext({ pages, meta, llm, offstore }) {
   }
 }
 
+// When the page never arrived (fetch-pages `assessPageArrival`), every criterion that reads the
+// page read a bot wall, a JS shell or a redirect stub — NOT the store. Those must be `na`, the
+// same as a lane with no key: nothing was measured, so there is nothing to score.
+//
+// Off-store criteria survive: Reddit threads and a Google Shopping listing were fetched from
+// somewhere else entirely and are still true.
+//
+// Measured 2026-08-20 on gymshark.com — a 200 with 60KB of script and 14 characters of text
+// produced 22/100 "weak" and told the merchant their product schema was missing and their page
+// text was empty. Every one of those was a statement about a page nobody read.
+const OFFSTORE_SURVIVES_A_MISSING_PAGE = new Set(OFFSTORE_LANE_CRITERIA)
+
 export async function runScorers(ctx) {
+  const pageArrived = ctx.page?.received !== false
   const evaluated = []
   for (const scorer of ALL_SCORERS) {
+    if (!pageArrived && !OFFSTORE_SURVIVES_A_MISSING_PAGE.has(scorer.key)) {
+      evaluated.push({
+        key: scorer.key,
+        factor: scorer.factor,
+        subGroup: scorer.subGroup,
+        weight: scorer.weight,
+        status: 'na',
+        score: null,
+        evidence: { reason: 'the page never arrived — nothing on it was read' },
+      })
+      continue
+    }
     const res = await scorer.score(ctx)
     evaluated.push({
       key: scorer.key,
@@ -150,6 +176,14 @@ export function assembleReport({ subject, agg, narratives, dataSources, auditId 
     }
   })
 
+  // A website audit whose page never arrived has no website score to publish. What survives is
+  // off-store only (Reddit, Google Shopping) — averaging those two and calling the result a
+  // score for the store's PAGE would be the same lie in a smaller font. Withhold the number
+  // rather than qualify it: a merchant reads the number, not the footnote. See the gymshark.com
+  // measurement in `runScorers` for the run that made this rule.
+  const pageArrived = dataSources.pageReceived !== false
+  const publishedTotal = pageArrived ? total : null
+
   return {
     auditId,
     checkRunId: null,
@@ -158,8 +192,15 @@ export function assembleReport({ subject, agg, narratives, dataSources, auditId 
     // collected. Say so wherever the report is shown to anyone else.
     source: 'byok',
     subject,
-    score: total,
-    verdict: verdictTier(total),
+    score: publishedTotal,
+    verdict: verdictTier(publishedTotal),
+    notMeasured: pageArrived
+      ? null
+      : {
+          what: 'the product page',
+          why: dataSources.pageArrival?.reason ?? 'unknown',
+          signals: dataSources.pageArrival?.signals ?? null,
+        },
     summary: narratives.verdict?.text ?? null,
     summarySource: narratives.verdict?.source ?? null,
     generatedAt: new Date().toISOString(),
@@ -181,6 +222,11 @@ export async function runAudit({ pages, meta, llm, offstore, narrativeRoute, mod
     llmRoute: llm?.route ?? null,
     narrativeRoute: narrativeRoute ?? null,
     fetchedAt: pages.fetchedAt ?? null,
+    // `received:false` ⇒ what came back was a bot wall / JS shell / redirect stub, not the store.
+    // Carried here so the report and any consumer can tell "we read the page and it was thin"
+    // apart from "we never read the page".
+    pageArrival: pages.page?.arrival ?? null,
+    pageReceived: pages.page?.received !== false,
     // Which lanes ran but threw, as opposed to legitimately finding nothing — see
     // `report-md.mjs` for where these become a visible warning (audit incident H).
     llmBatchFailures: llm?.failedBatches ?? [],
