@@ -1,3 +1,4 @@
+import { isDocument } from '../types'
 import type { Finding, PageRecord } from '../types'
 import type { LinkGraph } from './linkGraph'
 
@@ -19,26 +20,6 @@ type CheckDef = {
  * P1 has no per-site toggles or thresholds — the P2 Checks engine adds those
  * around these same rules, it does not redefine them.
  */
-/**
- * Content types a CMS serves at ordinary-looking addresses that are not pages a person reads. A
- * Joomla events component publishes `.ics` and RSS this way, and its category pages link them, so
- * the crawl reaches them like anything else. They carry no title and no meta description because
- * they are not documents, and counting them turns a real finding into a number about the wrong
- * thing.
- */
-const NOT_A_DOCUMENT = ['calendar', 'rss', 'atom', 'json', 'csv', 'pdf', 'zip', 'octet-stream']
-
-/**
- * Excluded only when the server SAID it was one of those. Anything else stays a page, including a
- * response with no content type at all: a record written before the type was kept has none, and a
- * server that mislabels its HTML should still be measured rather than silently dropped from every
- * check.
- */
-const isDocument = (p: PageRecord): boolean => {
-  const type = p.contentType?.toLowerCase()
-  return type === undefined || !NOT_A_DOCUMENT.some((kind) => type.includes(kind))
-}
-
 const CHECKS: CheckDef[] = [
   {
     id: 'missing-title',

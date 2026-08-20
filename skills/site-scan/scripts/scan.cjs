@@ -30586,6 +30586,13 @@ function parseRobots(text4, userAgent) {
   };
 }
 
+// skills/site-scan/engine/types.ts
+var NOT_A_DOCUMENT = ["calendar", "rss", "atom", "json", "csv", "pdf", "zip", "octet-stream"];
+var isDocument = (p) => {
+  const type = p.contentType?.toLowerCase();
+  return type === void 0 || !NOT_A_DOCUMENT.some((kind) => type.includes(kind));
+};
+
 // skills/site-scan/engine/analyze/mnDiscoverability.ts
 var MN_DISCOVERABILITY = {
   "ai-bots-allowed": { weight: 3, impact: "Critical", subGroup: "access-findability" },
@@ -30636,7 +30643,7 @@ function headingsFail(page) {
   return false;
 }
 function runMnDiscoverability(allPages, robotsText, siteKey) {
-  const pages = allPages.filter((p) => !p.redirectStub);
+  const pages = allPages.filter((p) => !p.redirectStub && isDocument(p));
   const products = pages.filter(isProductPage);
   const findings = [];
   const add2 = (checkId, title, urls, count = urls.length) => {
@@ -30772,11 +30779,6 @@ function hostLabel(siteKey) {
 // skills/site-scan/engine/analyze/seoChecks.ts
 var MAX_SAMPLE_URLS2 = 20;
 var THIN_CONTENT_WORDS = 150;
-var NOT_A_DOCUMENT = ["calendar", "rss", "atom", "json", "csv", "pdf", "zip", "octet-stream"];
-var isDocument = (p) => {
-  const type = p.contentType?.toLowerCase();
-  return type === void 0 || !NOT_A_DOCUMENT.some((kind) => type.includes(kind));
-};
 var CHECKS = [
   {
     id: "missing-title",

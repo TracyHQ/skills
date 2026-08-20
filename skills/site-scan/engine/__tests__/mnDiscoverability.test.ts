@@ -178,3 +178,20 @@ describe('hop pages', () => {
     expect(runMnDiscoverability([stub], '', SITE)).toEqual([])
   })
 })
+
+describe('resources that are not documents', () => {
+  // Same reason as the seo checks: a feed has no headings and no crawlable prose because it is
+  // not a page. Counting it makes content-readability findings about the wrong thing.
+  it('leaves an RSS feed out of heading-hierarchy', () => {
+    const rss = page('https://site.test/events?format=feed&type=rss', {
+      contentType: 'application/rss+xml',
+      headings: [],
+      h1: []
+    })
+    const html = page('https://site.test/classes', { contentType: 'text/html; charset=utf-8', headings: [], h1: [] })
+    const urls = runMnDiscoverability([rss, html], '', 'https://site.test')
+      .find((f) => f.checkId === 'heading-hierarchy')?.urls ?? []
+    expect(urls).toContain(html.url)
+    expect(urls).not.toContain(rss.url)
+  })
+})
