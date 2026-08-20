@@ -5,7 +5,7 @@ description: >-
   stand in the way. Reads the site's own version and installed extensions, looks each one up in
   the public extension registry, and says out loud what it could not find out. Use when someone
   asks if a site is ready for Joomla 6, what is blocking an upgrade, or how far behind a site is.
-version: 1.6.1
+version: 1.7.0
 platforms: joomla
 tags:
   - joomla
@@ -137,9 +137,13 @@ scripts/upgrade_path.py   the chain, and the bridge into the verdict rules
 scripts/verdict.py        one of three levels, with its scope attached
 scripts/catalog.py        the registry client
 tests/run.sh              every check this skill makes about itself, one command
+examples/readiness-run.md a finished report, and the engine call that produced it
 ```
 
-Run `tests/run.sh` before trusting a change to any of them. 202 checks, no pytest, no network.
+Run `tests/run.sh` before trusting a change to any of them. 233 checks, no pytest, no network.
+
+`examples/readiness-run.md` shows one site go from the two tool calls to the finished report,
+with the numbers pasted from a real run rather than written by hand.
 
 ### One product arrives as many rows
 
@@ -175,6 +179,33 @@ behind.
 claim about a crawl, not about the world, and a reader given the sentence without the date will
 take it for the world. A build published last week does not exist yet as far as this data is
 concerned, and the customer is the person best placed to know that.
+
+## The shape of the answer
+
+Six parts, in this order. Two agents reading this should produce the same report about the same
+site, and the order is chosen so that a reader who stops early has still read the true parts.
+
+```
+1  Verdict          one of three levels, and the headline that belongs to it
+2  Scope            what the verdict was computed over, verbatim from the profile
+3  The road         how many upgrades, named. One is "one"; more is a staged migration
+4  What blocks it   the blockers list, most severe first. Empty is allowed and means empty
+5  What to do next  the next steps, PHP first when there is one
+6  What was not     the unseen list, and the date the registry was crawled
+   looked at
+```
+
+**Do not reorder 1 and 6.** A report that opens with its limits reads as hedging and gets
+skimmed past; one that closes with them has already said the thing the customer came for. Both
+must be present.
+
+**Print the level's own headline.** `verdict.headline` is chosen for the level and for the case,
+including the two that override it: a site already on Joomla 6 and a site nothing could be read
+from. Rewriting it in your own words is how those overrides get lost.
+
+**Do not add a recommendation the engine did not make.** Naming a replacement template, quoting
+a timeline, or estimating effort is inventing a finding. If the customer asks for one, say it is
+a question for a person and offer to pass it on.
 
 ## The one rule
 
