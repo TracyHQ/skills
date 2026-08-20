@@ -5,7 +5,7 @@ description: >-
   stand in the way. Reads the site's own version and installed extensions, looks each one up in
   the public extension registry, and says out loud what it could not find out. Use when someone
   asks if a site is ready for Joomla 6, what is blocking an upgrade, or how far behind a site is.
-version: 1.1.0
+version: 1.2.0
 platforms: joomla
 tags:
   - joomla
@@ -46,6 +46,36 @@ saying that is telling somebody the job is smaller than it is.
 PHP is the second chain. Joomla 4 runs on 8.0 to 8.2, Joomla 5 on 8.2 to 8.3, Joomla 6 on 8.3 to
 8.4. A site on Joomla 3 usually runs PHP 7.4, so the road raises PHP twice, and PHP lives with
 the hosting provider rather than in the site. Name it; do not promise it.
+
+## What this needs before it can read anything
+
+`requires-mcp: tracy-site` says a server has to be there. It does not say the site has to have
+been connected first, and people have read it as "point it at any Joomla site". It is not.
+
+**The site must already be onboarded.** The tools reach the site through Tracy's component, and
+the component is opened with a token held for that site. No token on file is answered
+`needs_sign_in` before anything is read — not an empty site, not a failure, a question for the
+customer.
+
+**Getting that first token needs one admin sign-in, and there is no way round it.** Joomla does
+not let a stranger enumerate installed extensions; if it did, that would be the security hole.
+A person signs in to the site's administrator once so the component can be installed, and the
+token is minted from that.
+
+**After that, no password is read.** Every later run answers on the token alone, so a backend
+that has since grown an MFA prompt keeps working. A token whose component has fallen behind
+this build still does the job rather than refusing: an old component reads a database perfectly
+well, and refusing would be the worse answer.
+
+So there are two states, and only one of them is this skill's:
+
+```
+site already connected   -> this skill reads it, no password, no admin screen
+site never connected     -> nothing here runs. Say so; do not go looking in the HTML.
+```
+
+If the answer is needed for a site nobody can sign in to, this is not the tool. Say what could
+not be read rather than producing a report that looks like a reading.
 
 ## Getting the two inputs, which is the awkward part
 
