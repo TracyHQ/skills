@@ -30772,6 +30772,11 @@ function hostLabel(siteKey) {
 // skills/site-scan/engine/analyze/seoChecks.ts
 var MAX_SAMPLE_URLS2 = 20;
 var THIN_CONTENT_WORDS = 150;
+var NOT_A_DOCUMENT = ["calendar", "rss", "atom", "json", "csv", "pdf", "zip", "octet-stream"];
+var isDocument = (p) => {
+  const type = p.contentType?.toLowerCase();
+  return type === void 0 || !NOT_A_DOCUMENT.some((kind) => type.includes(kind));
+};
 var CHECKS = [
   {
     id: "missing-title",
@@ -30824,7 +30829,7 @@ var CHECKS = [
 ];
 var SEO_CHECK_IDS = CHECKS.map((check) => check.id);
 function runSeoChecks(allPages, graph) {
-  const pages = allPages.filter((p) => !p.redirectStub);
+  const pages = allPages.filter((p) => !p.redirectStub && isDocument(p));
   const findings = [];
   for (const check of CHECKS) {
     const affected = check.affected(pages, graph);
@@ -31201,6 +31206,7 @@ function createFetchQueue(opts) {
         status: response.status,
         finalUrl: response.url || item.url,
         etag: response.headers.get("etag") ?? void 0,
+        contentType: response.headers.get("content-type") ?? void 0,
         text: item.method === "HEAD" ? "" : await response.text()
       };
     } catch (error) {
@@ -31293,7 +31299,7 @@ __export(esm_exports2, {
   innerText: () => innerText,
   isCDATA: () => isCDATA,
   isComment: () => isComment,
-  isDocument: () => isDocument,
+  isDocument: () => isDocument2,
   isTag: () => isTag2,
   isText: () => isText,
   nextElementSibling: () => nextElementSibling,
@@ -31545,7 +31551,7 @@ function isComment(node) {
 function isDirective(node) {
   return node.type === ElementType.Directive;
 }
-function isDocument(node) {
+function isDocument2(node) {
   return node.type === ElementType.Root;
 }
 function hasChildren(node) {
@@ -31576,7 +31582,7 @@ function cloneNode(node, recursive = false) {
     const clone2 = new CDATA2(children2);
     children2.forEach((child) => child.parent = clone2);
     result = clone2;
-  } else if (isDocument(node)) {
+  } else if (isDocument2(node)) {
     const children2 = recursive ? cloneChildren(node.children) : [];
     const clone2 = new Document(children2);
     children2.forEach((child) => child.parent = clone2);
@@ -36465,16 +36471,16 @@ function _matchUntil(nextElem, ...postFns) {
 function _removeDuplicates(elems) {
   return elems.length > 1 ? Array.from(new Set(elems)) : elems;
 }
-var parent = _singleMatcher(({ parent: parent2 }) => parent2 && !isDocument(parent2) ? parent2 : null, _removeDuplicates);
+var parent = _singleMatcher(({ parent: parent2 }) => parent2 && !isDocument2(parent2) ? parent2 : null, _removeDuplicates);
 var parents = _matcher((elem) => {
   const matched = [];
-  while (elem.parent && !isDocument(elem.parent)) {
+  while (elem.parent && !isDocument2(elem.parent)) {
     matched.push(elem.parent);
     elem = elem.parent;
   }
   return matched;
 }, uniqueSort, (elems) => elems.reverse());
-var parentsUntil = _matchUntil(({ parent: parent2 }) => parent2 && !isDocument(parent2) ? parent2 : null, uniqueSort, (elems) => elems.reverse());
+var parentsUntil = _matchUntil(({ parent: parent2 }) => parent2 && !isDocument2(parent2) ? parent2 : null, uniqueSort, (elems) => elems.reverse());
 function closest(selector) {
   var _a5;
   const set = [];
@@ -36487,7 +36493,7 @@ function closest(selector) {
   };
   const selectFn = typeof selector === "string" ? (elem) => is2(elem, selector, selectOpts) : getFilterFn(selector);
   domEach(this, (elem) => {
-    if (elem && !isDocument(elem) && !isTag2(elem)) {
+    if (elem && !isDocument2(elem) && !isTag2(elem)) {
       elem = elem.parent;
     }
     while (elem && isTag2(elem)) {
@@ -36669,15 +36675,15 @@ __export(manipulation_exports, {
 
 // node_modules/.pnpm/cheerio@1.1.2/node_modules/cheerio/dist/esm/parse.js
 function getParse(parser) {
-  return function parse8(content, options, isDocument2, context) {
+  return function parse8(content, options, isDocument3, context) {
     if (typeof Buffer !== "undefined" && Buffer.isBuffer(content)) {
       content = content.toString();
     }
     if (typeof content === "string") {
-      return parser(content, options, isDocument2, context);
+      return parser(content, options, isDocument3, context);
     }
     const doc = content;
-    if (!Array.isArray(doc) && isDocument(doc)) {
+    if (!Array.isArray(doc) && isDocument2(doc)) {
       return doc;
     }
     const root2 = new Document([]);
@@ -37212,20 +37218,20 @@ Object.assign(Cheerio.prototype, attributes_exports, traversing_exports, manipul
 
 // node_modules/.pnpm/cheerio@1.1.2/node_modules/cheerio/dist/esm/load.js
 function getLoad(parse8, render3) {
-  return function load2(content, options, isDocument2 = true) {
+  return function load2(content, options, isDocument3 = true) {
     if (content == null) {
       throw new Error("cheerio.load() expects a string");
     }
     const internalOpts = flattenOptions(options);
-    const initialRoot = parse8(content, internalOpts, isDocument2, null);
+    const initialRoot = parse8(content, internalOpts, isDocument3, null);
     class LoadedCheerio extends Cheerio {
       _make(selector, context) {
         const cheerio = initialize(selector, context);
         cheerio.prevObject = this;
         return cheerio;
       }
-      _parse(content2, options2, isDocument3, context) {
-        return parse8(content2, options2, isDocument3, context);
+      _parse(content2, options2, isDocument4, context) {
+        return parse8(content2, options2, isDocument4, context);
       }
       _render(dom) {
         return render3(dom, this.options);
@@ -45505,20 +45511,20 @@ var adapter = {
 };
 
 // node_modules/.pnpm/cheerio@1.1.2/node_modules/cheerio/dist/esm/parsers/parse5-adapter.js
-function parseWithParse5(content, options, isDocument2, context) {
+function parseWithParse5(content, options, isDocument3, context) {
   var _a5;
   (_a5 = options.treeAdapter) !== null && _a5 !== void 0 ? _a5 : options.treeAdapter = adapter;
   if (options.scriptingEnabled !== false) {
     options.scriptingEnabled = true;
   }
-  return isDocument2 ? parse6(content, options) : parseFragment(context, content, options);
+  return isDocument3 ? parse6(content, options) : parseFragment(context, content, options);
 }
 var renderOpts = { treeAdapter: adapter };
 function renderWithParse5(dom) {
   const nodes = "length" in dom ? dom : [dom];
   for (let index2 = 0; index2 < nodes.length; index2 += 1) {
     const node = nodes[index2];
-    if (isDocument(node)) {
+    if (isDocument2(node)) {
       Array.prototype.splice.call(nodes, index2, 1, ...node.children);
     }
   }
@@ -45531,7 +45537,7 @@ function renderWithParse5(dom) {
 }
 
 // node_modules/.pnpm/cheerio@1.1.2/node_modules/cheerio/dist/esm/load-parse.js
-var parse7 = getParse((content, options, isDocument2, context) => options._useHtmlParser2 ? parseDocument(content, options) : parseWithParse5(content, options, isDocument2, context));
+var parse7 = getParse((content, options, isDocument3, context) => options._useHtmlParser2 ? parseDocument(content, options) : parseWithParse5(content, options, isDocument3, context));
 var load = getLoad(parse7, (dom, options) => options._useHtmlParser2 ? esm_default(dom, options) : renderWithParse5(dom));
 
 // node_modules/.pnpm/encoding-sniffer@0.2.1/node_modules/encoding-sniffer/dist/esm/index.js
@@ -45660,7 +45666,7 @@ var import_whatwg_mimetype = __toESM(require_mime_type(), 1);
 // skills/site-scan/engine/harvest/pageExtract.ts
 var TEXT_SAMPLE_LENGTH = 2e3;
 var STUB_MAX_WORDS = 50;
-function extractPage(url, html3, origin) {
+function extractPage(url, html3, origin, contentType) {
   const $2 = load(html3);
   const headings = [];
   for (let level = 1; level <= 6; level++) {
@@ -45728,6 +45734,9 @@ function extractPage(url, html3, origin) {
   return {
     url,
     status: 200,
+    // What the server said it served. A check about pages has to be able to tell a document from
+    // an export endpoint: an .ics or an RSS feed has no <title> because it is not a page.
+    ...contentType ? { contentType } : {},
     title: title || void 0,
     metaDescription: metaDescription || void 0,
     canonical: canonical || void 0,
@@ -47343,7 +47352,7 @@ async function runCrawl(input) {
       return page2;
     }
     const pageUrl = outcome.finalUrl || url;
-    const page = extractPage(pageUrl, outcome.text, origin);
+    const page = extractPage(pageUrl, outcome.text, origin, outcome.contentType);
     const stubNote = noteStub(page);
     if (stubNote) progress("harvest", htmlFetched, 0, { note: stubNote });
     state.pages[url] = { lastmod, etag: outcome.etag, contentHash: page.contentHash };

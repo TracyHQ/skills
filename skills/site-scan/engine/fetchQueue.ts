@@ -1,5 +1,5 @@
 export type FetchOutcome =
-  | { ok: true; status: number; finalUrl: string; etag?: string; text: string }
+  | { ok: true; status: number; finalUrl: string; etag?: string; contentType?: string; text: string }
   | { ok: false; kind: 'http' | 'timeout' | 'network' | 'queue-aborted'; status?: number }
 
 export type FetchQueue = ReturnType<typeof createFetchQueue>
@@ -116,6 +116,7 @@ export function createFetchQueue(opts: {
         status: response.status,
         finalUrl: response.url || item.url,
         etag: response.headers.get('etag') ?? undefined,
+        contentType: response.headers.get('content-type') ?? undefined,
         text: item.method === 'HEAD' ? '' : await response.text()
       }
     } catch (error) {

@@ -18,6 +18,8 @@ export type PageRecord = {
   canonical?: string
   /** A 200 hop page, not content — kept in the surface, excluded from Checks. */
   redirectStub?: boolean
+  /** The `content-type` the server sent. Absent on records written before it was kept. */
+  contentType?: string
   h1: string[]
   headings: { level: number; text: string }[]
   wordCount: number
