@@ -24,6 +24,15 @@ import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
+# This module has a sibling in JoomlArt-26/joomlart-joomla-ops that is 65 lines longer, and the
+# difference is deliberate rather than drift. That copy carries a publisher-declarations layer
+# (`merge_facts`, `load_facts`) so one vendor can answer for its own products without waiting on
+# somebody else's review queue. A skill published in this registry reads the public directory and
+# has no vendor to speak for, so shipping the machinery with no data behind it would be exactly
+# the inert duplicate that layer's own contract warns rots the day upstream changes.
+#
+# If that ever stops being true, port the layer AND its seven checks together. Half of it is
+# worse than neither.
 REGISTRY_ROOT = "https://registry.tracy.ai/platform"
 # The manifest lives at the platform root and carries observedAt per marketplace;
 # the records live under the platform folder. Two different paths, kept apart here
