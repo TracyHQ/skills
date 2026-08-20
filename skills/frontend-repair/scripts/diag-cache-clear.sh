@@ -356,7 +356,7 @@ emit_envelope_once
 # Argument errors (no envelope, exit 2):
 #   --label missing / unknown flag / --label failing the safe-arg pattern
 #
-# Cleared-cache verification (feeds ticket 11 smoke deployment):
+# Cleared-cache verification (for the post-deploy smoke run):
 #   Seed a cache entry on the copy, then clear:
 #     mkdir -p /srv/tracy/<label>/webroot/cache/com_example
 #     head -c 4096 /dev/zero > /srv/tracy/<label>/webroot/cache/com_example/x.php

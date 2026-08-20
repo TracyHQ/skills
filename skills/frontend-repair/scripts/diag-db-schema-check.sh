@@ -474,9 +474,9 @@ envelope_emit
 # Argument errors (no envelope, exit 2):
 #   --label missing / unknown flag
 #
-# Missing-table drift verification (feeds ticket 11 smoke deployment):
+# Missing-table drift verification (for the post-deploy smoke run):
 #   On a copy carrying a page-builder extension whose schema declares a page
-#   table (the real BDW class of case), run once for the baseline, then drop
+#   table (a schema-drift class seen in real support cases), run once for the baseline, then drop
 #   that one table on the COPY's database only and run again:
 #     bash diag-db-schema-check.sh --label <label>
 #     # (drop the builder page table on the copy's db container, then:)

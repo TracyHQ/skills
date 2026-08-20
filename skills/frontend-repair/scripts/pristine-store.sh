@@ -25,7 +25,7 @@
 # Bulk-seeding the store is operational work, not this script's job: an empty
 # or partial store is safe, because every unseeded part comes back as a miss.
 #
-# Sourced as a library by the override-diff (C1 ticket 07):
+# Sourced as a library by the override-diff script:
 #   source "$SCRIPT_DIR/pristine-store.sh"
 #   if pristine_resolve core joomla "$JOOMLA_VERSION"; then
 #     : diff against "$PRISTINE_PATH"

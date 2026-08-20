@@ -63,7 +63,7 @@ fi
 # ---------- local helpers ----------
 
 # stat takes different flags on GNU and BSD; the fallback keeps the same
-# script working on Lee's Linux fleet-host and on a shared-iMac dev copy.
+# script working on the Linux fleet host and on a macOS dev copy.
 _stat_mode()  { stat -c '%a' "$1" 2>/dev/null || stat -f '%Lp' "$1" 2>/dev/null || true; }
 _stat_owner() { stat -c '%U' "$1" 2>/dev/null || stat -f '%Su' "$1" 2>/dev/null || true; }
 _stat_group() { stat -c '%G' "$1" 2>/dev/null || stat -f '%Sg' "$1" 2>/dev/null || true; }
@@ -454,8 +454,8 @@ envelope_emit
 #   --label missing / --page missing / --page not starting with /
 #   / unknown flag
 #
-# Doctype verdict verification (feeds ticket 11 smoke deployment):
-#   Run twice on Lee's copy:
+# Doctype verdict verification (for the post-deploy smoke run):
+#   Run twice on a provisioned working copy:
 #     bash diag-server-audit.sh --label <label> --page /
 #     bash diag-server-audit.sh --label <label> --page /<known-quirks-path>
 #   The first, against a Joomla page shipping <!DOCTYPE html>, yields
