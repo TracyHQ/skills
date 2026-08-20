@@ -300,12 +300,23 @@ function measureInPage(wanted) {
   if (wanted.includes("responsive")) {
     // Dominant column count: inside the block, find the container whose visible children
     // form the widest visual row.
+    // A Bootstrap-3 float grid is a container to the eye and nothing to a selector: the
+    // wrapper is `display: block`, carries no `row` class, and holds its shape entirely
+    // through `col-*` children that float. Counting only flex/grid/.row read it as one column
+    // at every viewport — which says "collapsed" on BOTH sides of the comparison, so the gate
+    // could not fail, in either direction. Recognise the children instead of the wrapper.
+    const floatGrid = (el) =>
+      [...el.children].filter((k) =>
+        String(k.className || "").split(/\s+/).some((c) => /^col(-|$)/.test(c))
+      ).length >= 2;
+
     const colsOf = (root) => {
       let best = 1;
       const containers = [...root.querySelectorAll("*")].filter((el) => {
+        if (el.children.length < 2) return false;
         const s = getComputedStyle(el);
-        return (s.display.includes("grid") || s.display.includes("flex") || /(^|\s)row(\s|$)/.test(el.className)) &&
-          el.children.length >= 2;
+        return s.display.includes("grid") || s.display.includes("flex") ||
+          /(^|\s)row(\s|$)/.test(el.className) || floatGrid(el);
       });
       containers.push(root);
       for (const c of containers) {
@@ -404,6 +415,11 @@ const layoutFindings = [];
 const responsiveFindings = [];
 const layoutDims = {};
 const collected = { blocks: {}, chrome: {}, meta: {} };
+// This side's desktop column count per PAGE per block type. `collected` is keyed by type
+// alone because that is the shape the reference file must have — the demo's paths and the
+// client's do not correspond — but the fold question is per page, and the same block type is
+// laid out differently on different ones.
+const pageDesktop = {};
 
 /**
  * Wait for the page to stop moving, without paying a fixed toll on every render.
@@ -522,6 +538,9 @@ while (queue.length) {
         for (const [type, s] of Object.entries(m.responsive.blocks)) {
           const key = `${type}|${vp.name}`;
           if (!collected.blocks[key]) collected.blocks[key] = s;
+          // Desktop runs first within every page, so this is always populated before any
+          // narrower viewport of the same page asks for it.
+          if (vp.name === "desktop") pageDesktop[`${item.path}|${type}`] = s.cols;
         }
         for (const [what, s] of Object.entries(m.responsive.chrome)) {
           const key = `${what}|${vp.name}`;
@@ -529,7 +548,7 @@ while (queue.length) {
         }
         if (responsiveMode === "compare")
           responsiveFindings.push(
-            ...judgeResponsive({ sig: m.responsive, reference, collected, viewport: vp.name, path: item.path })
+            ...judgeResponsive({ sig: m.responsive, reference, collected, pageDesktop, viewport: vp.name, path: item.path })
           );
       }
     } catch (e) {

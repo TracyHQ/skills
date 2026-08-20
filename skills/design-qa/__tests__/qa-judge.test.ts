@@ -150,6 +150,41 @@ describe("judgeResponsive", () => {
     expect(findings[0].what).toMatch(/still 4 columns at mobile; demo collapses 3→1/);
   });
 
+  it("judges a block against ITS OWN page's desktop layout, not another page's", () => {
+    // Trap 50's second half. The same block type is laid out differently on different pages —
+    // three cards on the home page, two on a landing page. Keying the desktop baseline by
+    // type alone judges page B's fold against page A's desktop state, comparing two things
+    // that were never the same shape. Here /landing shows 2 columns at desktop and still 2 at
+    // mobile: it has NOT collapsed, and must fail even though the home page's 3 would make
+    // the same number look like a collapse.
+    const reference = { blocks: { "acm-cards|desktop": block(3), "acm-cards|mobile": block(1) } };
+    const collected = { blocks: { "acm-cards|desktop": block(3) } }; // from /, seen first
+    const pageDesktop = { "/|acm-cards": 3, "/landing|acm-cards": 2 };
+    const findings = judgeResponsive({
+      sig: sig({ "acm-cards": block(2) }), reference, collected, pageDesktop,
+      viewport: "mobile", path: "/landing",
+    });
+    expect(findings[0]).toMatchObject({ level: "FAIL" });
+    expect(findings[0].what).toMatch(/still 2 columns at mobile/);
+    // Without the per-page baseline this reads as 2 < 3, i.e. "collapsed", and passes.
+    expect(judgeResponsive({
+      sig: sig({ "acm-cards": block(2) }), reference, collected,
+      viewport: "mobile", path: "/landing",
+    })).toEqual([]);
+  });
+
+  it("prefers a page's own desktop count of zero over the cross-page fallback", () => {
+    // `??` rather than `||`: a legitimately measured 0 must not fall through to another
+    // page's number the way a falsy check would send it.
+    const reference = { blocks: { "acm-x|desktop": block(3), "acm-x|mobile": block(1) } };
+    const findings = judgeResponsive({
+      sig: sig({ "acm-x": block(0, { visible: true }) }),
+      reference, collected: { blocks: { "acm-x|desktop": block(3) } },
+      pageDesktop: { "/p|acm-x": 0 }, viewport: "mobile", path: "/p",
+    });
+    expect(findings.filter((f: any) => f.level === "FAIL")).toEqual([]);
+  });
+
   it("fails a nav that stays expanded where the demo folds it", () => {
     const reference = { blocks: {}, chrome: { "header|mobile": { navLinks: 2, toggler: true, hOverflow: false } } };
     const findings = judgeResponsive({

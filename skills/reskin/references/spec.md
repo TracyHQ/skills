@@ -791,17 +791,27 @@ absolute undress is ever needed.
     reference and compare must be re-measured, and the negative test re-run (force 3 columns at
     mobile → correct FAIL → remove → clean).
 
-    ⚠ **NOT IN THIS REPO.** This entry read "`responsive-qa` now recognises…" until 2026-08-19,
-    when the git history was checked: `col-` has never appeared in `responsive-qa.mjs` in any
-    commit here, and the desktop baseline is keyed `type|viewport`, not per page. The fix was made
-    somewhere else and never travelled. The gate published from this repo still carries the
-    pre-fix ruler, so on a float grid it reports one column everywhere — which reads as "collapsed"
-    at every viewport and therefore never fails, on either side of the comparison.
+    **Landed here 2026-08-19**, and worth recording how late. This entry read "`responsive-qa`
+    now recognises…" for months while the git history said otherwise: `col-` had never appeared
+    in `responsive-qa.mjs` in any commit in this repo, and the baseline was keyed `type|viewport`.
+    The fix was made somewhere else and never travelled; the sentence stayed and got quoted as
+    fact.
+
+    Measured on a float grid before and after, same page, same block:
+
+        desktop   old ruler 1 column   new ruler 3 columns
+        mobile    old ruler 1 column   new ruler 1 column
+
+    One column at every viewport reads as "collapsed" on BOTH sides of the comparison, so the
+    gate could not fail — and in the other direction a grid that folded correctly was reported
+    as broken. The negative test this entry asks for now passes end to end: reference records
+    3→1, a clean client is green, forcing three columns at mobile fails naming the block and the
+    page, removing it goes green again.
 
     The lesson is the entry itself, not the grid. A trap log written in the past tense is a claim
-    about code, and this one went un-checked long enough to be quoted as fact. Any line here that
-    says a script "now does X" is worth grepping for before it is relied on — the `--variant`
-    contract was lost the same way, asserted in three files and honoured by three of five gates.
+    about code. Any line here that says a script "now does X" is worth grepping for before it is
+    relied on — the `--variant` contract was lost the same way, asserted in three files and
+    honoured by three of five gates.
 51. **An SVG logo with no declared width/height collapses to 0 in a shrink-to-fit chain**
     (inline-block + `max-width:100%` loop; a PNG escapes thanks to its intrinsic size — which is why
     the demo never showed it). Two branding satellites: the client has no white logo variant, so a
