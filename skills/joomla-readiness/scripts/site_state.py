@@ -296,11 +296,16 @@ def read_state(*, version: str, extensions: list, registry: dict) -> dict:
             "No extensions were read from this site, so this is not a clean bill of health: "
             "it is a report with nothing to work from.")
     if counts["unrecognised"]:
+        # Counted against what could be looked up, not against the whole install. A Joomla 5.4
+        # site carries 241 core rows that were never going to be in a third-party directory, and
+        # a first real run reported "1 of 249" where the honest figure was one in four.
+        # Understating uncertainty is the same class of mistake as overstating a verdict.
+        lookups = counts["total"] - counts["core"]
         warnings.append(
-            f"{counts['unrecognised']} of {counts['total']} installed extensions are not in "
-            "the public registry, so their Joomla 6 status is unknown rather than fine. The "
-            "registry is keyed by directory listing and a site reports element names; the two "
-            "do not always meet.")
+            f"{counts['unrecognised']} of {lookups} non-core extensions are not in the public "
+            "registry, so their Joomla 6 status is unknown rather than fine. The registry is "
+            "keyed by directory listing and a site reports element names; the two do not always "
+            "meet.")
 
     return {
         "core": {"version": version, "known": bool(version)},
