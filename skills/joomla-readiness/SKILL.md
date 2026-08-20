@@ -5,7 +5,7 @@ description: >-
   stand in the way. Reads the site's own version and installed extensions, looks each one up in
   the public extension registry, and says out loud what it could not find out. Use when someone
   asks if a site is ready for Joomla 6, what is blocking an upgrade, or how far behind a site is.
-version: 1.2.0
+version: 1.3.0
 platforms: joomla
 tags:
   - joomla
@@ -43,9 +43,25 @@ package only to 4.4.x, and 3.10.x goes straight to 4.4:
 A site on Joomla 3 is **three upgrades away**, not one. Saying "upgrade to Joomla 6" without
 saying that is telling somebody the job is smaller than it is.
 
-PHP is the second chain. Joomla 4 runs on 8.0 to 8.2, Joomla 5 on 8.2 to 8.3, Joomla 6 on 8.3 to
-8.4. A site on Joomla 3 usually runs PHP 7.4, so the road raises PHP twice, and PHP lives with
-the hosting provider rather than in the site. Name it; do not promise it.
+PHP is the second chain, and it is a **floor, never a ceiling**:
+
+```
+-> 4.4    PHP 7.2.5        -> 5.4    PHP 8.1        -> 6.1    PHP 8.3
+```
+
+A site on Joomla 3 usually runs PHP 7.4, so the road raises PHP once or twice, and PHP lives
+with the hosting provider rather than in the site. Name it; do not promise it.
+
+**Ask for the next hop's minimum, never the destination's.** "Set PHP to 8.3, that is what
+Joomla 6 needs" is wrong for every site not already at 5.4, and it is the advice a helpful
+person gives. `scripts/php_step.py` answers one hop at a time; use it rather than reasoning it
+out, and it returns an empty note when there is nothing to ask.
+
+**Do not call a high PHP a problem.** An earlier version of this treated the PHP versions the
+Joomla project builds images for as a valid range and flagged anything above it. Measured
+against 553 live customer sites on 2026-08-20 that rule fired on 16 sites that were serving
+perfectly well, among them Joomla 3.10 on PHP 8.1, 8.2, 8.3 and 8.5, and Joomla 4.4 on 8.4. The
+site is the authority on what it runs; a table is not.
 
 ## What this needs before it can read anything
 
@@ -87,6 +103,10 @@ Two tools, and neither takes arguments because they read the Site this agent bel
 2. **`mcp__tracy-site__list_extensions`** gives every installed extension with its name, type,
    element, version and whether it is enabled. The element is what the registry lookup joins on.
 
+Pass the PHP version from the first tool into `profile_from_state(state, php=...)`. Left out, the
+report tells the reader PHP was not looked at, which is a limit they are entitled to believe and
+it would be false.
+
 Both reach the site through Tracy's component. Where the component is not installed they fail
 rather than guess, and a failure is not an empty site: say the site could not be read.
 
@@ -105,6 +125,7 @@ Run the engine rather than reasoning it out yourself:
 
 ```
 scripts/site_state.py     what the site reports, joined to the registry
+scripts/php_step.py       the one PHP change to ask for now, or none
 scripts/upgrade_path.py   the chain, and the bridge into the verdict rules
 scripts/verdict.py        one of three levels, with its scope attached
 scripts/catalog.py        the registry client

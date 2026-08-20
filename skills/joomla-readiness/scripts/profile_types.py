@@ -43,6 +43,10 @@ class SiteProfile:
     scope_one: str = "JoomlArt product on this account"
     scope_many: str = "JoomlArt products on this account"
     scope_limit: str = "It does not cover third-party extensions, which we could not see."
+    #: The one PHP change this site needs before its next hop, in words, or empty when there
+    #: is nothing to ask. Empty by default: a read that never saw a PHP version says nothing
+    #: rather than guessing, and a blank line is the honest rendering of not knowing.
+    php_note: str = ""
 
 
 def joomla_major(version: str) -> int | None:

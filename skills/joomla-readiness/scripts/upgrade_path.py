@@ -72,7 +72,39 @@ def chain_to_six(version) -> list | None:
 _STATUS = {True: "available", False: "none", None: "unknown"}
 
 
-def profile_from_state(state: dict) -> SiteProfile:
+def _php_sentence(joomla: str, php: str) -> tuple[str, str]:
+    """(what to ask for, what to admit was not seen). Either may be empty.
+
+    Imported here rather than at module scope because `php_step` reads the chain from this
+    module, and a cycle at import time would break both.
+
+    The sentence this replaces said "Joomla 6 needs 8.3 or newer" to every site, including a
+    3.10 with two majors to cross first. A customer acting on it moves PHP two rungs early, on
+    a live site, on our word. `php_step` answers for the NEXT hop only.
+    """
+    from php_step import next_step  # noqa: PLC0415
+
+    try:
+        step = next_step(joomla, php)
+    except ValueError:
+        # A version outside the chain the update server serves. Nothing about PHP is knowable
+        # from here, and saying something anyway is how the old sentence went wrong.
+        return "", ("The PHP version the site runs on. That lives with the hosting provider, "
+                    "and every Joomla release has its own minimum.")
+
+    if step["action"] == "php_unknown":
+        return "", (f"The PHP version the site runs on. That lives with the hosting provider, "
+                    f"and reaching Joomla {step['for_hop']} needs {step['php']} or newer.")
+    if step["action"] == "ask_customer":
+        return (f"Set PHP to {step['php']} or newer before the next step. The site is on "
+                f"{step['from_php']}, and Joomla {step['for_hop']} will not install below "
+                f"{step['php']}. Your host sets this: cPanel calls it MultiPHP Manager, Plesk "
+                f"calls it PHP Settings, and most other panels call it Select PHP Version. "
+                f"Tell us once it is changed and we will check it before going further."), ""
+    return "", ""
+
+
+def profile_from_state(state: dict, php: str = "") -> SiteProfile:
     """What a site reports, in the shape the verdict rules already understand.
 
     Core extensions are left out. A site holds around a hundred of them, they move with the
@@ -125,21 +157,23 @@ def profile_from_state(state: dict) -> SiteProfile:
 
     products.sort(key=lambda p: p.product)
 
+    core = state.get("core") or {}
+    php_note, php_unseen = _php_sentence(str(core.get("version") or ""), php)
+
     unseen = [
-        "The PHP version the site runs on. That lives with the hosting provider, and Joomla 6 "
-        "needs 8.3 or newer.",
         "Whether each extension below is actually in use. It is installed; that is what was "
         "read.",
     ]
+    if php_unseen:
+        unseen.insert(0, php_unseen)
     # The count of what could not be matched is the honest limit of this whole skill, so it
     # travels with the report rather than staying in a log.
     unseen.extend(state.get("warnings") or [])
 
-    core = state.get("core") or {}
     return SiteProfile(
         user_id=0, email="", domain="",
         joomla_version=str(core.get("version") or ""), version_measured_at="",
-        products=products, unseen=unseen,
+        products=products, unseen=unseen, php_note=php_note,
         scope_one="extension installed on this site",
         scope_many="extensions installed on this site",
         scope_limit=("It covers what the site reports as installed, looked up in the public "
