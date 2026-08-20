@@ -5,7 +5,7 @@ description: >-
   stand in the way. Reads the site's own version and installed extensions, looks each one up in
   the public extension registry, and says out loud what it could not find out. Use when someone
   asks if a site is ready for Joomla 6, what is blocking an upgrade, or how far behind a site is.
-version: 1.5.0
+version: 1.5.1
 platforms: joomla
 tags:
   - joomla
@@ -157,6 +157,18 @@ read those manifests, or pass nothing: without them this behaves exactly as it d
 
 Keep the group. Two products ship a plugin whose element is `com_k2`, and without the group in
 the key one product's row answers to the other's claim.
+
+### Say how old the reading is
+
+`load_catalog()` returns `observed_at` alongside the records, and it is there because the
+registry is re-crawled by hand: its own README lists "no `schedule:` in the publish workflow"
+as an open question. Measured on 2026-08-20 the live index was stamped 2026-08-04, sixteen days
+behind.
+
+**Print that date in your answer.** "The extension directory records no Joomla 6 build" is a
+claim about a crawl, not about the world, and a reader given the sentence without the date will
+take it for the world. A build published last week does not exist yet as far as this data is
+concerned, and the customer is the person best placed to know that.
 
 ## The one rule
 
