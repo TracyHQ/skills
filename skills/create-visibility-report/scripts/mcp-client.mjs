@@ -31,14 +31,25 @@ export function parseSSE(text) {
 export async function rpc(method, params, { url, key, fetchImpl = fetch } = {}) {
   const endpoint = url ?? process.env.MENTION_NETWORK_MCP_URL ?? DEFAULT_URL
   const bearer = key ?? process.env.MENTION_NETWORK_KEY
-  if (!bearer) throw new Error('missing MENTION_NETWORK_KEY in the environment')
+  // KHÔNG có key thì gửi không kèm Authorization, thay vì tự chặn ở đây.
+  //
+  // Server quyết định chuyện đó, không phải client: từ 19/08/2026 MCP nhận
+  // request không Bearer (MCP_OPTIONAL_API_KEY, mặc định bật) và gán principal
+  // `anonymous`. Throw sẵn ở client nghĩa là skill từ chối một cuộc gọi mà
+  // server sẵn sàng phục vụ — xác minh trên prod: không Bearer → 200 và
+  // tools/list trả đủ 22 tool.
+  //
+  // Key SAI vẫn 401 (server giữ nguyên lằn ranh đó), nên gửi kèm một key hỏng
+  // TỆ HƠN là không gửi gì. Đó là lý do chỗ này bỏ header hẳn chứ không gửi
+  // chuỗi rỗng.
+  const headers = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json, text/event-stream',
+  }
+  if (bearer) headers.Authorization = `Bearer ${bearer}`
   const res = await fetchImpl(endpoint, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${bearer}`,
-      'Content-Type': 'application/json',
-      Accept: 'application/json, text/event-stream',
-    },
+    headers,
     body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method, params }),
   })
   const ct = res.headers.get?.('content-type') || ''
