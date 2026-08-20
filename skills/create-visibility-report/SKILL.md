@@ -781,9 +781,12 @@ cheaper than the one after it:
 2. **The P4.5 guards** — `check-detections.mjs --cells "$RUN/cells/" --meta "$RUN/meta.json" --fix`
    (ANALYSIS.md).
 3. **`validate_byok_submission` against the MCP, best-effort.** Try it, but don't treat a failure to
-   reach the MCP here as fatal — unlike `describe_check_grid`/`tools/list` (verified anonymous
-   2026-08-19), whether this specific tool accepts an unauthenticated call has not been verified the
-   same way, so source the credential store first if a `MENTION_NETWORK_KEY` exists:
+   reach the MCP here as fatal. This tool **does** accept an unauthenticated call — verified against
+   production on 2026-08-20: with no `Authorization` header at all it answers with a schema error
+   for the missing `cells` argument, not a `401`, which is only reachable past the auth guard. So a
+   validate is available even to someone who has never had a key. Still source the credential store
+   first when a `MENTION_NETWORK_KEY` exists, so the validate runs under the same principal the
+   submit will use:
    ```bash
    CREDS="${MENTION_NETWORK_CREDENTIALS:-$HOME/.config/mention-network/credentials}"
    set -a; [ -f "$CREDS" ] && . "$CREDS"; set +a
