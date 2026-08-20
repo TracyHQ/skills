@@ -210,6 +210,37 @@ def _put(table: dict, key: str, record: dict) -> None:
     table[key] = _AMBIGUOUS if key in table else record
 
 
+#: Below this, a title is a coincidence generator rather than an identifier. Measured on the
+#: live registry: 154 slugs begin with `sj`, 142 with `aa`, 111 with `ja`.
+_MIN_TITLE_PREFIX = 5
+
+
+def _by_product_prefix(name: str, by_title: dict) -> dict | None:
+    """The product a piece belongs to, when its name leads with that product's title.
+
+    A Joomla product ships many pieces and the directory lists only the product, so sh404SEF
+    appears on a site as eight rows and RSForm! Pro as six. Their manifest names lead with the
+    product name, which Joomla copies into `#__extensions.name`:
+
+        sh404sef - Similar urls plugin        RSForm! Pro Module
+
+    Measured on joomlart.com, seven rows were reachable this way and none ambiguous.
+
+    The whole title is required as a prefix, never a fragment. Matching on stems was measured
+    too and produced `plg_obrss_content` against `content-ajax`, and `com_easydiscuss` against
+    `easydiscuss-signature`, an add-on standing in for the product it extends. The longest
+    matching title wins, so a vendor's specific product beats its own shorter sibling.
+    """
+    squashed = _squash(name)
+    if not squashed:
+        return None
+    hits = [(title, record) for title, record in by_title.items()
+            if len(title) >= _MIN_TITLE_PREFIX and squashed.startswith(title)]
+    if not hits:
+        return None
+    return max(hits, key=lambda pair: len(pair[0]))[1]
+
+
 def _index(registry: dict) -> tuple[dict, dict]:
     """Two lookup tables, because there are two routes in and they find different things.
 
@@ -267,7 +298,10 @@ def classify(extension: dict, registry: dict, *, core_version: str,
         row["state"] = CORE
         return row
 
-    record = by_slug.get(_squash(_strip_type(element, kind))) or by_title.get(_squash(name))
+    record = (by_slug.get(_squash(_strip_type(element, kind)))
+              or by_title.get(_squash(name))
+              # Last, because it is the widest: a piece of a product rather than the product.
+              or _by_product_prefix(name, by_title))
     if record is None:
         return row
 
