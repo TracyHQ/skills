@@ -22,7 +22,22 @@ unrecognized token becomes a note on the confirm card, not an error.
 | `offstore=<route>` | `serpapi` \| `none` — SerpApi is the only route there is | `serpapi` when a key is stored, else `none` |
 | `llm=<route>` | `anthropic` \| `openai` \| `gemini` \| `none` | the first key that is stored, then asked |
 | `model=<id>` | pin the grading/narrative model | route default |
-| `report=<reportId>` | a Phase-1 report to pair with: unlocks `price-competitive`, and the stored audit shows on the merchant's Website Audit home instead of standing alone | none (standalone audit) |
+| `report=<reportId>` | a Phase-1 report to pair with: the stored audit shows on the merchant's Website Audit home instead of standing alone. **Does not unlock `price-competitive`** — see the note below | none (standalone audit) |
+
+> **Why `report=<reportId>` doesn't unlock `price-competitive` (audit incident D).** This
+> argument only reaches `submit-audit.mjs --report-id`, which pairs the *finished* audit with
+> that report for display — it never feeds prices back into scoring, and no script here reads
+> the report's mentions. `get_visibility_report({checkRunId, shopDomain})` does carry a
+> per-merchant `marketPosition.competitors[].priceDisplay`, but that field is the price
+> **exactly as the AI answer wrote it** ("AED 135", "228,89 €"), never a structured
+> `{ amount, currency }` pair — the backend's own `price-competitive` scorer reads a column no
+> MCP tool exposes. Parsing `priceDisplay` here would mean re-solving "which locale wrote this
+> money" client-side, which is a real, previously-shipped source of wrong-but-plausible numbers
+> (mis-parsed thresholds, wrong currency splits) — so this skill does not attempt it instead of
+> risking the same class of bug. The only supported path to a scored `price-competitive` is
+> hand-entering `competitorPrices: [{ amount, currency }, …]` into `meta.json` yourself, read off
+> a Phase-1 report you already have open (see `SKILL.md`, P5) — until then the criterion stays
+> `na`, which is the honest answer, not a missing feature.
 
 ## Flags
 
@@ -69,7 +84,7 @@ route the arguments did not pin gets a question at Q1 when there is more than on
 | `llm=<provider>` with no key for it | → the next stored key, else Q2 asks | "no `<PROVIDER>_API_KEY` stored" |
 | No LLM key at all | grading is skipped, 15 criteria go `na`; Q2 asks | "no LLM key: the content-quality bands can't be graded" |
 | A key the store holds but the provider rejected | → the next stored key; name the provider that refused | "your `<PROVIDER>` key came back 401 — replace or remove it" |
-| `report=<id>` but the MCP is absent | drop the pairing, keep the audit | "no MCP: `price-competitive` stays n/a, result is local-only" |
+| `report=<id>` but the MCP is absent | drop the pairing, keep the audit | "no MCP: the audit stands alone, no link to that report; `price-competitive` was already `na` regardless (see the note above)" |
 | No `MENTION_NETWORK_KEY` | **stop at P1 and ask to connect** — do not run into a local-only result. Local-only needs `no-save` or the user's explicit go-ahead | "no MCP key: I can't save the audit or give you a link until this is set" |
 | A PDP URL and `product=` that disagree | the explicit URL wins | "using the URL you gave" |
 

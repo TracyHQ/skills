@@ -50,7 +50,7 @@ If the store already has a Phase-1 report and the backend should just do it, cal
 
 ```
 P0 parse → P1 preflight → P2 resolve → [Q1 confirm] → P3 fetch page
-        → P4 grade (LLM) ∥ off-store → P5 score + narrate → P6 submit + PDF → [Q2 gaps]
+        → P4 off-store, then grade (LLM) → P5 score + narrate → P6 submit + PDF → [Q2 gaps]
 ```
 
 Companion files — read the one the situation calls for, not all of them up front:
@@ -145,10 +145,11 @@ Alongside it, in the same batch:
   `product_type`, `variants[0].price`, `images[0].src` for every product. The PDP URL is
   `https://<shopDomain>/products/<handle>`. This is the reliable source; the MCP is optional here.
 - **MCP** — `get_shop({shopDomain})` gives the shop name / `primaryLocale` / country for the
-  confirm card, and `list_visibility_checks` tells you whether a Phase-1 report exists whose
-  competitor prices would unlock `price-competitive`. The MCP is also how the finished audit gets
-  **saved on the server** and turned into a hosted PDF (P6), so check `MENTION_NETWORK_KEY` now,
-  not at the end.
+  confirm card, and `list_visibility_checks` tells you whether a Phase-1 report exists to pair
+  with (`report=`, P6) so the audit shows on the merchant's Website Audit home. **It does not by
+  itself unlock `price-competitive`** — see `ARGUMENTS.md` for why and for the one path that
+  does. The MCP is also how the finished audit gets **saved on the server** and turned into a
+  hosted PDF (P6), so check `MENTION_NETWORK_KEY` now, not at the end.
 
   > **No MCP → stop here and ask for it, before anything else.** If `credentials.mjs status` says
   > `MENTION_NETWORK_KEY: missing` **and** no host `mention-network` tool answers, **end your turn
@@ -165,9 +166,16 @@ Alongside it, in the same batch:
   > read -rs MENTION_NETWORK_KEY && export MENTION_NETWORK_KEY \
   >   && node "$HERE/scripts/credentials.mjs" save MENTION_NETWORK_KEY   # unset it when done
   > claude mcp add mention-network --transport http \
-  >   https://shopify-mcp-dev.mention.network/api/v1/mcp \
+  >   https://shopify-mcp.mention.network/api/v1/mcp \
   >   --header "Authorization: Bearer ${MENTION_NETWORK_KEY}"     # then reload the session
   > ```
+  >
+  > That URL is **production** — the one this skill ships pointed at, and the one a
+  > production `MENTION_NETWORK_KEY` is issued for. A developer working against a non-prod
+  > backend sets `MENTION_NETWORK_MCP_URL` to the `-dev` host themselves (`scripts/mcp-client.mjs`
+  > reads it) rather than editing this command; a key from one environment is **rejected** by the
+  > other with `401 "Internal API key không hợp lệ"`, not silently accepted, so mixing them up
+  > fails loud at the next call rather than producing a wrong audit.
   >
   > **Say this out loud when you hand over that second command:** unlike everything else here, it
   > puts the live key in a command-line argument, where another local user can read it out of
@@ -256,25 +264,17 @@ comparing the page against itself would hand out a free 100 on the one criterion
 JS-hidden content. If a rendered DOM already exists on disk, `--rendered-html "$RUN/rendered.html"`
 will use it; do not go and capture one.
 
-## P4 — Grade and collect, in parallel
+## P4 — Collect off-store, then grade
 
-These two are independent; start both.
+These two are **ordered, not parallel**. P4b's press filter reads
+`offstore.press.candidates`, so P4a (off-store) has to have written `$RUN/offstore.json` — even
+an all-`na` one, when there's no SerpApi key — before P4b (LLM grading) runs. Running them the
+other way used to crash P4b with a bare `ENOENT` on a file P4a hadn't written yet; `analyze-llm.mjs`
+now degrades a genuinely-missing offstore/meta file to "that lane did not run" instead of throwing,
+but there is still no reason to race them — off-store has no dependency on the LLM step, so it
+always goes first.
 
-**P4a — the 15 LLM-graded criteria** (four calls in parallel — content, voice, credibility and the
-FAQ analysis — plus the press filter if off-store ran):
-
-```bash
-node "$HERE/scripts/analyze-llm.mjs" --pages "$RUN/pages.json" --meta "$RUN/meta.json" \
-  --offstore "$RUN/offstore.json" --route anthropic --out "$RUN/llm.json"
-```
-
-Omit `--route` to let `pickRoute` take the first key that is present. The prompts are ported
-verbatim from the backend; the bands are discrete (0/50/100/na) so two different models still land
-on comparable numbers. **Do not grade the page yourself and hand-write `llm.json`** — that is the
-one shortcut that silently decalibrates the whole report. A malformed band is dropped, not
-coerced: that criterion goes `na`.
-
-**P4b — the 7 off-store criteria:**
+**P4a — the 7 off-store criteria:**
 
 ```bash
 node "$HERE/scripts/collect-offstore.mjs" --brand "<shop name>" --domain "<shopDomain>" \
@@ -289,7 +289,33 @@ as earned mentions and `social-video-mentions` reads higher than the truth. `--o
 takes a comma-separated list on top, for a profile the product page does not link to.
 
 Anything the searches did not return stays `null` → that criterion is `na`. **Never fill a signal
-that was not measured.** (Wikidata and Wikipedia are free APIs and need no key.)
+that was not measured.** (Wikidata and Wikipedia are free APIs and need no key.) Read the printed
+`collected: {...}` line, and the `failures` array `offstore.json` now carries alongside it: a
+signal reading `false` because a search **errored** (bad key, timeout, quota) is a different
+finding from one that ran and legitimately found nothing — `failures` names only the first kind.
+Neither line was surfaced before this was fixed (a run whose searches all failed used to look
+exactly like "this brand has no buzz"); `report.md` now prints a warning too when either is
+non-empty.
+
+**P4b — the 15 LLM-graded criteria** (four calls in parallel — content, voice, credibility and the
+FAQ analysis — plus the press filter over P4a's candidates, when there are any):
+
+```bash
+node "$HERE/scripts/analyze-llm.mjs" --pages "$RUN/pages.json" --meta "$RUN/meta.json" \
+  --offstore "$RUN/offstore.json" --route anthropic --out "$RUN/llm.json"
+```
+
+Omit `--route` to let `pickRoute` take the first key that is present. `--offstore` is optional
+here the same way `--meta` is: a run with no SerpApi key never wrote one, and a missing file at
+that path is now treated exactly like an omitted flag — the press filter just doesn't run, and
+`press-and-lists` stays whatever P4a already left it (`na`, no key). The prompts are ported
+verbatim from the backend; the bands are discrete (0/50/100/na) so two different models still land
+on comparable numbers. **Do not grade the page yourself and hand-write `llm.json`** — that is the
+one shortcut that silently decalibrates the whole report. A malformed band is dropped, not
+coerced: that criterion goes `na`. `llm.json` carries a `failedBatches` array too — any of
+`content` / `voice` / `credibility` / `faq` / `press` that threw and got caught rather than graded
+— for the same reason as P4a's `failures`: read it before treating a thin-looking report as a
+finding about the store rather than about the run.
 
 ## P5 — Score and write the prose
 
@@ -326,9 +352,12 @@ display name comes from here, so the report heads a nameless store and every bra
 off-store lane works off whatever you typed into `--brand` instead.
 
 Only what the storefront cannot tell you belongs here: the shop's display name (it drives every
-brand match — Reddit, Trustpilot, Google, `brand-in-title`), the currency, the market, and — if a
-Phase-1 report exists — `competitorPrices: [{ "amount": 24.5, "currency": "AED" }, …]` from its
-same-product mentions, which is the only way `price-competitive` scores instead of going `na`.
+brand match — Reddit, Trustpilot, Google, `brand-in-title`), the currency, the market, and —
+**hand-entered, if a Phase-1 report exists** — `competitorPrices: [{ "amount": 24.5, "currency":
+"AED" }, …]` read off its same-product mentions. This is the only way `price-competitive` scores
+instead of going `na`, and there is no script that fetches or parses it for you: see `ARGUMENTS.md`
+(`report=<reportId>`) for exactly why that field has to be typed in rather than pulled
+automatically.
 
 ## P6 — Save it on the server and export the PDF
 
@@ -427,7 +456,7 @@ Two differences are deliberate, not drift:
   is the only one.
 
 A third difference is local: the store's own social profiles are discovered from the product page
-rather than typed in (see P4b), because forgetting them inflates `social-video-mentions`.
+rather than typed in (see P4a), because forgetting them inflates `social-video-mentions`.
 
 Anything else that differs from the source is a bug in this copy. When re-porting, take the
 scorers, `framework.mjs` and the prompt text verbatim — the wording *is* the calibration, and the

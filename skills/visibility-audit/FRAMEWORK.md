@@ -109,19 +109,28 @@ this copy — see SKILL.md, *Where this came from*.
 
 ## What the content batch actually reads
 
-The 11 LLM criteria above grade **three labelled sections**, not one description field: `## PRODUCT
-TEXT` (what the merchant wrote — `meta.json` first, then the storefront product JSON),
-`## FAQ` (Q&A lifted from the page's FAQPage structured data) and `## PAGE CONTENT` (the rendered
-page with header/nav/footer, Shopify `shopify-section-*` chrome and repeated theme labels stripped —
-where spec tables, ingredients, how-to-use and schema-less FAQ accordions live). An empty section is
-omitted entirely: printing a `(none)` placeholder taught the model to treat that section as the only
-valid source and ignore the same content sitting elsewhere.
+The "Grading LLM" lane above is **15** criteria in total (`specifications` through
+`shipping-competitive` in the tables above — everything tagged `LLM` or `page + LLM`), split
+across three separate calls with three separate prompts. Only the first of those, the **content
+batch** (`CONTENT_LLM_KEYS` in `analyze-llm.mjs`: `specifications`, `compatibility-sizing`,
+`safety-materials`, `benefits-outcomes`, `limitations-honest`, `comparison-alternatives`,
+`who-is-it-for`, `faq-product`, `troubleshooting-care` — **9** of the 15), grades **three labelled
+sections**, not one description field: `## PRODUCT TEXT` (what the merchant wrote — `meta.json`
+first, then the storefront product JSON), `## FAQ` (Q&A lifted from the page's FAQPage structured
+data) and `## PAGE CONTENT` (the rendered page with header/nav/footer, Shopify
+`shopify-section-*` chrome and repeated theme labels stripped — where spec tables, ingredients,
+how-to-use and schema-less FAQ accordions live). An empty section is omitted entirely: printing a
+`(none)` placeholder taught the model to treat that section as the only valid source and ignore
+the same content sitting elsewhere.
 
-Two criteria are graded by a SEPARATE call whose prompt carries only the merchant's copy —
-`unique-description` and `answer-formatting` measure the shop's own voice and formatting, which
-machine-extracted page text cannot evidence. Asking the model to ignore the other sections was
-tried and measured: it moved bands anyway, so the sources are withheld instead. Backend ADR:
-`docs/adr/0042-audit-content-three-sources.md`.
+The remaining 6 do not read those three sections. Two are graded by a SEPARATE **voice** call
+whose prompt carries only the merchant's own copy and nothing else — `unique-description` and
+`answer-formatting` measure the shop's own voice and formatting, which machine-extracted page text
+cannot evidence. Asking the model to ignore the other sections was tried and measured: it moved
+bands anyway, so the sources are withheld instead (backend ADR: `docs/adr/0042-audit-content-three-sources.md`).
+The last four — `about-page`, `policies-quality`, `onsite-reviews`, `shipping-competitive` — are
+graded by a third, separate **credibility** call over the About page and policy pages, which is a
+different source entirely from all three of the above.
 
 ## Deliberate deviations from the backend
 
@@ -143,9 +152,12 @@ the report rather than hidden in a number:
    and those seven can read lower here than on a backend run — a different page, not a different
    scorer. `dataSources.renderer` records which happened, and `report.md` says it in words when the
    run was un-rendered. Pass `--rendered-html` to remove the difference entirely.
-3. **`price-competitive` needs prices you carry in.** The backend reads competitor prices out of the
-   Phase-1 mentions table. This skill has no database, so unless `meta.json` carries
-   `competitorPrices`, the criterion is `na` — never a guess from the storefront.
+3. **`price-competitive` needs prices you carry in.** The backend reads competitor prices out of a
+   structured column no MCP tool exposes to a client. This skill has no database and no automated
+   substitute for that column, so unless `meta.json` carries `competitorPrices` by hand, the
+   criterion is `na` — never a guess from the storefront, and never parsed out of a report's
+   free-text price display (see `ARGUMENTS.md`, `report=<reportId>`, for why that last part isn't
+   attempted).
 
 Everything else — the bands, the thresholds, the curves (`reddit` 12.5·√n, `press` 45·√n, `video`
 7·Σ√n), the gating rules, the aggregation, the narrative guards — is the backend's logic, ported

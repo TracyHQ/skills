@@ -343,8 +343,14 @@ export async function collectFaq({ product, sources, opts }) {
 export async function analyze({ pages, meta, offstore, route, model, timeoutMs }) {
   const subject = resolveSubject(meta, pages)
   const opts = { route, model, timeoutMs }
+  // Which of content/voice/credibility/faq/press threw and got caught rather than graded —
+  // written into the output (see `main`) so a run where every batch failed is distinguishable
+  // from a store that is genuinely thin. Both leave the same criteria `na`, so without this a
+  // total-failure run "looks like" a bad page instead of an unmeasured one (audit incident H).
+  const failedBatches = []
   const warn = (label) => (e) => {
     process.stderr.write(`warning: ${label} batch failed: ${e.message}\n`)
+    failedBatches.push(label)
     return {}
   }
 
@@ -391,9 +397,13 @@ export async function analyze({ pages, meta, offstore, route, model, timeoutMs }
       .then(normalizePress)
       .catch((e) => {
         process.stderr.write(`warning: press filter failed: ${e.message}\n`)
+        failedBatches.push('press')
         return null
       })
   }
+  // faq-product's own call catches internally (see collectFaq) rather than rejecting, so it
+  // never hits `warn` above — read its result status instead.
+  if (faq?.status === 'llm-failed') failedBatches.push('faq')
 
   return {
     generatedAt: new Date().toISOString(),
@@ -402,18 +412,39 @@ export async function analyze({ pages, meta, offstore, route, model, timeoutMs }
     analysis: { ...content, ...voice, ...credibility },
     faq,
     press,
+    failedBatches,
+  }
+}
+
+// `--meta` / `--offstore` are optional lanes — SKILL.md says omitting either flag never fails
+// the run. A path that IS given but does not exist on disk now gets the same treatment:
+// incident A found this throwing a bare ENOENT and killing P4b whenever it ran before P4a had
+// written `offstore.json` (or off-store never ran at all, e.g. no SerpApi key), even though
+// nothing downstream actually needs the file to exist — `analyze()` already treats a `null`
+// offstore/meta as "that lane did not run". Any OTHER read failure (malformed JSON,
+// permissions) still throws: only "file genuinely absent" degrades. Exported so this can be
+// unit-tested without a real LLM call.
+export function readOptionalJson(p, label, readFile = readFileSync) {
+  if (!p) return null
+  try {
+    return JSON.parse(readFile(p, 'utf8'))
+  } catch (e) {
+    if (e.code === 'ENOENT') {
+      process.stderr.write(`warning: ${label} not found at ${p} — that lane did not run\n`)
+      return null
+    }
+    throw e
   }
 }
 
 export async function main(argv) {
   const a = parseArgv(argv)
   if (!a.pages) throw new Error('--pages pages.json is required')
-  const read = (p) => (p ? JSON.parse(readFileSync(p, 'utf8')) : null)
 
   const result = await analyze({
-    pages: read(a.pages),
-    meta: read(a.meta),
-    offstore: read(a.offstore),
+    pages: JSON.parse(readFileSync(a.pages, 'utf8')),
+    meta: readOptionalJson(a.meta, 'meta'),
+    offstore: readOptionalJson(a.offstore, 'offstore'),
     route: a.route ?? pickRoute(),
     model: a.model ?? null,
     timeoutMs: a['timeout-ms'] ? Number(a['timeout-ms']) : 180000,
@@ -431,6 +462,9 @@ export async function main(argv) {
     missing: [...CONTENT_LLM_KEYS, ...VOICE_LLM_KEYS, ...CREDIBILITY_LLM_KEYS].filter(
       (k) => !graded.includes(k),
     ),
+    // Which batches threw rather than graded (also written into llm.json itself — see
+    // `analyze`) — read this before treating a thin-looking report as a finding.
+    failedBatches: result.failedBatches,
     pressCount: result.press?.count ?? null,
   }
 }

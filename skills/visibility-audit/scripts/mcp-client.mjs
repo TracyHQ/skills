@@ -4,12 +4,18 @@
 // token-heavy, and easy to mis-escape. Stateless server: no session id, one POST per call.
 //
 // Endpoint + key come from the env (the same ones the Claude host uses):
-//   MENTION_NETWORK_MCP_URL   default https://shopify-mcp-dev.mention.network/api/v1/mcp
+//   MENTION_NETWORK_MCP_URL   default https://shopify-mcp.mention.network/api/v1/mcp (production)
 //   MENTION_NETWORK_KEY       required (Bearer)
+//
+// This skill ships pointed at PRODUCTION. Developers working against a non-prod backend set
+// MENTION_NETWORK_MCP_URL to the `-dev` host themselves — do not hardcode it here, and do not
+// assume a dev key works against prod or vice versa: a dev-issued key is REJECTED by prod with
+// `401 "Internal API key không hợp lệ"` (and a prod key is rejected by dev the same way), so a
+// stale key from the other environment fails loud, not quiet.
 //
 // Exports rpc() / callTool() for submit-audit.mjs and any other script; no npm deps (Node ≥18 fetch).
 
-const DEFAULT_URL = 'https://shopify-mcp-dev.mention.network/api/v1/mcp'
+const DEFAULT_URL = 'https://shopify-mcp.mention.network/api/v1/mcp'
 
 // The server answers as SSE (`event: message\ndata: {json}`); collect the data payloads.
 export function parseSSE(text) {

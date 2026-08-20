@@ -13,7 +13,11 @@ export function renderMarkdown(report) {
   const s = report.subject
   L.push(`# Website Audit — ${s.shop.name || s.shop.storeUrl}`)
   L.push('')
-  L.push(`**Score ${pct(report.score)}** (${report.verdict}) · ${report.coverage.scored}/${report.coverage.totalDefined} criteria scored`)
+  // `report.verdict` is `null` exactly when nothing was scored (see framework.mjs
+  // verdictTier) — that is "unknown", never "weak". Printing the tier only when one was
+  // actually earned is what incident C required.
+  const verdictText = report.verdict ?? 'unrated — nothing was scored'
+  L.push(`**Score ${pct(report.score)}** (${verdictText}) · ${report.coverage.scored}/${report.coverage.totalDefined} criteria scored`)
   L.push('')
   if (report.summary) L.push(`> ${report.summary}`)
   L.push('')
@@ -30,6 +34,21 @@ export function renderMarkdown(report) {
   if (report.dataSources.renderer === 'plain') {
     L.push(
       '- ⚠️ Nothing rendered this page: every on-page signal below was read from the pre-JS HTML, which is what an AI crawler sees but less than a shopper sees. On a theme that builds its content in the browser, 8 criteria (crawlable text, internal links, image descriptions, heading structure, video schema, product media, content freshness, contact details) can read lower here than on a rendered run. Re-run with --rendered-html <saved DOM> to score them on the full page.',
+    )
+  }
+  // Distinguishes "this lane ran and found nothing" from "this lane never completed" — both
+  // leave the same criteria `na`/`0`, so a run that never measured half the store can look
+  // exactly like a store that was measured and is genuinely thin. Audit incident H.
+  const llmFailures = report.dataSources.llmBatchFailures ?? []
+  if (llmFailures.length > 0) {
+    L.push(
+      `- ⚠️ ${llmFailures.length} LLM grading batch${llmFailures.length === 1 ? '' : 'es'} did not complete (${llmFailures.join(', ')}): those criteria read "not measured", not "measured and found nothing". Re-run \`analyze-llm.mjs\` before trusting a low content/credibility score.`,
+    )
+  }
+  const offStoreFailures = report.dataSources.offStoreFailures ?? []
+  if (offStoreFailures.length > 0) {
+    L.push(
+      `- ⚠️ ${offStoreFailures.length} off-store search${offStoreFailures.length === 1 ? '' : 'es'} did not complete (${offStoreFailures.join(', ')}): those criteria read "not measured", not "no buzz found". Re-run \`collect-offstore.mjs\` before trusting a low reviews/press score.`,
     )
   }
   L.push('')

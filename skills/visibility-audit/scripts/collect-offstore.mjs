@@ -137,14 +137,25 @@ export function readTrustpilotJsonLd(html) {
 
 // ---- collectors -------------------------------------------------------------
 
-const warn = (label, e) => {
-  process.stderr.write(`warning: off-store ${label} failed: ${e.message}\n`)
-  return null
+// `null` overloads two very different things here: a collector that never ran (gated
+// language, e.g. reddit/trustpilot outside English) and a collector that DID run and threw
+// (bad key, timeout, SerpApi quota). Both leave the criterion `na`, so a report can look like
+// "this store has no buzz" when really the searches never completed (audit incident H).
+// `failures` (returned from `serpapiSignals` and threaded into `offstore.json`) names only
+// the second kind — collectors this function itself caught an error from.
+function warnFactory(failures) {
+  return (label, e) => {
+    process.stderr.write(`warning: off-store ${label} failed: ${e.message}\n`)
+    failures.push(label)
+    return null
+  }
 }
 
 async function serpapiSignals(subject, cfg) {
   const call = (params) => serpApiSearch(params, cfg)
   const isEnglish = subject.language === 'en'
+  const failures = []
+  const warn = warnFactory(failures)
 
   const reddit = isEnglish
     ? call({ engine: 'google', q: `site:reddit.com "${subject.brand}"`, num: '100' })
@@ -259,6 +270,8 @@ async function serpapiSignals(subject, cfg) {
     press: p,
     entityDatabases: e,
     feed: { googleMerchantFeed: f },
+    // Written into offstore.json — see the comment on `warnFactory` above.
+    failures,
   }
 }
 
@@ -326,6 +339,10 @@ export async function main(argv, env = process.env) {
         result[k] !== null,
       ]),
     ),
+    // Which of the `false` entries above are an actual failure (bad key, timeout, quota) vs.
+    // a deliberate skip (gated language). Also written into offstore.json itself as
+    // `failures`, so this is visible without re-reading stdout — see `warnFactory` above.
+    failures: result.failures,
     googleShopping: result.feed.googleMerchantFeed !== null,
     pressCandidates: result.press?.candidates?.length ?? 0,
   }

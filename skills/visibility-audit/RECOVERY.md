@@ -11,8 +11,8 @@ re-fetching anything:
 ├── meta.json             shop/product/market you confirmed at Q1 (hand-written)
 ├── pages.json            P3 — PDP + robots + store pages + product JSON
 ├── rendered.html         P3 — an already-saved post-JS DOM, only if you passed one in
-├── offstore.json         P4b — normalized off-store signals
-├── llm.json              P4a — the 15 bands + the press count
+├── offstore.json         P4a — normalized off-store signals, plus a `failures` array
+├── llm.json              P4b — the 15 bands + the press count, plus a `failedBatches` array
 ├── audit.json            P5 — the report
 ├── report.md             P5 — the readable version
 └── submitted.json        P6 — { auditId, pdfUrl, score, narrativesReplaced } from the server
@@ -27,7 +27,10 @@ re-fetching anything:
 `state.json`, and continue from the first missing artifact. Nothing that exists is re-fetched;
 `fresh` forces a new directory.
 
-Each step is independent — re-running one and re-scoring is always safe and always cheap:
+Each step is independently re-runnable, and re-scoring is always safe and always cheap — the one
+ordering that matters is P4a (off-store) before P4b (LLM grading), see SKILL.md P4: P4b's press
+filter reads `offstore.json`, so re-run P4a first if it doesn't exist yet, even to produce an
+all-`na` one.
 
 ```bash
 node scripts/score.mjs --pages "$RUN/pages.json" --meta "$RUN/meta.json" \
@@ -57,6 +60,8 @@ node scripts/score.mjs --pages "$RUN/pages.json" --meta "$RUN/meta.json" \
 | `429` / `503` | provider throttling | `runJson` already retries once; wait and re-run the step — the page fetch is on disk |
 | `model reply had no JSON object` twice | the route is chatty or the model is small | pin a bigger `--model`, or switch routes |
 | `missing: [...]` lists keys | those bands were malformed and dropped | re-run the step; if a key keeps failing, ship it as `na` rather than hand-writing a band |
+| `... 404 ...` or `... looks retired or unknown to <route> ...` | the hardcoded default model id (`DEFAULT_MODELS` in `scripts/llm.mjs`) was retired by the provider — this is not a key problem | pass `--model <a current id from the provider's docs>` for this run, and update `DEFAULT_MODELS` in `scripts/llm.mjs` so the next run doesn't hit the same wall |
+| `llm.json`'s `failedBatches` is non-empty (also in the CLI's own JSON output) | one or more of `content` / `voice` / `credibility` / `faq` / `press` threw and got caught | those criteria are `na`, not "the page is thin" — re-run `analyze-llm.mjs` alone before trusting a low content/credibility score. `report.md` prints a warning line when this is non-empty |
 
 ### Off-store (`collect-offstore.mjs`)
 
@@ -67,6 +72,7 @@ node scripts/score.mjs --pages "$RUN/pages.json" --meta "$RUN/meta.json" \
 | `SerpAPI: run out of searches` | free tier exhausted (~100/month) | ship with those criteria `na`, or wait for the quota to reset — there is no free browser route to switch to |
 | `warning: off-store <signal> failed` | one search failed | that signal stays `null` → `na`. Re-run to retry just it; the others are already written |
 | Trustpilot returns nothing | Cloudflare blocked the direct read | the collector already falls back to a `site:` search; a blocked read plus no SERP hit is legitimately "no data" (`na`), not "no profile" (0) |
+| `offstore.json`'s `failures` is non-empty (also in the CLI's own JSON output, as `failures`) | one or more searches threw rather than finding nothing | different from a gated signal (non-English `reddit`/`trustpilot`, which is `null` on purpose) — `failures` names only the kind that errored. Re-run to retry just those; `report.md` prints a warning line when this is non-empty |
 
 ### Submitting to the server (`submit-audit.mjs`)
 
@@ -88,9 +94,9 @@ node scripts/score.mjs --pages "$RUN/pages.json" --meta "$RUN/meta.json" \
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `coverage.scored` far below what the lanes promised | an input file was not passed | check the `--llm` / `--offstore` paths; `score.mjs` silently treats a missing file as "that lane did not run" |
+| `coverage.scored` far below what the lanes promised | an input flag was omitted, or its path is wrong (audit incident E) | omitting `--llm` / `--offstore` is always silent, in both `score.mjs` and `analyze-llm.mjs` — treated as "that lane did not run". A **wrong path** behaves the same way in `analyze-llm.mjs` as of the fix for incident A (it catches ENOENT and warns to stderr instead of crashing), but `score.mjs` still throws a bare `ENOENT` and exits 1 on a typo'd path — that difference was NOT closed here. So: a low coverage from `score.mjs` with no crash means an omitted flag; a crash means a wrong path. Check the paths are exactly right before assuming a file was optional |
 | Every diagnosis is `source: template` | the narrative route failed | read the warnings on stderr; a guard rejection is intentional (ungrounded number / prescription) and is not a bug |
-| `impactRank` all zero | nothing scored | the store returned an empty page — fix P3 first; a report with `total: null` should not be delivered |
+| `impactRank` all zero | nothing scored | the store returned an empty page — fix P3 first; a report with `total: null` should not be delivered. Its `verdict` is `null` too (not `"weak"` — audit incident C), so a downstream reader that expects a tier string needs to handle that case explicitly |
 
 ## When to stop and ask
 

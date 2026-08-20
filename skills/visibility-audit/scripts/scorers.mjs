@@ -981,14 +981,25 @@ export const priceCompetitive = def('price-competitive', {
 export const shippingCompetitive = def('shipping-competitive', {
   score(ctx) {
     const a = ctx.llmAnalysis['shipping-competitive']
-    // Never N/A: a missing band means no free-shipping offer was visible, which is actionable.
-    if (!a || a.band === 'na') {
+    // `!a`: the credibility batch never ran at all — no LLM key (ARGUMENTS.md documents this
+    // as a normal, supported state: "grading is skipped, 15 criteria go na"), or that one
+    // batch threw. Either way nothing was MEASURED, so this must be `na` like its 14 LLM
+    // siblings, never a scored 0. Scoring 0 here made a no-key run's #1 "priority" a false
+    // claim about a shipping page nothing read (audit incident B) — design contract §3: "a
+    // missing key is a setup task, not a zero."
+    if (!a) return { status: 'na', reason: 'LLM analysis missing' }
+    // `a.band === 'na'`: the batch DID run and the model answered, but (against its own
+    // prompt rule "NEVER na") returned na anyway. Backend parity, deliberate: the backend's
+    // own shipping-competitive scorer floors this at 0 too ("no free-ship visible" is itself
+    // an actionable finding, not a missing measurement) — kept identical here so a submit
+    // never disagrees with the server over a case that did get measured.
+    if (a.band === 'na') {
       return {
         status: 'scored',
         score: 0,
         evidence: {
           band: 0,
-          reason: a?.reason ?? 'No shipping terms visible',
+          reason: a.reason ?? 'No shipping terms visible',
           source: 'llm',
         },
       }

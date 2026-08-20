@@ -9,9 +9,10 @@
 //                renders locally. Kept because the shape is the backend renderer's input and
 //                anyone driving these scripts by hand may still want it.
 //
-// Every input is optional except pages.json: no llm.json → the 15 LLM criteria go `na` (and
-// shipping-competitive floors at 0, as on the backend); no offstore.json → the 7 off-store
-// criteria go `na`. The score is always computed over what WAS measured, and coverage says so.
+// Every input is optional except pages.json: no llm.json → all 15 LLM criteria go `na`,
+// `shipping-competitive` included (a lane that never ran is `na`, never a scored 0 — see
+// scorers.mjs, audit incident B); no offstore.json → the 7 off-store criteria go `na`. The
+// score is always computed over what WAS measured, and coverage says so.
 //
 // Usage:
 //   node score.mjs --pages pages.json --meta meta.json --llm llm.json --offstore offstore.json \
@@ -180,6 +181,10 @@ export async function runAudit({ pages, meta, llm, offstore, narrativeRoute, mod
     llmRoute: llm?.route ?? null,
     narrativeRoute: narrativeRoute ?? null,
     fetchedAt: pages.fetchedAt ?? null,
+    // Which lanes ran but threw, as opposed to legitimately finding nothing — see
+    // `report-md.mjs` for where these become a visible warning (audit incident H).
+    llmBatchFailures: llm?.failedBatches ?? [],
+    offStoreFailures: offstore?.failures ?? [],
   }
   return assembleReport({ subject, agg, narratives, dataSources, auditId })
 }

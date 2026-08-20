@@ -4,9 +4,13 @@
 //
 // Why a copy and not an MCP fetch: the backend exposes the framework only through a
 // *finished* audit (`get_website_audit_report`), and running one there is exactly the cost
-// this skill exists to avoid. So it is duplicated — and `tests/framework-drift.test.mjs`
-// pins this file against the backend source whenever the repo is checked out next to it.
-// If that test fails, the backend changed: re-port, never "fix" the test.
+// this skill exists to avoid. So it is duplicated BY HAND, and — unlike the source agent
+// pack's own copy of this file — nothing here pins it against the backend automatically.
+// The pack's `framework-drift.test.mjs` protects ITS copy, not this one, and that test does
+// not exist in this repo (see SKILL.md, *Where this came from*, and FRAMEWORK.md). A re-port
+// has to be checked against the backend source by hand; a drifted criterion here is caught
+// late, on submit, as `[AGGREGATE_MISMATCH]` / `[COVERAGE_MISMATCH]` from the server's own
+// re-computation — not by a local test failing.
 
 export const TOTAL_CRITERIA = 40
 
@@ -354,8 +358,15 @@ export function globalWeight(key) {
   return FACTORS[def.factor].weightPct * (def.weight / FACTOR_LABEL_SUM[def.factor])
 }
 
+// `null` is "nothing was scored", not a low score — it must not read as a judgement of the
+// store. Before this fix a `total: null` run (an empty page, or every lane unavailable) was
+// tiered `weak`, the same label an honestly-measured failing store gets, so a report that
+// measured NOTHING said "weak" instead of "unknown" (audit incident C). RECOVERY.md already
+// says such a report should never be delivered — this stops the artifact from asserting the
+// judgement in the first place, in case it is anyway.
 export function verdictTier(total) {
-  if (total === null || total < 50) return 'weak'
+  if (total === null) return null
+  if (total < 50) return 'weak'
   if (total < 80) return 'moderate'
   return 'strong'
 }

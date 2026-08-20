@@ -35,6 +35,32 @@ export const ROUTE_KEY_ENV = {
 
 const JSON_ONLY = 'Reply with ONE JSON object and nothing else. No prose, no code fences.'
 
+// These are DEFAULTS, not pinned facts, and every provider retires ids on its own schedule —
+// `gemini-2.5-flash` stopped answering for new callers mid-2026 with a 404 "no longer
+// available to new users", the exact failure mode this file now detects below and turns into
+// an actionable message rather than a bare status code (audit incident I). Reviewed
+// 2026-08-19: check each provider's current model list before assuming one of these still
+// exists, especially on a stale-audit report. `--model <id>` always overrides a default for
+// one run without editing this file.
+const DEFAULT_MODELS = {
+  anthropic: 'claude-opus-5',
+  openai: 'gpt-5.5-mini',
+  gemini: 'gemini-3.5-flash',
+}
+
+// A retired/unknown model id reads as an ordinary HTTP error unless it's called out: providers
+// use different status codes and wordings for it (Anthropic/OpenAI: 404; Gemini: 404 or a 400
+// whose body says "not found"), so match on the body text too rather than trusting one status.
+function modelMissingHint(route, id, status, body) {
+  const looksMissing = status === 404 || /not[\s_-]?found|no longer available|deprecated/i.test(body)
+  if (!looksMissing) return ''
+  return (
+    ` — model id '${id}' looks retired or unknown to ${route}. This is a stale DEFAULT, not a ` +
+    `bad key: pass --model <an id current in ${route}'s docs> to override for this run, and ` +
+    `update DEFAULT_MODELS.${route} in scripts/llm.mjs so the next run doesn't hit the same wall.`
+  )
+}
+
 /**
  * The first route whose key is present, or null when the user has none.
  *
@@ -73,6 +99,7 @@ export function parseJsonObject(text) {
 
 async function runAnthropic(prompt, { model, apiKey, timeoutMs, fetchImpl = fetch }) {
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not set')
+  const id = model || DEFAULT_MODELS.anthropic
   const res = await fetchImpl('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -81,14 +108,18 @@ async function runAnthropic(prompt, { model, apiKey, timeoutMs, fetchImpl = fetc
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: model || 'claude-opus-5',
+      model: id,
       max_tokens: 16000,
       messages: [{ role: 'user', content: prompt }],
     }),
     signal: AbortSignal.timeout(timeoutMs),
   })
   const text = await res.text()
-  if (!res.ok) throw new Error(`Anthropic ${res.status}: ${text.slice(0, 300)}`)
+  if (!res.ok) {
+    throw new Error(
+      `Anthropic ${res.status}: ${text.slice(0, 300)}${modelMissingHint('anthropic', id, res.status, text)}`,
+    )
+  }
   const body = JSON.parse(text)
 
   // A refusal arrives as HTTP 200 with `stop_reason: 'refusal'` and content that does not answer
@@ -110,14 +141,19 @@ async function runAnthropic(prompt, { model, apiKey, timeoutMs, fetchImpl = fetc
 
 async function runOpenAI(prompt, { model, apiKey, timeoutMs, fetchImpl = fetch }) {
   if (!apiKey) throw new Error('OPENAI_API_KEY is not set')
+  const id = model || DEFAULT_MODELS.openai
   const res = await fetchImpl('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ model: model || 'gpt-5.5-mini', input: prompt }),
+    body: JSON.stringify({ model: id, input: prompt }),
     signal: AbortSignal.timeout(timeoutMs),
   })
   const text = await res.text()
-  if (!res.ok) throw new Error(`OpenAI ${res.status}: ${text.slice(0, 300)}`)
+  if (!res.ok) {
+    throw new Error(
+      `OpenAI ${res.status}: ${text.slice(0, 300)}${modelMissingHint('openai', id, res.status, text)}`,
+    )
+  }
   const body = JSON.parse(text)
   if (typeof body.output_text === 'string' && body.output_text.trim()) return body.output_text
   let out = ''
@@ -130,7 +166,7 @@ async function runOpenAI(prompt, { model, apiKey, timeoutMs, fetchImpl = fetch }
 
 async function runGemini(prompt, { model, apiKey, timeoutMs, fetchImpl = fetch }) {
   if (!apiKey) throw new Error('GEMINI_API_KEY is not set')
-  const id = model || 'gemini-3.5-flash'
+  const id = model || DEFAULT_MODELS.gemini
   const res = await fetchImpl(
     // The key travels in `x-goog-api-key`, not `?key=`. Query-string secrets are written to every
     // proxy and edge access log on the path, TLS or not — and the raw key was being interpolated
@@ -147,7 +183,11 @@ async function runGemini(prompt, { model, apiKey, timeoutMs, fetchImpl = fetch }
     },
   )
   const text = await res.text()
-  if (!res.ok) throw new Error(`Gemini ${res.status}: ${text.slice(0, 300)}`)
+  if (!res.ok) {
+    throw new Error(
+      `Gemini ${res.status}: ${text.slice(0, 300)}${modelMissingHint('gemini', id, res.status, text)}`,
+    )
+  }
   const parts = JSON.parse(text).candidates?.[0]?.content?.parts ?? []
   const out = parts
     .map((p) => p.text)
