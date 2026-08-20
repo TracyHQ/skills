@@ -13,6 +13,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
+      # The .sh / .mjs / embedded-Python a skill actually ships is covered by neither
+      # typecheck nor the test suite: a skill is published by copying its directory, so
+      # without this the first parser to see those files is the fleet host that needs them.
+      - run: pnpm check-scripts
       - run: pnpm test
       - run: pnpm validate
       - name: Build index against the real repos

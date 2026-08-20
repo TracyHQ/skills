@@ -2,3 +2,7 @@ node_modules/
 dist/
 *.log
 .DS_Store
+# A skill that ships Python ships bytecode too unless this is here. Five .pyc files
+# reached the index before anyone noticed, and every install would have carried them.
+__pycache__/
+*.pyc
