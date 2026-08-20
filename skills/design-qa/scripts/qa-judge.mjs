@@ -183,7 +183,7 @@ export function judgeLayout(m, { minHeight = 500, baseline = null } = {}) {
  * demo with three. What must match is the FOLD RHYTHM, each side measured against its own
  * desktop state.
  */
-export function judgeResponsive({ sig, reference, collected, viewport, path }) {
+export function judgeResponsive({ sig, reference, collected, viewport, path, pageDesktop = {} }) {
   const findings = [];
   const add = (level, what) => findings.push({ path, viewport, level, what });
 
@@ -201,7 +201,14 @@ export function judgeResponsive({ sig, reference, collected, viewport, path }) {
     if (s.hOverflow && !ref.hOverflow) add("FAIL", `${type}: scrolls horizontally, the demo's doesn't`);
 
     const refDesk = reference.blocks?.[`${type}|desktop`]?.cols || ref.cols;
-    const ownDesk = collected.blocks?.[`${type}|desktop`]?.cols || s.cols;
+    // THIS PAGE's own desktop count, not the first page that happened to carry this block
+    // type. The same block type is laid out differently on different pages — three cards on
+    // the home page, two on a landing page — and judging page B's fold against page A's
+    // desktop state compares two things that were never the same shape. Falls back to the
+    // cross-page value, then to this measurement, so a block first seen at a narrow viewport
+    // still gets judged rather than skipped.
+    const ownDesk =
+      pageDesktop[`${path}|${type}`] ?? collected.blocks?.[`${type}|desktop`]?.cols ?? s.cols;
     if (ref.visible && s.visible && viewport !== "desktop") {
       const refCollapsed = ref.cols <= 1 || ref.cols < refDesk;
       const ownCollapsed = s.cols <= 1 || s.cols < ownDesk;

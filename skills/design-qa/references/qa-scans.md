@@ -156,6 +156,19 @@ Three refinements that came from false results:
   `scrollWidth` equals the viewport, so page-width, edge-bleed and parent-escape all pass, while a
   person sees it instantly. Measure it directly: at ≥1024px, take the longest in-flow paragraph or
   heading (≥40 characters) and ask what share of the viewport it spans.
+- **Count a grid by its children, not by its wrapper.** A Bootstrap-3 float grid holds its shape
+  entirely through `col-*` children: the wrapper is `display: block` and carries no `row` class,
+  so a container test built for flex/grid/`.row` sees nothing. Measured on one such block, the old
+  ruler reported one column at desktop AND at mobile — and one column everywhere reads as
+  "collapsed" on both sides of a differential comparison, so the gate could not fail in either
+  direction. The general shape: when a structure is expressed by the CHILDREN, a test that
+  interrogates only the parent is blind to it, and its blindness looks like a pass.
+- **A fold is judged against the same page's own desktop state.** The same block type is laid out
+  differently on different pages — three cards on the home page, two on a landing page. Keying the
+  desktop baseline by block type alone judges page B's fold against page A's desktop, comparing
+  two things that were never the same shape, and it is wrong in both directions. The demo's side
+  stays keyed by type, because the two sides' paths do not correspond: only the mapping knows the
+  demo's `/features` became `/what-we-do`.
 - **Calibrate a threshold against the real site, never against a feeling.** That content-measure
   threshold was first set at 92% — which fails the customer's own live portfolio page, deliberately
   running at 93%. Raised to 97%, so only text that is genuinely unbounded fails. The general rule:
