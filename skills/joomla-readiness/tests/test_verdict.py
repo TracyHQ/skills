@@ -23,10 +23,10 @@ def _p(name, j6, kind="template", src="catalog", note="", when="2026-01-01"):
                         j6=j6, j6_source=src, j6_note=note or f"{name}: {j6}")
 
 
-def _profile(products, version="5.4.7", hops=None):
+def _profile(products, version="5.4.7", hops=None, read=None):
     return SiteProfile(user_id=1, email="a@b.c", domain="example.org",
                        joomla_version=version, version_measured_at="2026-08-17",
-                       products=list(products), hops_to_six=hops,
+                       products=list(products), hops_to_six=hops, extensions_read=read,
                        unseen=["Third-party extensions installed on the site."])
 
 
@@ -273,6 +273,22 @@ def test_a_site_one_hop_away_is_left_alone():
     check("no staging lecture", not any("stage" in b.lower() for b in v.blockers))
 
 
+def test_a_site_that_runs_only_joomla_itself_is_not_a_failed_read():
+    """Two different findings wore the same sentence. "The read returned nothing" and "the read
+    returned rows and none of them were third-party" are opposite pieces of news, and the second
+    one is good news: a site running only Joomla itself has nothing that can block an upgrade.
+
+    Found 2026-08-20 by walking the shapes real sites actually produce."""
+    v = decide(_profile([], version="5.4.8", read=41))
+    check("not reported as a failed read", "could not read" not in v.headline.lower())
+    check("and not blocked by an absence",
+          not any("no extensions could be read" in b.lower() for b in v.blockers))
+
+
+def test_a_read_that_returned_nothing_at_all_still_says_so():
+    check("still named", "could not read" in decide(_profile([], version="5.4.8", read=0)).headline.lower())
+
+
 def main():
     for fn in (test_one_discontinued_product_decides_the_whole_verdict,
                test_unknown_never_rounds_up_to_ready,
@@ -299,7 +315,9 @@ def main():
                test_a_site_on_six_with_nothing_read_still_says_nothing_was_read,
                test_a_site_two_hops_away_is_not_told_to_plan_one_upgrade,
                test_a_site_one_hop_away_is_left_alone,
-               test_the_headline_does_not_describe_what_was_never_read):
+               test_the_headline_does_not_describe_what_was_never_read,
+               test_a_site_that_runs_only_joomla_itself_is_not_a_failed_read,
+               test_a_read_that_returned_nothing_at_all_still_says_so):
         fn()
     for name, ok in _RESULTS:
         print(f"  {'PASS' if ok else 'FAIL'}  {name}")

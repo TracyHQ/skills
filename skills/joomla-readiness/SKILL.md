@@ -5,7 +5,7 @@ description: >-
   stand in the way. Reads the site's own version and installed extensions, looks each one up in
   the public extension registry, and says out loud what it could not find out. Use when someone
   asks if a site is ready for Joomla 6, what is blocking an upgrade, or how far behind a site is.
-version: 1.6.0
+version: 1.6.1
 platforms: joomla
 tags:
   - joomla
@@ -14,13 +14,15 @@ tags:
 requires-mcp:
   - tracy-site
 provenOn: >-
-  Run end to end against ten real customer sites on 2026-08-20, reading their manifests over
-  plain HTTP and joining them to the live registry of 5,756 records: ten verdicts, no crashes,
-  and one real defect found that no fixture had caught, where a site already running Joomla 6
-  was told some of what it runs is not ready for Joomla 6. Fixed and pinned by four checks.
-  The MCP transport itself is still unexercised: `read_versions` and `list_extensions` have
-  never been called against a connected site, so that half is proven only through the shapes
-  they return, not through a live call.
+  Run end to end against real customer sites on 2026-08-20, ten first and then forty, reading
+  their manifests over plain HTTP and joining them to the live registry of 5,756 records. Every
+  site produced a verdict and none crashed. Four defects came out of it that no fixture had
+  caught, because every fixture starts below Joomla 5 and carries data: a site already on
+  Joomla 6 told it was not ready for Joomla 6, a Joomla 5.2 site told it was one upgrade away
+  when it is two, an unread site reported as cleared, and a site running only Joomla itself
+  reported as a failed read. All four fixed and pinned by checks. The MCP transport is still
+  unexercised: `read_versions` and `list_extensions` have never been called against a connected
+  site, so that half is proven only through the shapes they return.
 ---
 
 # Joomla readiness
@@ -183,7 +185,8 @@ not a gap you fill. A wrong assertion of the same shape, *"this is ready for Joo
 white-screened live sites. Concretely:
 
 - **a site nothing could be read from is not a cleared site.** The headline says the reading
-  failed; it does not describe what was never read
+  failed; it does not describe what was never read. A site whose read succeeded and returned
+  only core rows is the opposite finding and reads as ready: it runs nothing that can block
 - an extension not in the registry is unknown, not fine
 - a registry record with no Joomla 6 field is unknown, not false
 - a site whose version could not be read is never "ready", whatever its extensions say
