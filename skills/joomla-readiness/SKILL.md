@@ -5,7 +5,7 @@ description: >-
   stand in the way. Reads the site's own version and installed extensions, looks each one up in
   the public extension registry, and says out loud what it could not find out. Use when someone
   asks if a site is ready for Joomla 6, what is blocking an upgrade, or how far behind a site is.
-version: 1.4.0
+version: 1.5.0
 platforms: joomla
 tags:
   - joomla
@@ -14,12 +14,13 @@ tags:
 requires-mcp:
   - tracy-site
 provenOn: >-
-  Live registry of 5,604 Joomla extensions, 2026-08-19: K2, JomSocial and Akeeba Backup resolved
-  correctly against a simulated 5.4.8 site, and a 3.10.12 site was correctly told it faces three
-  upgrades. Never yet run against a connected site, so the reading half is unproven even though
-  the tools for it now exist. Package roll-up measured on a real Joomla 6.1.2 webroot,
-  2026-08-20: 34 of 86 non-core rows were parts of ten packages, and reading them as ten
-  products rather than forty-four cut the unrecognised count from 65 to 50.
+  Run end to end against ten real customer sites on 2026-08-20, reading their manifests over
+  plain HTTP and joining them to the live registry of 5,756 records: ten verdicts, no crashes,
+  and one real defect found that no fixture had caught, where a site already running Joomla 6
+  was told some of what it runs is not ready for Joomla 6. Fixed and pinned by four checks.
+  The MCP transport itself is still unexercised: `read_versions` and `list_extensions` have
+  never been called against a connected site, so that half is proven only through the shapes
+  they return, not through a live call.
 ---
 
 # Joomla readiness
@@ -119,7 +120,7 @@ removed, and the whole point of this skill is not to be confidently wrong.
 | --- | --- | --- |
 | the site's own manifest | which Joomla it runs, exactly | needs the site connected |
 | the site's installed extensions | what is actually there, not what was bought | says nothing about whether each is in use |
-| `registry.tracy.ai/platform/joomla` | does this extension have a Joomla 6 build | 5,604 records, and it does not know every extension that exists |
+| `registry.tracy.ai/platform/joomla` | does this extension have a Joomla 6 build | it does not know every extension that exists, and the count changes: read it from the catalog you loaded rather than from this table |
 
 Run the engine rather than reasoning it out yourself:
 
@@ -187,12 +188,14 @@ recognise is worse than one that admits the half.
 
 ## What you must say you did not look at
 
-Three things, every time, because a report silent about them reads as a report that checked
-them:
+Because a report silent about them reads as a report that checked them:
 
-- **the PHP version**, which lives with the hosting provider
 - **whether each extension is actually in use**, as opposed to installed
 - **anything the registry does not list**, named with its count
+- **the PHP version, only when it could not be read.** `read_versions` usually gives it, and
+  `profile_from_state` then turns it into an instruction rather than a disclaimer. Saying it was
+  not looked at while holding the number is a false limit, and a reader is entitled to believe
+  a limit.
 
 ## Never
 

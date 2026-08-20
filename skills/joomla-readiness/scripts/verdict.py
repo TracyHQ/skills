@@ -86,6 +86,34 @@ def _collapse(blocking: list) -> list[str]:
     return lines
 
 
+def _already_there(profile, blocking) -> Verdict:
+    """The verdict for a site that is already on Joomla 6.
+
+    Not a shortcut around the one rule. Silence still does not read as "fine": what nobody has
+    published a verdict for is still counted and still named. What changes is the claim being
+    made about it. "No Joomla 6 build is recorded" means something to a site that has not
+    upgraded and something else entirely to a site the extension is currently running on.
+    """
+    unknown = [p for p in blocking if p.j6 != "available"]
+    next_steps = [
+        "This site is already on Joomla 6, so there is no upgrade to plan. Keep taking backups "
+        "before updates, as always."
+    ]
+    blockers = []
+    if unknown:
+        listed = ", ".join(sorted(p.product for p in unknown)[:5])
+        more = f" and {len(unknown) - 5} more" if len(unknown) > 5 else ""
+        blockers.append(
+            f"{len(unknown)} of the extensions installed here have no published Joomla 6 "
+            f"status: {listed}{more}. They are running on this site's Joomla 6 today, which "
+            "answers whether they run and not whether they are still maintained.")
+        next_steps.append(
+            "Ask whoever supplies the extensions above whether they are still maintained for "
+            "Joomla 6. Running today is not the same as being supported tomorrow.")
+    return Verdict(level=READY, headline="This site already runs Joomla 6.",
+                   scope_line=_scope_line(profile), blockers=blockers, next_steps=next_steps)
+
+
 def decide(profile) -> Verdict:
     blocking = [p for p in profile.products if p.j6 in _BLOCKING]
     blocking.sort(key=lambda p: (_SEVERITY.get(p.j6, 5), p.product))
@@ -96,6 +124,18 @@ def decide(profile) -> Verdict:
     next_steps: list[str] = []
 
     major = _joomla_major(profile.joomla_version)
+
+    # A site already running Joomla 6 has answered the question by running. Every extension in
+    # this list is installed on it, which is an observation; the registry having no record is
+    # the absence of one. Telling such a site "some of what you run is not ready for Joomla 6"
+    # is false by inspection, and it was said to two real customer sites on 2026-08-20 before
+    # anybody ran this against a site instead of a fixture.
+    #
+    # A discontinued product goes down the normal path even here: running today is not being
+    # maintained tomorrow, and that finding does not expire when the upgrade does.
+    if (major is not None and major >= 6
+            and not any(p.j6 == "discontinued" for p in blocking)):
+        return _already_there(profile, blocking)
 
     if any(p.j6 == "discontinued" for p in blocking):
         level = MUST_REPLACE

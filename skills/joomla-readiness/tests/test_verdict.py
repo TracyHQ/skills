@@ -196,6 +196,39 @@ def test_the_default_scope_wording_still_reads_right_at_one_and_at_many():
     check("plural", "the 2 JoomlArt products on this account." in many)
 
 
+def test_a_site_already_running_joomla_6_is_not_told_it_is_not_ready():
+    """Found by running the skill against ten real customer sites on 2026-08-20. Two of them
+    were on Joomla 6.1.2 and were told "Some of what you run is not ready for Joomla 6 yet",
+    which is false by inspection: the extensions in that sentence are installed on a site that
+    is running Joomla 6.
+
+    A site already on 6 has answered the question by running. The registry's silence about an
+    extension is the absence of a reading; the site running it on Joomla 6 is a reading."""
+    v = decide(_profile([_p("Mystery", j6="unknown", src="unlisted")], version="6.1.2"))
+    check("not called unready", v.level == "ready")
+    check("and the headline says so", "already" in v.headline.lower())
+
+
+def test_a_site_already_on_six_is_not_told_to_plan_an_upgrade():
+    """The ready branch offers "You can plan the upgrade. Take a full backup first." To a site
+    already on 6 that is advice to do nothing, dressed as a next step."""
+    v = decide(_profile([_p("K2", j6="available")], version="6.1.2"))
+    check("no upgrade to plan", not any("plan the upgrade" in s for s in v.next_steps))
+
+
+def test_a_site_already_on_six_still_names_what_nobody_has_published_a_verdict_for():
+    """Being on 6 answers "does it run", not "is it maintained". Dropping the count would make
+    this the one report that quietly discards the half it did not recognise."""
+    v = decide(_profile([_p("Mystery", j6="unknown", src="unlisted")], version="6.1.2"))
+    check("still counted", any("Mystery" in b or "1" in b for b in v.blockers + v.next_steps))
+
+
+def test_a_discontinued_product_still_matters_on_a_site_already_at_six():
+    """Running today is not being maintained tomorrow. This one keeps the full treatment."""
+    v = decide(_profile([_p("JA Old", j6="discontinued")], version="6.1.2"))
+    check("still must replace", v.level == "must_replace")
+
+
 def main():
     for fn in (test_one_discontinued_product_decides_the_whole_verdict,
                test_unknown_never_rounds_up_to_ready,
@@ -213,7 +246,11 @@ def main():
                test_no_owned_replacement_means_no_invented_one,
                test_only_a_template_counts_as_a_replacement_for_a_template,
                test_the_untested_caveat_is_said_once_not_on_every_row,
-               test_no_derived_row_means_no_such_caveat):
+               test_no_derived_row_means_no_such_caveat,
+               test_a_site_already_running_joomla_6_is_not_told_it_is_not_ready,
+               test_a_site_already_on_six_is_not_told_to_plan_an_upgrade,
+               test_a_site_already_on_six_still_names_what_nobody_has_published_a_verdict_for,
+               test_a_discontinued_product_still_matters_on_a_site_already_at_six):
         fn()
     for name, ok in _RESULTS:
         print(f"  {'PASS' if ok else 'FAIL'}  {name}")
