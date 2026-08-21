@@ -28,9 +28,13 @@ decided about each one, and what each reviewed page said at the time. That last 
 a second look cheap: pages whose words have not changed are not opened again, and every decision
 already made about them stands.
 
-So the run does not always start at the beginning. **Read `review.json` first** — the shape and the
-merge rules are in [`references/review-file.md`](references/review-file.md) — and take whichever of
-these three it turns out to be:
+So the run does not always start at the beginning. **Look for `review.json` before anything else**
+— the shape and the merge rules are in [`references/review-file.md`](references/review-file.md) —
+and take whichever of these three it turns out to be.
+
+Look for it by listing the folder, and open the file only once you know it is there. Reading a path
+that does not exist is not free here: the desk opens whatever file you read in the pane beside the
+chat, so a first run greets somebody with `File unavailable` before it has said anything at all.
 
 | What you find | What to do |
 |---|---|
