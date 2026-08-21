@@ -52,7 +52,8 @@ if (!CMD || !REVIEW) {
   process.stderr.write(
     "usage: review.mjs build|overview|next|decide --review <review.json> [...]\n" +
       "  build   --capture <dir> --survey <survey.json> --findings <findings.json>\n" +
-      "  decide  --id <f7[,f8]> --state saved|ignored|seen\n"
+      "  decide  --id <f7[,f8]> --state saved|ignored|seen\n" +
+      "  decide  --saved <ids> --ignored <ids> --seen <ids>   (one call, mixed answers)\n"
   );
   process.exit(2);
 }
@@ -253,34 +254,68 @@ function next(review) {
   return { mode: "one", finding: open[0], remaining };
 }
 
+const idList = (value) => (value ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+
+/**
+ * Record answers — one, or a whole group of them with different answers, in a single call.
+ *
+ * The batch form is not a convenience. Tracy asks the customer to approve every shell command an
+ * agent runs, so writing each answer the moment it is given turned an eleven-finding review into
+ * eleven approval dialogs on top of the eleven questions that were the point. The questions are the
+ * product; the dialogs are noise, and noise is what teaches people to stop reading dialogs.
+ *
+ * So the conversation still moves one finding at a time and the answers are written a group at a
+ * time — after the serious ones, after the middling ones, and always before the turn ends. The cost
+ * is bounded and stated: a session that dies mid-group loses the answers given since the last
+ * write, which is a question asked twice rather than anything lost.
+ */
 function decide(review) {
-  const ids = new Set((arg("id") ?? "").split(",").map((s) => s.trim()).filter(Boolean));
-  const state = arg("state");
-  if (!ids.size || !["saved", "ignored", "seen"].includes(state)) {
-    process.stderr.write("decide needs --id <f7[,f8]> and --state saved|ignored|seen\n");
+  const single = arg("state");
+  const groups = single
+    ? [[single, idList(arg("id"))]]
+    : [
+        ["saved", idList(arg("saved"))],
+        ["ignored", idList(arg("ignored"))],
+        ["seen", idList(arg("seen"))]
+      ];
+
+  const wanted = new Map();
+  for (const [state, ids] of groups) {
+    if (!["saved", "ignored", "seen"].includes(state)) {
+      process.stderr.write(`unknown state: ${state}\n`);
+      process.exit(2);
+    }
+    for (const id of ids) wanted.set(id, state);
+  }
+  if (wanted.size === 0) {
+    process.stderr.write(
+      "decide needs --id <f7[,f8]> --state saved|ignored|seen, or --saved/--ignored/--seen with ids\n"
+    );
     process.exit(2);
   }
 
-  const at = new Date().toISOString();
-  let touched = 0;
-  for (const f of review.findings ?? []) {
-    if (!ids.has(f.id)) continue;
-    f.state = state;
-    // `seen` is what "explain this to me" leaves behind: the person looked and has not decided, so
-    // the next run asks again. Only a real decision gets a timestamp.
-    f.decidedAt = state === "seen" ? null : at;
-    touched += 1;
-  }
-  if (touched !== ids.size) {
-    const known = new Set((review.findings ?? []).map((f) => f.id));
-    const missing = [...ids].filter((id) => !known.has(id));
+  const known = new Set((review.findings ?? []).map((f) => f.id));
+  const missing = [...wanted.keys()].filter((id) => !known.has(id));
+  if (missing.length) {
+    // Checked before anything is written: a batch that half-applied would leave the person's
+    // answers in two places, the file and the conversation, disagreeing about which happened.
     process.stderr.write(`no such finding: ${missing.join(", ")}\n`);
     process.exit(2);
   }
 
+  const at = new Date().toISOString();
+  for (const f of review.findings ?? []) {
+    const state = wanted.get(f.id);
+    if (!state) continue;
+    f.state = state;
+    // `seen` is what "explain this to me" leaves behind: the person looked and has not decided, so
+    // the next run asks again. Only a real decision gets a timestamp.
+    f.decidedAt = state === "seen" ? null : at;
+  }
+
   review.status = (review.findings ?? []).some(isOpen) ? "in_progress" : "closed";
   write(review);
-  say({ decided: [...ids], state, next: next(review) });
+  say({ decided: Object.fromEntries(wanted), next: next(review) });
 }
 
 if (CMD === "build") {

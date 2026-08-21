@@ -40,7 +40,7 @@ chat, so a first run greets somebody with `File unavailable` before it has said 
 |---|---|
 | No review file | A full run: survey, capture, look, build, then go through it. |
 | Findings still `new` or `seen` | **Carry on from there.** Do not scan again — go straight to *Going through it*. |
-| Everything decided | Ask what changed: `survey.mjs --since`. Nothing changed means nothing to do unless they say otherwise. |
+| Everything decided | Ask what changed: `scan.mjs --since`. Nothing changed means nothing to do unless they say otherwise. |
 
 The middle row is the one that is easy to get wrong, and getting it wrong costs the person their
 own work: re-scanning resurrects every fault they already waved away.
@@ -52,7 +52,7 @@ is, so the request arrives carrying it:
 |---|---|
 | `/wordpress-ui-check` | Nothing here yet, or they asked from scratch. Full run. |
 | `/wordpress-ui-check --continue` | Carry on with what is undecided. **Do not scan.** |
-| `/wordpress-ui-check --recheck` | Everything was decided; re-read the pages and see what moved. Start at `survey.mjs --since`. |
+| `/wordpress-ui-check --recheck` | Everything was decided; re-read the pages and see what moved. Start at `scan.mjs --since`. |
 
 Read the file anyway. The word is a hint from a tile that was drawn a moment ago, and the file is
 the truth — if they disagree, believe the file and say so.
@@ -60,20 +60,33 @@ the truth — if they disagree, believe the file and say so.
 ## The run
 
 ```
-survey.mjs   →  which Preview, is it WordPress, and which pages are worth opening
-capture.mjs  →  render each page, screenshot it, measure it
+scan.mjs     →  which Preview, is it WordPress, which pages — then render and measure them
    you       →  look at each page and answer the fixed checks
 review.mjs   →  merge what you saw into what was already known
    you       →  go through it with the person, one finding at a time
 ```
 
-### 1. Survey
+**Every command you run costs the person an approval dialog.** Tracy asks before each one, which is
+right — a shell runs anything — but it charges per command rather than per risk. So the work is
+shaped to spend as few as it honestly can: the survey and the capture are one call, and answers are
+written a group at a time. Inspecting costs nothing at all, so look at files with your own reading
+tools rather than through the shell. An `ls` you could have done with a file listing is a dialog
+somebody has to read, and a dialog that appears eleven times is one nobody reads by the fourth.
+
+### 1. Scan
 
 ```
-node scripts/survey.mjs --site <url> --target auto --out <work>/survey.json
+node scripts/scan.mjs --site <url> --work <work> --target auto --viewports desktop,mobile
 ```
 
-It answers three things.
+One call, two steps: the survey decides what is worth opening, the capture opens it. They are one
+decision — nobody surveys a site and then declines to look at it — so they cost one dialog. A survey
+that says no (not WordPress, no answer, a Preview serving its wrapper) stops there and says so
+rather than spending minutes proving it.
+
+`survey.mjs` and `capture.mjs` still run on their own when you want one without the other.
+
+The survey half answers three things.
 
 **Which Preview to read.** A site managed by Tracy exists twice: the live domain, and a Preview
 at `<label>.tracy.ai` — which is what the preview pane beside the chat is showing, so it is the
@@ -98,7 +111,7 @@ templates, how many pages you are about to open, roughly how long. Then go.
 #### Looking again, later
 
 ```
-node scripts/survey.mjs --site <url> --since <work>/review.json --out <work>/survey.json
+node scripts/scan.mjs --site <url> --work <work> --since <work>/review.json
 ```
 
 This stops asking which pages exist and asks which of the pages already reviewed have changed: one
@@ -106,18 +119,15 @@ plain fetch each, a few seconds against the minutes a capture costs. Only the ch
 through to capture. Say the numbers out loud — *"three of nineteen pages changed"* — because
 "nothing changed" is a real answer and a useful one.
 
-### 2. Capture
-
-```
-node scripts/capture.mjs --pages <work>/survey.json --out <work>/capture --viewports desktop,mobile
-```
+### 2. What the capture half does
 
 Renders each page in headless Chromium, scrolls it so lazy sections load, screenshots it full
 page, and writes what it measured: every section with its rectangle and word count, every image
 with its natural size against its displayed size, every button and link with its text and
 destination, font sizes, text that overflows its box, console errors, and the page's visible text.
 
-Add `tablet` when the site's layout looks like it has a middle breakpoint worth checking. Two
+Add `tablet` to `--viewports` when the site's layout looks like it has a middle breakpoint worth
+checking. Two
 viewports is the sensible default — desktop and mobile disagree the most, and each extra viewport
 is another page to look at.
 
@@ -248,14 +258,31 @@ For each one, say what it is, which page, the measurement, and one sentence on w
 something. Then offer exactly three choices, as an `AskUserQuestion` so they are buttons rather
 than typing:
 
-| Choice | What you run |
+| Choice | What it means |
 |---|---|
 | **See it on the page** | The `show_on_preview` tool, then **ask this same question again**. |
-| **Save it to fix** | `review.mjs decide --review <path> --id f7 --state saved` |
-| **Skip it** | `review.mjs decide --review <path> --id f7 --state ignored` |
-| **Tell me more** | Explain, then ask the same question again. Record it with `--state seen` if they leave it there. |
+| **Save it to fix** | Note it as `saved` and move to the next finding. |
+| **Skip it** | Note it as `ignored` and move to the next finding. |
+| **Tell me more** | Explain, then ask the same question again. `seen` if they leave it there. |
 
-`decide` hands back the next finding in the same breath, so a turn is one command and not three.
+**Hold the answers, then write a group at a time.**
+
+```
+node scripts/review.mjs decide --review <path> --saved f1,f4 --ignored f2 --seen f3
+```
+
+Ask one finding at a time — that is the product, and eleven findings deserve eleven questions. What
+must not also be eleven is the number of approval dialogs stacked on top of them, and writing each
+answer the moment it is given is what caused that. So carry the answers through the group and write
+them in one call: **after the serious ones, after the middling ones, after the small ones, and
+always before your turn ends.**
+
+The cost is bounded and worth saying out loud rather than hiding: a session that dies mid-group
+loses the answers given since the last write, which means a question asked twice. Nothing is lost
+that cannot be answered again in a second.
+
+`decide` hands back the next finding in the same breath, so a flush and the next question are one
+command.
 
 **See it on the page** exists only inside Tracy Desk, where the site is open in the pane beside the
 chat. Pass the finding's `page` and the first entry of its `selectors`, plus a short `label` — the

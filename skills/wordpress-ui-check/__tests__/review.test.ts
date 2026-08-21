@@ -16,7 +16,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
  * this file is for — that the review remembers.
  */
 const REVIEW = fileURLToPath(new URL('../scripts/review.mjs', import.meta.url))
-const CLONE = 'https://example-com-1a2b3c4d.tracy.ai'
+const PREVIEW = 'https://example-com-1a2b3c4d.tracy.ai'
 
 let work: string
 const at = (...p: string[]) => path.join(work, ...p)
@@ -63,9 +63,9 @@ function survey(pages: string[], opened = pages) {
     at('survey.json'),
     JSON.stringify({
       site: 'https://example.com',
-      scannedAgainst: { kind: 'preview', url: CLONE, revision: null, at: '2026-08-21T09:00:00Z' },
-      pages: pages.map((p) => ({ url: p, scanUrl: `${CLONE}${p}`, fingerprint: `sha256:${p}` })),
-      pagesToReview: opened.map((p) => `${CLONE}${p}`),
+      scannedAgainst: { kind: 'preview', url: PREVIEW, revision: null, at: '2026-08-21T09:00:00Z' },
+      pages: pages.map((p) => ({ url: p, scanUrl: `${PREVIEW}${p}`, fingerprint: `sha256:${p}` })),
+      pagesToReview: opened.map((p) => `${PREVIEW}${p}`),
       droppedFromReview: 3
     })
   )
@@ -85,14 +85,14 @@ const build = () =>
 const emptyBlock = {
   id: 'empty-block',
   severity: 'high',
-  page: `${CLONE}/contact/`,
+  page: `${PREVIEW}/contact/`,
   blockIds: ['b2'],
   forOwner: 'The contact page gives a visitor no way to reach the business.'
 }
 
 beforeEach(() => {
   work = mkdtempSync(path.join(tmpdir(), 'ui-check-'))
-  capture([{ url: `${CLONE}/contact/`, slug: 'contact', blocks: [block('b2', 'Contact us')] }])
+  capture([{ url: `${PREVIEW}/contact/`, slug: 'contact', blocks: [block('b2', 'Contact us')] }])
   survey(['/contact/'])
   findings([emptyBlock])
 })
@@ -114,7 +114,7 @@ describe('build', () => {
   it('writes the copy it was read against where a reader cannot miss it', () => {
     build()
     const md = readFileSync(at('out', 'review.md'), 'utf8')
-    expect(md).toContain(CLONE)
+    expect(md).toContain(PREVIEW)
     expect(md).toContain('the Preview publishes no revision')
     expect(md).toContain('3 page(s) were left out')
   })
@@ -132,7 +132,7 @@ describe('build', () => {
   it('re-asks when the block it points at now says something else', () => {
     build()
     run('decide', '--review', at('out', 'review.json'), '--id', 'f1', '--state', 'ignored')
-    capture([{ url: `${CLONE}/contact/`, slug: 'contact', blocks: [block('b2', 'About us')] }])
+    capture([{ url: `${PREVIEW}/contact/`, slug: 'contact', blocks: [block('b2', 'About us')] }])
     build()
     const review = json(at('out', 'review.json'))
     expect(review.findings.map((f: { state: string }) => f.state)).toEqual(['new'])
@@ -174,7 +174,7 @@ describe('next', () => {
     ['b2', 'b3', 'b4'].map((b, i) => ({ ...emptyBlock, id: `check-${i}`, severity, blockIds: [b] }))
 
   beforeEach(() => {
-    capture([{ url: `${CLONE}/contact/`, slug: 'contact', blocks: [block('b2', 'a'), block('b3', 'b'), block('b4', 'c')] }])
+    capture([{ url: `${PREVIEW}/contact/`, slug: 'contact', blocks: [block('b2', 'a'), block('b3', 'b'), block('b4', 'c')] }])
   })
 
   it('asks about a serious finding on its own', () => {
@@ -207,7 +207,7 @@ describe('decide', () => {
   const review = () => at('out', 'review.json')
 
   it('hands back the next question in the same breath', () => {
-    capture([{ url: `${CLONE}/contact/`, slug: 'contact', blocks: [block('b2', 'Contact us'), block('b3', 'b')] }])
+    capture([{ url: `${PREVIEW}/contact/`, slug: 'contact', blocks: [block('b2', 'Contact us'), block('b3', 'b')] }])
     findings([emptyBlock, { ...emptyBlock, id: 'thin-page', severity: 'medium', blockIds: ['b3'] }])
     build()
     const out = run('decide', '--review', review(), '--id', 'f1', '--state', 'saved')
@@ -234,6 +234,55 @@ describe('decide', () => {
   it('refuses an id it does not know rather than silently doing nothing', () => {
     expect(() => run('decide', '--review', review(), '--id', 'f9', '--state', 'saved')).toThrow(/no such finding/)
     expect(json(review()).findings[0].state).toBe('new')
+  })
+})
+
+describe('deciding a whole group at once', () => {
+  beforeEach(() => {
+    capture([
+      { url: `${PREVIEW}/contact/`, slug: 'contact', blocks: [block('b2', 'Contact us'), block('b3', 'b'), block('b4', 'c')] }
+    ])
+    findings([
+      emptyBlock,
+      { ...emptyBlock, id: 'thin-page', severity: 'medium', blockIds: ['b3'] },
+      { ...emptyBlock, id: 'demo-page-live', severity: 'low', blockIds: ['b4'] }
+    ])
+    build()
+  })
+
+  const review = () => at('out', 'review.json')
+  const stateOf = (id: string) =>
+    json(review()).findings.find((f: { id: string }) => f.id === id)?.state
+
+  /**
+   * Every command an agent runs costs the customer an approval dialog. Writing each answer the
+   * moment it is given turned an eleven-finding review into eleven dialogs stacked on top of the
+   * eleven questions that were the point — and a dialog that appears eleven times is one nobody
+   * reads by the fourth.
+   */
+  it('takes different answers for different findings in one call', () => {
+    const out = run('decide', '--review', review(), '--saved', 'f1', '--ignored', 'f2,f3')
+    expect(out.decided).toEqual({ f1: 'saved', f2: 'ignored', f3: 'ignored' })
+    expect(stateOf('f1')).toBe('saved')
+    expect(stateOf('f2')).toBe('ignored')
+    expect(stateOf('f3')).toBe('ignored')
+    expect(json(review()).status).toBe('closed')
+  })
+
+  // Half a batch is worse than none: the person's answers would then live in two places, the file
+  // and the conversation, disagreeing about which of them happened.
+  it('writes nothing at all when one id in the batch is unknown', () => {
+    expect(() => run('decide', '--review', review(), '--saved', 'f1,f99')).toThrow(/no such finding: f99/)
+    expect(stateOf('f1')).toBe('new')
+  })
+
+  it('still takes a single answer the old way', () => {
+    run('decide', '--review', review(), '--id', 'f1', '--state', 'saved')
+    expect(stateOf('f1')).toBe('saved')
+  })
+
+  it('refuses a call that names no finding at all', () => {
+    expect(() => run('decide', '--review', review())).toThrow(/decide needs/)
   })
 })
 
