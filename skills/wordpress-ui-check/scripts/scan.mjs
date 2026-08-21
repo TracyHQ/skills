@@ -17,7 +17,7 @@
 //                      [--viewports desktop,mobile] [--max-pages 20]
 
 import { spawn } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -59,8 +59,14 @@ function run(script, args) {
   });
 }
 
-// Left exactly as given: `survey.mjs` owns reading an address, and normalising it twice in two
-// places is how the two quietly start disagreeing about what counts as one.
+// The folder is made here, not by the scripts that write into it. `--work` names a place that has
+// never existed on a first run, and a survey that finished its crawl and then threw on the write
+// answers a four-minute question with a stack trace — which is exactly the shape that sent an
+// agent hunting for imaginary faults on 21/08.
+mkdirSync(WORK, { recursive: true });
+
+// The address is left exactly as given: `survey.mjs` owns reading one, and normalising it twice in
+// two places is how the two quietly start disagreeing about what counts as valid.
 const surveyFile = path.join(WORK, "survey.json");
 const captureDir = path.join(WORK, "capture");
 
