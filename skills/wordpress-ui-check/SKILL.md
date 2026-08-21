@@ -84,6 +84,11 @@ somebody has to read, and a dialog that appears eleven times is one nobody reads
 node scripts/scan.mjs --site <url> --work <work> --target auto --viewports desktop,mobile
 ```
 
+**Give it ten minutes.** Pass `timeout: 600000` on the Bash call. The default is two minutes and
+this takes six to nine — a survey reads a hundred pages politely, then a browser opens twenty of
+them twice. Left at the default it is killed a few minutes in, having done the work and kept none
+of it, and the person is asked to approve the whole thing again.
+
 **This is the first command you run. Nothing goes before it** — no checking whether Playwright is
 installed, no listing the skill's own folder, no `--version` on anything. Each of those costs the
 person an approval dialog in order to learn something this command reports a second later, and the
@@ -123,6 +128,12 @@ templates, how many pages you are about to open, roughly how long. Then go.
 
 ```
 node scripts/scan.mjs --site <url> --work <work> --since <work>/review.json
+```
+
+Ten minutes here too (`timeout: 600000`), though it rarely needs one: the re-read itself takes
+about half a minute, and only what changed is opened again.
+
+```
 ```
 
 This stops asking which pages exist and asks which of the pages already reviewed have changed: one
