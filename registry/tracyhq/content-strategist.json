@@ -6,6 +6,9 @@
   "ref": "main",
   "skillPath": "skills/content-strategist",
   "autoInstall": true,
+  "label": "Write missing copy",
+  "tagline": "Titles and descriptions the site never got",
+  "runMinutes": 2,
   "platforms": [
     "shopify",
     "woocommerce",

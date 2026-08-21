@@ -6,6 +6,9 @@
   "ref": "main",
   "skillPath": "skills/wordpress-ui-check",
   "autoInstall": true,
+  "label": "Design check",
+  "tagline": "Pages that look unfinished or inconsistent",
+  "runMinutes": 5,
   "platforms": [
     "wordpress",
     "woocommerce"

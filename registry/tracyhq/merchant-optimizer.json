@@ -6,6 +6,9 @@
   "ref": "main",
   "skillPath": "skills/merchant-optimizer",
   "autoInstall": true,
+  "label": "Check the catalogue",
+  "tagline": "Products with no price, photo or description",
+  "runMinutes": 3,
   "platforms": [
     "shopify",
     "woocommerce",

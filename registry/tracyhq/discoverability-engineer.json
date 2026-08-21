@@ -6,6 +6,9 @@
   "ref": "main",
   "skillPath": "skills/discoverability-engineer",
   "autoInstall": true,
+  "label": "Make it findable",
+  "tagline": "How search engines and AI reach the site",
+  "runMinutes": 3,
   "platforms": [
     "shopify",
     "woocommerce",

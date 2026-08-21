@@ -6,6 +6,9 @@
   "ref": "main",
   "skillPath": "skills/reputation-manager",
   "autoInstall": true,
+  "label": "Check trust signals",
+  "tagline": "What a stranger sees before deciding to buy",
+  "runMinutes": 3,
   "platforms": [
     "shopify",
     "woocommerce",

@@ -36,6 +36,21 @@
       "default": false,
       "type": "boolean"
     },
+    "label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40
+    },
+    "tagline": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 90
+    },
+    "runMinutes": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 120
+    },
     "platforms": {
       "default": [],
       "type": "array",

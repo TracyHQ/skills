@@ -76,4 +76,29 @@ describe('validateRecordFile', () => {
   it('rejects a path with only registry directory', () => {
     expect(codes(valid, 'registry')).toContain('path_outside_registry')
   })
+
+  // A skill that asks to be installed unasked will be shown to somebody, so the front door has an
+  // entry fee. Without this, a tile introduces itself as `merchant-optimizer` and says nothing
+  // about what it costs — the exact failure the label exists to prevent.
+  describe('the front door has an entry fee', () => {
+    const asking = { ...valid, autoInstall: true }
+
+    it('turns away a skill that asks to be installed with no name a person can read', () => {
+      expect(codes({ ...asking, tagline: 'Refunds nobody chased' })).toContain('auto_install_without_label')
+    })
+
+    it('turns away a skill that asks to be installed without saying what the person gets', () => {
+      expect(codes({ ...asking, label: 'Check refunds' })).toContain('auto_install_without_tagline')
+    })
+
+    it('lets in a skill that answers both', () => {
+      expect(
+        validateRecordFile(validPath, { ...asking, label: 'Check refunds', tagline: 'Refunds nobody chased' })
+      ).toEqual([])
+    })
+
+    it('asks nothing of a skill that never asked for the front door', () => {
+      expect(validateRecordFile(validPath, valid)).toEqual([])
+    })
+  })
 })
