@@ -59,6 +59,8 @@ function run(script, args) {
   });
 }
 
+// Left exactly as given: `survey.mjs` owns reading an address, and normalising it twice in two
+// places is how the two quietly start disagreeing about what counts as one.
 const surveyFile = path.join(WORK, "survey.json");
 const captureDir = path.join(WORK, "capture");
 

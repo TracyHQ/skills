@@ -134,3 +134,18 @@ describe('reading a Preview', () => {
     expect(looksLikeSnapshotShell('<body class="home wp-singular"><h1>Wedding flowers</h1>')).toBe(false)
   })
 })
+
+describe('the address, however somebody wrote it', () => {
+  // `juneflower.vn` is what a person types and what an agent passes on. Measured 21/08: `new URL`
+  // threw a raw Node stack trace on it, an agent read that as the whole run being broken, went
+  // looking for what else might be wrong, decided Playwright was missing when it was not, and
+  // offered to install a package. One unhandled shape cost four minutes.
+  it('assumes https for a bare host', () => {
+    expect(previewUrl('juneflower.vn')).toBe(previewUrl('https://juneflower.vn'))
+  })
+
+  it('keeps a scheme that was given', () => {
+    expect(previewUrl('http://juneflower.vn')).toBe(previewUrl('https://juneflower.vn'))
+  })
+})
+

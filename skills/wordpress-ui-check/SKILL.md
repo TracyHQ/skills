@@ -146,8 +146,16 @@ Playwright is the one thing this skill needs that does not ship with it.
 
 The script looks in the three places somebody might have installed it — beside the skill, in the
 directory they are standing in, and globally — so there is nothing to check beforehand and the scan
-above says not to. When it does report Playwright missing, pass the two commands on and stop. A
-review assembled from raw HTML is not the review this skill promises.
+above says not to.
+
+**Believe the script over your own check, and never install anything yourself.** Its lookup is not
+the obvious one: a plain `require('playwright')` from the skill's folder fails while the script
+finds it installed globally and runs perfectly. An improvised check therefore reports "missing" on
+a machine where everything works, and the repair for that non-problem writes a package into a
+folder nobody asked you to touch. Measured on 21/08, from exactly that sequence.
+
+When the script itself reports Playwright missing, pass its two commands to the person and stop —
+they run them, not you. A review assembled from raw HTML is not the review this skill promises.
 
 The install is one-time and takes a couple of minutes:
 
