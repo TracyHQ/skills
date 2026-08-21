@@ -273,6 +273,49 @@ for (const skill of skills) {
       `text tells the reader to use $${v}, which no script here sets or reads — does the runtime actually provide it?`);
   }
 
+  // ---- 6. the three budgets of progressive disclosure ---------------------------------------
+  // Anthropic's `skill-creator`, vendored at skills/skill-creator/, defines how a skill loads:
+  // name and description are ALWAYS in context, the body loads when the skill triggers, and
+  // bundled resources load on demand. Each stage has a number attached, and skills/README.md
+  // records where each came from.
+  //
+  // WARNINGS, not failures, and the reason is the calibration. Three skills in this repo are
+  // over a limit today — one body at 1,063 lines and one description at 304 words. A gate that
+  // fails the repo it ships with is a gate somebody switches off before it has caught anything,
+  // so these report until the outliers are brought in, and can be promoted afterwards.
+  //
+  // The numbers are not aspirational: mattpocock/skills, 38 skills that Tracy Desk already
+  // vendors 41 entries from, clears all three thresholds 38 times out of 38, with its longest
+  // skill shorter than this repo's median.
+  const body = fs.readFileSync(skillMd, "utf8");
+  const bodyLines = body.split("\n").length;
+  if (bodyLines > 500)
+    add("warn", "skill_md_too_long", skill,
+      `SKILL.md is ${bodyLines} lines; past ~500 the answer is another layer — move detail into references/ and point at it`);
+
+  // The description is charged to a SHARED budget, which is what makes this more than style:
+  // /doctor records that the skill listing gets roughly 1% of the context window, and that once
+  // the summed descriptions exceed it, entries are TRUNCATED and routing degrades. An overlong
+  // description spends the budget every other skill needs in order to be findable.
+  const described = frontmatter.match(/^description:\s*([\s\S]*?)(?=\n[a-zA-Z-]+:|$)/m);
+  if (described) {
+    const words = described[1].trim().split(/\s+/).filter(Boolean).length;
+    if (words > 100)
+      add("warn", "description_too_long", skill,
+        `description is ${words} words against a ~100 budget shared with every other skill's listing entry`);
+  }
+
+  // A reference is read by something scanning for one section, not from the top.
+  for (const f of files) {
+    if (!rel(f).startsWith("references" + path.sep) || !f.endsWith(".md")) continue;
+    const lines = fs.readFileSync(f, "utf8").split("\n");
+    if (lines.length <= 300) continue;
+    const hasToc = lines.slice(0, 60).some((l) => /^\s*[-*]\s*\[/.test(l));
+    if (!hasToc)
+      add("warn", "reference_needs_toc", skill,
+        `${rel(f)} is ${lines.length} lines with no table of contents in its first 60`);
+  }
+
   // ---- 5. reaching into another skill must be stated where a reader will see it -------------
   // `reskin-qa` renders through `design-qa`'s engine, so installing it alone leaves two gates
   // dead on first use.

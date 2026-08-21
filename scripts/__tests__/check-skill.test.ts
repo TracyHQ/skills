@@ -247,3 +247,53 @@ describe("unresolved_script_name", () => {
     expect(run(root).out).not.toMatch(/unresolved_script_name/);
   });
 });
+
+describe("the three budgets", () => {
+  // Warnings rather than failures, deliberately: three skills in this repo are over a limit
+  // today, and a gate that fails the repo it ships with gets switched off before it has caught
+  // anything. The tests assert exit 0 alongside the warning, so promoting these to failures
+  // later is a visible decision rather than a side effect.
+  const long = (n: number) => Array.from({ length: n }, (_, i) => `line ${i}`).join("\n");
+
+  it("warns past 500 lines of body, and not at 500", () => {
+    const under = skillsRoot({ a: { "SKILL.md": skill("a", long(480)) } });
+    expect(run(under).out).not.toMatch(/skill_md_too_long/);
+    const over = skillsRoot({ a: { "SKILL.md": skill("a", long(600)) } });
+    const { code, out } = run(over);
+    expect(code).toBe(0);
+    expect(out).toMatch(/warn \[a\] skill_md_too_long: SKILL\.md is \d+ lines/);
+  });
+
+  it("warns past a 100-word description", () => {
+    // The budget is shared: /doctor records that the listing gets ~1% of the context window and
+    // that entries are truncated once the sum exceeds it, so one long description spends what
+    // every other skill needs to be findable.
+    const words = (n: number) => Array.from({ length: n }, () => "word").join(" ");
+    const ok = skillsRoot({ a: { "SKILL.md": `---\nname: a\ndescription: ${words(60)}\n---\nbody\n` } });
+    expect(run(ok).out).not.toMatch(/description_too_long/);
+    const over = skillsRoot({ a: { "SKILL.md": `---\nname: a\ndescription: ${words(160)}\n---\nbody\n` } });
+    expect(run(over).out).toMatch(/description_too_long: description is 160 words/);
+  });
+
+  it("warns about a long reference with no table of contents, and not one that has it", () => {
+    const bare = skillsRoot({
+      a: { "SKILL.md": skill("a", "x\n"), "references/spec.md": "# Spec\n" + long(400) },
+    });
+    expect(run(bare).out).toMatch(/reference_needs_toc: references\/spec\.md is \d+ lines/);
+
+    const withToc = skillsRoot({
+      a: {
+        "SKILL.md": skill("a", "x\n"),
+        "references/spec.md": "# Spec\n\n- [One](#one)\n- [Two](#two)\n" + long(400),
+      },
+    });
+    expect(run(withToc).out).not.toMatch(/reference_needs_toc/);
+  });
+
+  it("leaves a short reference alone whatever it looks like", () => {
+    const root = skillsRoot({
+      a: { "SKILL.md": skill("a", "x\n"), "references/short.md": "# Short\n" + long(120) },
+    });
+    expect(run(root).out).not.toMatch(/reference_needs_toc/);
+  });
+});
