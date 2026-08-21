@@ -14,15 +14,15 @@ tags:
 requires-mcp:
   - tracy-site
 provenOn: >-
-  Run end to end against real customer sites on 2026-08-20, ten first and then forty, reading
-  their manifests over plain HTTP and joining them to the live registry of 5,756 records. Every
-  site produced a verdict and none crashed. Four defects came out of it that no fixture had
-  caught, because every fixture starts below Joomla 5 and carries data: a site already on
-  Joomla 6 told it was not ready for Joomla 6, a Joomla 5.2 site told it was one upgrade away
-  when it is two, an unread site reported as cleared, and a site running only Joomla itself
-  reported as a failed read. All four fixed and pinned by checks. The MCP transport is still
-  unexercised: `read_versions` and `list_extensions` have never been called against a connected
-  site, so that half is proven only through the shapes they return.
+  Run end to end against a real customer site's real extensions table on 2026-08-21:
+  ja-teline-v.demo.joomlart.com, read through its installed component with a real token, entirely
+  read-only. 252 rows, 21 non-core, and every rule fired on real data rather than on a fixture —
+  the three-hop staged migration for Joomla 4.3.4, the package roll-up folding a child into its
+  package by real package_id, a vendor declaration printed as "the publisher declares", and the
+  unknowns named and counted rather than rounded to fine. Earlier the same engine ran against
+  forty live sites via manifests over HTTP. The one seam still untested is the MCP wrapper
+  itself: read_versions and list_extensions over the tracy-site relay have not been called from a
+  connected desk, though the component actions they wrap now have.
 ---
 
 # Joomla readiness
