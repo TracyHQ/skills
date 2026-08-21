@@ -32,6 +32,10 @@
       "type": "string",
       "minLength": 1
     },
+    "autoInstall": {
+      "default": false,
+      "type": "boolean"
+    },
     "platforms": {
       "default": [],
       "type": "array",

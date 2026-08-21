@@ -5,6 +5,7 @@
   "gitUrl": "https://github.com/TracyHQ/skills",
   "ref": "main",
   "skillPath": "skills/wordpress-ui-check",
+  "autoInstall": true,
   "platforms": [
     "wordpress",
     "woocommerce"
