@@ -264,7 +264,7 @@ describe("the three budgets", () => {
     expect(out).toMatch(/warn \[a\] skill_md_too_long: SKILL\.md is \d+ lines/);
   });
 
-  it("warns past a 100-word description", () => {
+  it("FAILS past a 100-word description, unlike the two shape rules beside it", () => {
     // The budget is shared: /doctor records that the listing gets ~1% of the context window and
     // that entries are truncated once the sum exceeds it, so one long description spends what
     // every other skill needs to be findable.
@@ -272,7 +272,35 @@ describe("the three budgets", () => {
     const ok = skillsRoot({ a: { "SKILL.md": `---\nname: a\ndescription: ${words(60)}\n---\nbody\n` } });
     expect(run(ok).out).not.toMatch(/description_too_long/);
     const over = skillsRoot({ a: { "SKILL.md": `---\nname: a\ndescription: ${words(160)}\n---\nbody\n` } });
-    expect(run(over).out).toMatch(/description_too_long: description is 160 words/);
+    const { code, out } = run(over);
+    // The cost of this one lands on other people: the listing is a shared allowance, and the
+    // entries truncated when it overruns are the ones at the end, not the one that overran.
+    expect(code).toBe(1);
+    expect(out).toMatch(/FAIL \[a\] description_too_long: description is 160 words/);
+  });
+
+  it("exempts a vendored skill from the shape rules, by LICENSE.txt rather than by name", () => {
+    // skill-creator came from Anthropic with its own licence. Editing it to recover 3% would fork
+    // the copy from upstream — the same divergence the vendored Mention Network skills are in,
+    // where an upstream fix never arrives and a local fix never travels back.
+    const files = { "SKILL.md": skill("a", long(600)), "references/spec.md": "# Spec\n" + long(400) };
+    const judged = skillsRoot({ a: files });
+    expect(run(judged).out).toMatch(/skill_md_too_long/);
+    expect(run(judged).out).toMatch(/reference_needs_toc/);
+
+    const exempt = skillsRoot({ a: { ...files, "LICENSE.txt": "MIT\n" } });
+    expect(run(exempt).out).not.toMatch(/skill_md_too_long/);
+    expect(run(exempt).out).not.toMatch(/reference_needs_toc/);
+  });
+
+  it("still charges a vendored skill for its description", () => {
+    // The shape of somebody else's file is theirs. The listing allowance is everyone's.
+    const wordsOf = (n: number) => Array.from({ length: n }, () => "word").join(" ");
+    const root = skillsRoot({
+      a: { "SKILL.md": `---\nname: a\ndescription: ${wordsOf(160)}\n---\nbody\n`, "LICENSE.txt": "MIT\n" },
+    });
+    expect(run(root).code).toBe(1);
+    expect(run(root).out).toMatch(/description_too_long/);
   });
 
   it("warns about a long reference with no table of contents, and not one that has it", () => {
