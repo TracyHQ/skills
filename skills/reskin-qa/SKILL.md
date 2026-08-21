@@ -6,8 +6,6 @@ platforms: any
 provenOn: joomlart.com (responsive reference vs ja_stratum demo)
 requires-mcp:
   - tracy-reskin
-requires-skill:
-  - design-qa
 ---
 
 # Reskin QA — did we deliver what the mapping promised?
@@ -60,10 +58,19 @@ own assumptions; a second agent holding only `design-qa` + `reskin-qa` judges wh
 actually on the page. Every FAIL goes back to the builder as a mapping decision, not as a
 patch on the preview — the proposal's directory is the thing to fix.
 
-## Installation note
+## Install `design-qa` too — nothing will do it for you
 
-`responsive-qa` and `skin-diff` render through `design-qa`'s browser engine, so that skill
-must be installed alongside this one — one browser and one page load serve every tier. Both
-scripts look for it beside this skill and at `$TRACY_QA_HOME/design-qa/scripts`; set
-`DESIGN_QA_SCRIPTS` if it lives somewhere else. They say so plainly rather than failing
-obscurely.
+`responsive-qa` and `skin-diff` render through `design-qa`'s browser engine: one browser and one
+page load serve every tier. **Installing this skill alone leaves those two gates dead on first
+use.** Tracy Desk installs each skill into its own folder under one library root and resolves
+`requiresMcp` only — it has no concept of one skill needing another, so nothing pulls `design-qa`
+in behind this one. Install it yourself.
+
+Once both are installed the sibling layout is what makes the lookup work. Each script tries
+`$DESIGN_QA_SCRIPTS`, then the sibling directory, then `$TRACY_QA_HOME/design-qa/scripts`, and
+says which it wanted rather than failing obscurely.
+
+A `requires-skill:` frontmatter key used to sit above, declaring this. It was removed once the
+runtime was read: no validator checks it, the published index does not carry it, and the
+installer has never heard of it. A declaration nothing reads is worse than none — it reads like
+a guarantee.
