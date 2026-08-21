@@ -1,5 +1,6 @@
-// Owner's decision (this branch): "Skill này sẽ chạy full ở máy local, backend mcp chỉ còn để lưu
-// thôi" — collection, detection and analysis complete locally and produce a local artifact BEFORE
+// Owner's decision (this branch), translated from the original: "this skill will run in full on
+// the local machine, the MCP backend is only there to store" — collection, detection and analysis
+// complete locally and produce a local artifact BEFORE
 // the MCP is ever touched for submission. Two invariants this file's tests exist to pin:
 //   1. The report states the real denominator ("2 of 4 engines") plainly, in the body — never a
 //      footnote tacked onto a claim of full coverage.

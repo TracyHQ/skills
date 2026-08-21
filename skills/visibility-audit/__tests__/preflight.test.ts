@@ -1,5 +1,6 @@
-// The owner's decision (khi thiếu key thì skill nên báo cho user rằng chưa có key, cung cấp
-// hoặc chọn bỏ qua) means a missing key must be a CONVERSATION before P3 ever runs, not a bare
+// The owner's decision (translated from the original: when a key is missing the skill should tell
+// the user there is no key, and let them supply one or choose to skip) means a missing key must be
+// a CONVERSATION before P3 ever runs, not a bare
 // "15 criteria go na" buried in the coverage line. These tests pin the preflight decision itself
 // — which criteria a lane buys, and which of those are Critical to the verdict — independent of
 // any real key or network call, and independent of `report-md.test.ts`, which pins where this

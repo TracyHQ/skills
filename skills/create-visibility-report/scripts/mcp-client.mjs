@@ -31,17 +31,16 @@ export function parseSSE(text) {
 export async function rpc(method, params, { url, key, fetchImpl = fetch } = {}) {
   const endpoint = url ?? process.env.MENTION_NETWORK_MCP_URL ?? DEFAULT_URL
   const bearer = key ?? process.env.MENTION_NETWORK_KEY
-  // KHÔNG có key thì gửi không kèm Authorization, thay vì tự chặn ở đây.
+  // With NO key, send the request without an Authorization header instead of refusing it here.
   //
-  // Server quyết định chuyện đó, không phải client: từ 19/08/2026 MCP nhận
-  // request không Bearer (MCP_OPTIONAL_API_KEY, mặc định bật) và gán principal
-  // `anonymous`. Throw sẵn ở client nghĩa là skill từ chối một cuộc gọi mà
-  // server sẵn sàng phục vụ — xác minh trên prod: không Bearer → 200 và
-  // tools/list trả đủ 22 tool.
+  // The server decides that, not the client: since 2026-08-19 the MCP accepts a request with no
+  // Bearer header (MCP_OPTIONAL_API_KEY, on by default) and assigns the `anonymous` principal.
+  // Throwing here meant the skill refused a call the server was willing to serve — measured on
+  // prod: no Bearer → 200, and tools/list returns all 22 tools.
   //
-  // Key SAI vẫn 401 (server giữ nguyên lằn ranh đó), nên gửi kèm một key hỏng
-  // TỆ HƠN là không gửi gì. Đó là lý do chỗ này bỏ header hẳn chứ không gửi
-  // chuỗi rỗng.
+  // A WRONG key still 401s (the server keeps that line exactly where it was), so sending a broken
+  // key is WORSE than sending nothing at all. That is why this drops the header entirely rather
+  // than sending an empty string.
   const headers = {
     'Content-Type': 'application/json',
     Accept: 'application/json, text/event-stream',

@@ -1,11 +1,11 @@
-// Server quyết định có cần key hay không, không phải client. MCP nhận request
-// không Bearer (MCP_OPTIONAL_API_KEY, mặc định bật) và gán principal anonymous;
-// xác minh trên prod 19/08/2026: không Bearer → 200, tools/list trả đủ 22 tool.
-// Client từng throw sẵn, nghĩa là skill tự từ chối cuộc gọi mà server sẵn sàng
-// phục vụ — deploy mở khoá xong mà skill vẫn chết, và thông điệp lỗi đổ tại
-// "thiếu key" nên không ai nghĩ tới chỗ này.
+// The server decides whether a key is required, not the client. MCP accepts a request with no
+// Bearer header (MCP_OPTIONAL_API_KEY, on by default) and assigns the `anonymous` principal;
+// measured on prod 2026-08-19: no Bearer → 200, and tools/list returns all 22 tools.
+// The client used to throw before sending, which meant the skill refused a call the server was
+// willing to serve — the deploy unlocked it and the skill still died, and because the error
+// blamed a "missing key" nobody thought to look here.
 import { describe, it, expect } from 'vitest'
-// @ts-expect-error — plain ESM, không có type declaration (xem header mcp-client.mjs)
+// @ts-expect-error — plain ESM, no type declarations (see the mcp-client.mjs header)
 import { rpc } from '../scripts/mcp-client.mjs'
 
 function fakeFetch(seen: { headers?: Record<string, string> }) {
@@ -19,8 +19,8 @@ function fakeFetch(seen: { headers?: Record<string, string> }) {
   }
 }
 
-describe('rpc: header Authorization', () => {
-  it('không có key → KHÔNG gửi Authorization, và không throw', async () => {
+describe('rpc: the Authorization header', () => {
+  it('no key → sends NO Authorization header, and does not throw', async () => {
     const seen: { headers?: Record<string, string> } = {}
     const prev = process.env.MENTION_NETWORK_KEY
     delete process.env.MENTION_NETWORK_KEY
@@ -34,7 +34,7 @@ describe('rpc: header Authorization', () => {
     expect(seen.headers).not.toHaveProperty('Authorization')
   })
 
-  it('có key → vẫn gửi Bearer như cũ', async () => {
+  it('with a key → still sends Bearer, exactly as before', async () => {
     const seen: { headers?: Record<string, string> } = {}
     await rpc('tools/list', {}, {
       url: 'https://example.invalid',
@@ -44,9 +44,9 @@ describe('rpc: header Authorization', () => {
     expect(seen.headers?.Authorization).toBe('Bearer mn_mcp_abc')
   })
 
-  // Key SAI vẫn 401 ở server, nên gửi kèm key hỏng TỆ HƠN không gửi gì —
-  // đó là lý do bỏ header hẳn chứ không gửi chuỗi rỗng.
-  it('key rỗng → bỏ header hẳn, không gửi "Bearer "', async () => {
+  // A WRONG key is still a 401 at the server, so sending a broken key is WORSE than sending
+  // nothing — that is why this drops the header entirely instead of sending an empty string.
+  it('empty key → drops the header entirely, does not send "Bearer "', async () => {
     const seen: { headers?: Record<string, string> } = {}
     await rpc('tools/list', {}, {
       url: 'https://example.invalid',
