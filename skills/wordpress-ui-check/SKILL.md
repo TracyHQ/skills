@@ -1,6 +1,6 @@
 ---
 name: wordpress-ui-check
-description: Look at a WordPress site the way a visitor does and report what is unfinished or missing — empty sections, filler text, demo pages, dead buttons, text spilling out of its box. Renders each page in a real browser, walks the findings one at a time, and remembers each decision. Use whenever someone asks how their site looks, whether it looks finished, wants a design or UX review, or says "check my site", "review my homepage", "soi giao diện", "review giao diện website" — even without saying WordPress. For robots.txt and structured data use site-scan; for broken pages use design-qa.
+description: Look at a WordPress site the way a visitor does and report what is unfinished or missing — empty sections, filler text, demo pages, dead buttons, text spilling out of its box. Renders each page in a real browser, walks the findings one at a time, and remembers each decision. Use whenever someone asks how their site looks, wants a design or UX review, or says "check my site", "review my homepage", "does this look done", "soi giao diện", "review giao diện website" — even without saying WordPress. For robots.txt and structured data use site-scan; for broken pages use design-qa.
 version: 0.2.0
 platforms: wordpress
 provenOn: juneflower.vn (Flatsome + WooCommerce, 1,001 urls, 11 templates — five pages reviewed, and the theme's own /price-table/ demo was still live)
