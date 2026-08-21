@@ -84,6 +84,12 @@ somebody has to read, and a dialog that appears eleven times is one nobody reads
 node scripts/scan.mjs --site <url> --work <work> --target auto --viewports desktop,mobile
 ```
 
+**This is the first command you run. Nothing goes before it** — no checking whether Playwright is
+installed, no listing the skill's own folder, no `--version` on anything. Each of those costs the
+person an approval dialog in order to learn something this command reports a second later, and the
+dialogs are the scarce thing here. If Playwright is missing, this says so and stops, with the two
+commands that fix it.
+
 One call, two steps: the survey decides what is worth opening, the capture opens it. They are one
 decision — nobody surveys a site and then declines to look at it — so they cost one dialog. A survey
 that says no (not WordPress, no answer, a Preview serving its wrapper) stops there and says so
@@ -138,14 +144,10 @@ is another page to look at.
 
 Playwright is the one thing this skill needs that does not ship with it.
 
-**Do not check for it first. Just run the scan.** The script already looks in the three places
-somebody might have installed it — beside the skill, in the directory they are standing in, and
-globally — and if none answer it prints the two commands that fix it and stops. A separate check
-costs the person an approval dialog to learn something the next command was going to tell them
-anyway, and the dialogs are the scarce thing here, not the seconds.
-
-When it does report Playwright missing, pass the two commands on and stop. A review assembled from
-raw HTML is not the review this skill promises.
+The script looks in the three places somebody might have installed it — beside the skill, in the
+directory they are standing in, and globally — so there is nothing to check beforehand and the scan
+above says not to. When it does report Playwright missing, pass the two commands on and stop. A
+review assembled from raw HTML is not the review this skill promises.
 
 The install is one-time and takes a couple of minutes:
 
