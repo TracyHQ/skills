@@ -66,6 +66,11 @@ review.mjs   →  merge what you saw into what was already known
    you       →  go through it with the person, one finding at a time
 ```
 
+**Say what a command is for, in words the shop's owner would use.** The sentence you attach to a
+command is the sentence they read on the approval card — it is what they decide on. "Look at 20
+pages of juneflower.vn and photograph each one" is a decision somebody can make. "Run survey and
+capture" is a job title, and the raw command underneath it is a wall of paths.
+
 **Every command you run costs the person an approval dialog.** Tracy asks before each one, which is
 right — a shell runs anything — but it charges per command rather than per risk. So the work is
 shaped to spend as few as it honestly can: the survey and the capture are one call, and answers are
