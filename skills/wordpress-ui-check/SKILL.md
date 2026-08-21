@@ -1,6 +1,6 @@
 ---
 name: wordpress-ui-check
-description: Look at a WordPress site the way a visitor does and report what is unfinished or missing — empty sections, filler text, demo pages, dead buttons, text spilling out of its box. Renders each page in a real browser, walks the findings one at a time, and remembers each decision. Use whenever someone asks how their site looks, wants a design or UX review, or says "check my site", "review my homepage", "does this look done", "soi giao diện", "review giao diện website" — even without saying WordPress. For robots.txt and structured data use site-scan; for broken pages use design-qa.
+description: Look at a WordPress site the way a visitor does and report what is unfinished or missing. Empty sections, filler text, demo pages, dead buttons, text spilling out of its box. Renders each page in a real browser, walks the findings one at a time, and remembers each decision. Use whenever someone asks how their site looks, whether it looks finished or unprofessional, wants a design or UX or layout review, or is about to hand a site to a client, in whatever language they ask. Use site-scan instead for robots.txt and sitemaps, design-qa for pages that are outright broken.
 version: 0.2.0
 platforms: wordpress
 provenOn: juneflower.vn (Flatsome + WooCommerce, 1,001 urls, 11 templates — five pages reviewed, and the theme's own /price-table/ demo was still live)
@@ -235,6 +235,10 @@ them, and it is read by whoever fixes the shop — often not the person who pres
 review of a Vietnamese florist written in English because the request was typed in English makes
 every quoted heading a translation of itself, and the person holding the review has to translate it
 back before they can find anything.
+
+This is about what you SAY. Anything a machine reads stays English regardless: commands, file
+paths, the `echo` inside a shell line, the ids in `review.json`. A command is not a place to speak
+to somebody, and a shell line half in one language reads as a mistake in both.
 
 Two exceptions, in this order:
 
