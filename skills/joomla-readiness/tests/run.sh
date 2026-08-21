@@ -13,6 +13,20 @@
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
+# The floor, enforced here rather than stated in a document nobody runs.
+#
+# 3.9 because that is the oldest interpreter these scripts have actually been run on: the whole
+# suite passes on 3.9.6, measured 2026-08-21. It is not necessarily the oldest that WOULD work —
+# nothing here uses an API newer than 3.7 and every annotation is deferred — but an untested
+# floor is a guess, and a skill installed on somebody else's machine is exactly where a guess
+# turns into a stack trace they cannot read.
+python3 - <<'PY' || exit 1
+import sys
+if sys.version_info < (3, 9):
+    v = ".".join(str(n) for n in sys.version_info[:3])
+    sys.exit(f"this skill is tested on Python 3.9 and newer; this is {v}")
+PY
+
 fail=0
 for t in "$HERE"/test_*.py; do
   name="$(basename "$t")"

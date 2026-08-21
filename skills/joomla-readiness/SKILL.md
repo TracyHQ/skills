@@ -164,7 +164,9 @@ tests/run.sh              every check this skill makes about itself, one command
 examples/readiness-run.md a finished report, and the engine call that produced it
 ```
 
-Run `tests/run.sh` before trusting a change to any of them. 246 checks, no pytest, no network.
+Run `tests/run.sh` before trusting a change to any of them. 246 checks, no pytest, no network,
+and **Python 3.9 or newer** — the whole suite was run on 3.9.6 on 2026-08-21, and `run.sh`
+refuses an older interpreter rather than failing somewhere further in.
 
 `examples/readiness-run.md` shows one site go from the two tool calls to the finished report,
 with the numbers pasted from a real run rather than written by hand.
