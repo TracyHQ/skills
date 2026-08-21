@@ -108,7 +108,7 @@ function seoFindings({ findings }: DigestInput): string[] {
     lines.push('')
   }
   if (findings.length > TOP_FINDINGS) {
-    lines.push(`Còn ${findings.length - TOP_FINDINGS} findings — xem surface/seo/findings.json.`)
+    lines.push(`${findings.length - TOP_FINDINGS} more findings — see surface/seo/findings.json.`)
   }
   return lines
 }

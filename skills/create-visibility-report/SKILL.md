@@ -266,7 +266,7 @@ Alongside it, in the same batch:
   send a stored key you have not verified with `check`. `mcp-client.mjs`'s own default points at
   this same production host; override with `MENTION_NETWORK_MCP_URL` only to point at the `-dev`
   host for development — and note that a **dev-issued key is rejected by prod** (measured: prod
-  answers it with `401 "Internal API key không hợp lệ"`), so switching hosts back to production
+  answers it with `401 "Invalid internal API key"`), so switching hosts back to production
   needs a production key, not just a URL change.
 - **A key per engine** — `ANTHROPIC_API_KEY` covers `claude`, `OPENAI_API_KEY` covers `chatgpt`,
   `GEMINI_API_KEY` covers `gemini`, `SERPAPI_API_KEY` covers `google_ai_mode`. That mapping is the
@@ -1047,3 +1047,17 @@ Three differences from the pack are deliberate:
 Anything else that differs from the pack is a bug in this copy. When re-porting, take the detection
 spec handling and the prompt text verbatim — the wording is the calibration, and the backend
 validates against the same live catalog either way.
+
+## Fix bugs in this copy
+
+This skill was vendored from an internal repository and has since diverged from it, in both
+directions. Work has landed here that exists nowhere else — `d7b6a79` changed the client to stop
+refusing a call the MCP server is willing to serve — so re-vendoring from upstream would silently
+drop it.
+
+The registry record points at this repository, so the published index and every CI gate read THIS
+copy. A fix landed upstream changes nothing here until somebody carries it across by hand, and a
+fix landed here never travels back on its own.
+
+Fix bugs here. The exception is anything the backend itself owns — server-side strings, guards,
+API behaviour — which lives upstream and reaches this skill only as text quoting it.
