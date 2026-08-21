@@ -5,7 +5,7 @@ description: >-
   stand in the way. Reads the site's own version and installed extensions, looks each one up in
   the public extension registry, and says out loud what it could not find out. Use when someone
   asks if a site is ready for Joomla 6, what is blocking an upgrade, or how far behind a site is.
-version: 1.7.0
+version: 1.8.0
 platforms: joomla
 tags:
   - joomla
@@ -128,9 +128,33 @@ removed, and the whole point of this skill is not to be confidently wrong.
 | the site's installed extensions | what is actually there, not what was bought | says nothing about whether each is in use |
 | `registry.tracy.ai/platform/joomla` | does this extension have a Joomla 6 build | it does not know every extension that exists, and the count changes: read it from the catalog you loaded rather than from this table |
 
-Run the engine rather than reasoning it out yourself:
+Run the engine rather than reasoning it out yourself, and run it through **one call**:
+
+```bash
+python3 scripts/run.py reading.json     # or: ... run.py -   to read stdin
+```
+
+`reading.json` is what the two tools returned, plus the package manifests when a route could
+read them:
+
+```json
+{ "joomla": "5.2.5", "php": "8.2",
+  "extensions": [ {"name": "K2", "element": "com_k2", "type": "component",
+                   "version": "2.11.1", "enabled": true} ],
+  "packages":   [ {"name": "Xmap Package", "element": "xmap", "version": "2.3.3",
+                   "children": [{"type": "plugin", "element": "com_k2", "group": "xmap"}]} ] }
+```
+
+`php` and `packages` may be absent and the answer will say so. A reading with no `joomla` key is
+**refused**: a missing field and an unreadable version are different answers, and only the tool
+that read the site can tell them apart.
+
+Do not compose the modules by hand. It is four calls with three silently optional arguments,
+each of which changes what the customer is told and none of which raises when left out — and the
+worked example in `examples/` got the PHP one wrong the first time it was written that way.
 
 ```
+scripts/run.py            the front door: one reading in, one answer out
 scripts/site_state.py     what the site reports, joined to the registry
 scripts/php_step.py       the one PHP change to ask for now, or none
 scripts/upgrade_path.py   the chain, and the bridge into the verdict rules
@@ -140,7 +164,7 @@ tests/run.sh              every check this skill makes about itself, one command
 examples/readiness-run.md a finished report, and the engine call that produced it
 ```
 
-Run `tests/run.sh` before trusting a change to any of them. 233 checks, no pytest, no network.
+Run `tests/run.sh` before trusting a change to any of them. 246 checks, no pytest, no network.
 
 `examples/readiness-run.md` shows one site go from the two tool calls to the finished report,
 with the numbers pasted from a real run rather than written by hand.
