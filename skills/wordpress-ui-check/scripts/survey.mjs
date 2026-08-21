@@ -97,6 +97,18 @@ const TEMPLATE_RULES = [
   [/\bpage\b/, "page"]
 ];
 
+/**
+ * The language the site says it is in, from the `lang` attribute WordPress writes on `<html>`.
+ *
+ * Read here rather than after the capture because it decides what language the REVIEW is written
+ * in, and the first sentence of the review is spoken before a single page has been rendered.
+ * `vi-VN` and `vi` are the same answer to that question, so only the primary subtag is kept.
+ */
+function siteLanguage(html) {
+  const value = /<html[^>]*\blang=["']([^"']+)["']/i.exec(html)?.[1];
+  return value ? value.trim().toLowerCase().split(/[-_]/)[0] : null;
+}
+
 function templateOf(html, url) {
   const body = /<body[^>]*class=["']([^"']*)["']/i.exec(html)?.[1]?.toLowerCase() ?? "";
   try {
@@ -383,6 +395,9 @@ async function main() {
     reachable: true,
     isWordPress: true,
     signals,
+    // What the site speaks. The review is written in this, not in whatever language the request
+    // happened to arrive in — see SKILL.md.
+    language: siteLanguage(home.text),
     discovered: candidates.length,
     inspected: looked.length,
     templates,

@@ -196,8 +196,26 @@ run can be compared against the first and an owner can tell a fix from a mood.
 Free observations are also how the skill grows. One that keeps recurring across sites has earned a
 place in `references/checks.md` with an id of its own.
 
-Write `forOwner`, `forBuilder` and `summary` in whatever language the person is speaking to you in;
-`language` records which that was.
+### Which language the review is written in
+
+**The site's own language, not the language the request arrived in.** `survey.json` carries
+`language`, read from the `lang` attribute the site writes on `<html>`; use it for `forOwner`,
+`forBuilder`, `summary`, and everything you say while walking through the findings. Record it in
+`language`.
+
+The reason is who the review is for. A finding is about words on somebody's shop, quoted back to
+them, and it is read by whoever fixes the shop — often not the person who pressed the button. A
+review of a Vietnamese florist written in English because the request was typed in English makes
+every quoted heading a translation of itself, and the person holding the review has to translate it
+back before they can find anything.
+
+Two exceptions, in this order:
+
+1. **The person asks for another language.** Then use that one, for everything, until they say
+   otherwise. An explicit request always wins.
+2. **The site says nothing** — no `lang`, or a value that is not a language. Then follow the
+   language the person is speaking to you in, and say which you chose so they can correct it in one
+   word.
 
 The command reports what the merge did — how many findings are new since last time, how many were
 carried over untouched, how many were proved fixed. Those numbers are worth repeating to the
