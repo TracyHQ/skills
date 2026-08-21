@@ -136,10 +136,16 @@ checking. Two
 viewports is the sensible default — desktop and mobile disagree the most, and each extra viewport
 is another page to look at.
 
-Playwright is the one thing this skill needs that does not ship with it. The script looks for it
-beside itself, in the directory the person is standing in, and in a global install — and if none of
-those answer it prints the two commands that fix it and stops. Pass those on and stop too; a review
-assembled from raw HTML is not the review this skill promises.
+Playwright is the one thing this skill needs that does not ship with it.
+
+**Do not check for it first. Just run the scan.** The script already looks in the three places
+somebody might have installed it — beside the skill, in the directory they are standing in, and
+globally — and if none answer it prints the two commands that fix it and stops. A separate check
+costs the person an approval dialog to learn something the next command was going to tell them
+anyway, and the dialogs are the scarce thing here, not the seconds.
+
+When it does report Playwright missing, pass the two commands on and stop. A review assembled from
+raw HTML is not the review this skill promises.
 
 The install is one-time and takes a couple of minutes:
 
