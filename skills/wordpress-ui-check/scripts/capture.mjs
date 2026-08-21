@@ -76,12 +76,26 @@ async function loadPlaywright() {
   const here = await fromDir(process.cwd(), `the current directory (${process.cwd()})`);
   if (here) return here;
 
+  // Where THIS node keeps its global packages, worked out from the binary that is already running:
+  // `/…/v24.15.0/bin/node` → `/…/v24.15.0/lib/node_modules`. No subprocess, and nothing on PATH.
+  //
+  // Asking `npm root -g` came first and was wrong in the one environment that matters. An agent
+  // inside Tracy Desk runs with the app's PATH, which has no npm on it, so the lookup answered
+  // "npm did not answer" and the script reported Playwright missing — on a machine where it was
+  // installed and working. Measured 21/08: five and a half minutes of surveying, thrown away, and
+  // the customer handed two install commands they did not need.
+  // `lib/`, not the version root: a global install lands in `<prefix>/lib/node_modules`, and a
+  // require anchored one level higher looks in `<prefix>/node_modules`, which does not exist.
+  const beside = await fromDir(path.join(path.dirname(process.execPath), "..", "lib"), "installed beside node");
+  if (beside) return beside;
+
+  // Kept as a second try for a node that keeps its globals somewhere else entirely.
   try {
     const globalRoot = execFileSync("npm", ["root", "-g"], { encoding: "utf8" }).trim();
     const global = await fromDir(path.join(globalRoot, ".."), "installed globally");
     if (global) return global;
   } catch {
-    attempts.push("installed globally: npm did not answer");
+    attempts.push("installed globally: npm is not on PATH");
   }
 
   return { mod: null, attempts };
