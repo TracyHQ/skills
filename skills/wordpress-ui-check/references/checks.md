@@ -10,7 +10,7 @@ builder's half of the finding.
 
 ## Contents
 
-- [Missing](#missing) — something a reader expects and cannot find
+- [Missing](#missing) — something a reader expects and cannot find, or something meant for the administrator that a reader can
 - [Inconsistent](#inconsistent) — the site disagreeing with itself
 - [Placeholder](#placeholder) — the site is not finished and says so
 - [Presentation](#presentation) — it is all there, it just does not read well
@@ -60,6 +60,19 @@ all", "contact us").
 **Picture:** the broken-image glyph, or a gap where a picture belongs.
 **Leave it alone when:** the image is a tracking pixel — a 1×1 with no alt.
 **Default:** high when it is a product or hero image, medium otherwise.
+
+### `cms-notice-visible`
+**Ask:** is the site showing a visitor something that was written for whoever administers it?
+**Numbers:** page text carrying an instruction addressed to an editor — "You need to assign
+Widgets to", "Add widgets here", "No widgets found", "Sorry, no pages was found", "Please set up
+your", or a PHP notice.
+**Picture:** a column or panel occupied by a sentence telling somebody to go and configure
+something.
+**Leave it alone when:** the site is a staging build the person already knows is unfinished, and
+they said so.
+**Default:** high. It is the loudest possible signal that nobody has finished the site, and it sits
+in a place a reader cannot ignore — on juneflower's shop page it fills the entire left column
+beside the products.
 
 ### `thin-page`
 **Ask:** is there enough on this page to have been worth publishing?
@@ -160,9 +173,13 @@ allowed to be small; body copy is not.
 ### `image-distorted`
 **Ask:** is any picture squashed or stretched?
 **Numbers:** an `images` entry whose displayed `rect.w / rect.h` differs from
-`naturalWidth / naturalHeight` by more than about 10%.
-**Picture:** faces or logos that look wrong.
-**Leave it alone when:** the image is a background pattern or a decorative texture.
+`naturalWidth / naturalHeight` by more than about 10% **and** whose `objectFit` is `fill`.
+**Picture:** faces or logos that look wrong. This one is decided by the picture, not the ratio.
+**Leave it alone when:** `objectFit` is `cover` or `contain`. Then the browser crops or letterboxes
+instead of stretching, and the shape mismatch means nothing — a 2048×1365 photo in a square tile
+looks perfectly proportioned. Measured on juneflower's colour page, where the naive ratio
+comparison called all seven tiles distorted and every one of them was fine. Also leave decorative
+backgrounds and textures alone.
 **Default:** medium.
 
 ### `mobile-cramped`

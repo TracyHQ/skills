@@ -108,6 +108,11 @@ function measure() {
     text: trim(el.innerText, 240)
   }));
 
+  // `objectFit` decides whether a shape mismatch means anything. A picture shown in a square box
+  // is squashed only when the browser is told to stretch it; under `cover` the browser crops
+  // instead, and the result looks perfectly proportioned. Without this field the naive comparison
+  // of displayed shape against natural shape calls every cropped thumbnail distorted — measured on
+  // juneflower, where it flagged all seven category tiles on a page with nothing wrong with it.
   const images = [...document.querySelectorAll("img")].filter(seen).slice(0, 60).map((el) => ({
     id: tag(el),
     src: el.currentSrc || el.src,
@@ -115,6 +120,7 @@ function measure() {
     rect: rect(el),
     naturalWidth: el.naturalWidth,
     naturalHeight: el.naturalHeight,
+    objectFit: getComputedStyle(el).objectFit,
     loaded: el.complete && el.naturalWidth > 0
   }));
 
