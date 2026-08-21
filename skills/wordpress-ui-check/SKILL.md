@@ -1,12 +1,12 @@
 ---
-name: wordpress-review
+name: wordpress-ui-check
 description: Look at a WordPress site the way a visitor does and report what looks unfinished, inconsistent or missing — empty sections, a contact page with no address, filler text still live, the theme's demo pages still published, buttons that lead nowhere, mismatched phone numbers, text spilling out of buttons, a phone layout nothing fits in. Renders each page in a real browser, judges the screenshot alongside the measurements, and writes an HTML report where every finding is boxed on the picture. Use this whenever someone asks how their WordPress site looks, whether it looks finished or professional, wants a design or UX or content review, is about to hand a site to a client, or says something like "check my site", "review my homepage", "does this look done", "soi giao diện", "review giao diện website" — even when they do not say the word WordPress. For robots.txt, sitemaps and structured data use site-scan instead; for pages that are outright broken use design-qa.
 version: 0.1.0
 platforms: wordpress
 provenOn: juneflower.vn (Flatsome + WooCommerce, 1,001 urls, 11 templates — five pages reviewed, and the theme's own /price-table/ demo was still live)
 ---
 
-# WordPress review
+# WordPress UI check
 
 Two other skills already inspect a website and both are blind to the same thing. `design-qa` asks
 whether a page is **broken**. `site-scan` asks whether a machine can **read** it. Neither notices a

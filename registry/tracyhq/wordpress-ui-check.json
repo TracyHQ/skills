@@ -1,10 +1,10 @@
 {
   "$schema": "https://registry.tracy.ai/skills/schema/skill-record.schema.json",
   "namespace": "tracyhq",
-  "slug": "wordpress-review",
+  "slug": "wordpress-ui-check",
   "gitUrl": "https://github.com/TracyHQ/skills",
   "ref": "main",
-  "skillPath": "skills/wordpress-review",
+  "skillPath": "skills/wordpress-ui-check",
   "platforms": [
     "wordpress",
     "woocommerce"
