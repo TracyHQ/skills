@@ -17,6 +17,11 @@ jobs:
       # typecheck nor the test suite: a skill is published by copying its directory, so
       # without this the first parser to see those files is the fleet host that needs them.
       - run: pnpm check-scripts
+      # Well formed is not the same property as correct. Every other gate here was green
+      # through a review that found nine real defects in two skills — including three
+      # SKILL.md files stating that every QA gate accepts --variant while two accepted it
+      # nowhere, so a run against a proposal silently graded the live site and passed.
+      - run: pnpm check-skill
       - run: pnpm test
       # A skill whose scripts decide what a customer is told should be verifiable by whoever
       # installed it, not only by the vendor who wrote it. Any skill that ships a
