@@ -11,8 +11,11 @@
 //
 // Usage: node capture.mjs --pages <survey.json|url,url> --out <dir> [--viewports desktop,mobile]
 
+import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 const arg = (n, d) => {
   const i = process.argv.indexOf(`--${n}`);
@@ -37,17 +40,73 @@ if (!PAGES_ARG) {
   process.exit(2);
 }
 
-let chromium;
-try {
-  ({ chromium } = await import("playwright"));
-} catch {
+/**
+ * Find Playwright wherever a reasonable person put it.
+ *
+ * A bare `import("playwright")` resolves from THIS FILE's directory upward, which is the skill's
+ * own folder — so a person who installs Playwright in the directory they are working in, the
+ * obvious place, watches the skill insist it is missing. Measured the hard way: it took a symlink
+ * into the skill folder to make the first run work, and nobody installing a skill is going to
+ * think of that.
+ *
+ * So three places are tried, in the order someone would actually have used: beside the skill,
+ * where the person is standing, and installed globally. The one that answers is reported, because
+ * "which copy am I running" is the first question when a browser misbehaves.
+ */
+async function loadPlaywright() {
+  const attempts = [];
+
+  try {
+    return { mod: await import("playwright"), from: "beside the skill" };
+  } catch (e) {
+    attempts.push(`beside the skill: ${e.code ?? "not found"}`);
+  }
+
+  const fromDir = async (dir, label) => {
+    try {
+      const require = createRequire(pathToFileURL(path.join(dir, "resolve-from-here.js")));
+      const entry = require.resolve("playwright");
+      return { mod: await import(pathToFileURL(entry).href), from: label };
+    } catch (e) {
+      attempts.push(`${label}: ${e.code ?? "not found"}`);
+      return null;
+    }
+  };
+
+  const here = await fromDir(process.cwd(), `the current directory (${process.cwd()})`);
+  if (here) return here;
+
+  try {
+    const globalRoot = execFileSync("npm", ["root", "-g"], { encoding: "utf8" }).trim();
+    const global = await fromDir(path.join(globalRoot, ".."), "installed globally");
+    if (global) return global;
+  } catch {
+    attempts.push("installed globally: npm did not answer");
+  }
+
+  return { mod: null, attempts };
+}
+
+const found = await loadPlaywright();
+// A package resolved by path comes back as its CommonJS entry, where the exports sit under
+// `default` instead of being named. Reading `chromium` straight off it yields undefined and the
+// failure surfaces two hundred lines later as "cannot read properties of undefined" — which is
+// how the first version of this got shipped and immediately broke on the very instruction it
+// prints.
+const chromium = found.mod?.chromium ?? found.mod?.default?.chromium;
+if (!chromium) {
   // Said plainly and once. A skill that dies on a stack trace teaches nobody what to do next.
   process.stderr.write(
-    "This step needs Playwright to open the pages.\n" +
-      "Install it with:  npm i -D playwright && npx playwright install chromium\n"
+    "This step needs Playwright to open the pages, and it is not installed.\n\n" +
+      "Run these two, from the directory you are working in:\n" +
+      "  npm install playwright\n" +
+      "  npx playwright install chromium\n\n" +
+      "The first downloads the library, the second the browser it drives. Both are one-time.\n" +
+      `Looked in: ${(found.attempts ?? ["found, but it exported no chromium"]).join(" · ")}\n`
   );
   process.exit(3);
 }
+process.stderr.write(`playwright: ${found.from}\n`);
 
 const pages = existsSync(PAGES_ARG)
   ? JSON.parse(readFileSync(PAGES_ARG, "utf8")).pagesToReview ?? []

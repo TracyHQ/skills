@@ -66,8 +66,19 @@ Add `tablet` when the site's layout looks like it has a middle breakpoint worth 
 viewports is the sensible default — desktop and mobile disagree the most, and each extra viewport
 is another page to look at.
 
-If Playwright is missing the script says so and exits; pass the install line on and stop rather
-than trying to review from HTML.
+Playwright is the one thing this skill needs that does not ship with it. The script looks for it
+beside itself, in the directory the person is standing in, and in a global install — and if none of
+those answer it prints the two commands that fix it and stops. Pass those on and stop too; a review
+assembled from raw HTML is not the review this skill promises.
+
+The install is one-time and takes a couple of minutes:
+
+```
+npm install playwright
+npx playwright install chromium
+```
+
+The first is the library, the second the browser it drives.
 
 ### 3. Look
 
