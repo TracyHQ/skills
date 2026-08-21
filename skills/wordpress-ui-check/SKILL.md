@@ -86,8 +86,11 @@ Three habits keep the report trustworthy:
 "about 250 pixels". Saying "298px tall, 55 words" costs nothing and is checkable.
 
 **Name the block, do not describe the position.** Every measured element has an id like `b12`. Put
-those ids in `blockIds` and the report draws the box for you from the rectangle it already
-recorded. Never write coordinates yourself — a box in roughly the right place is worse than none.
+those ids in `blockIds` and everything downstream is derived for you: the report draws the box from
+the rectangle it recorded, and each block also carries a css path so the same element can be found
+again on the live page later. Never write coordinates or selectors yourself — a box in roughly the
+right place is worse than none, and a hand-written selector is a guess about a DOM you did not
+measure.
 
 **Say which viewport you were looking at.** A finding that only exists at 390px wide is a different
 finding from one that exists everywhere.
@@ -103,6 +106,11 @@ Write `findings.json`, then:
 ```
 node scripts/report.mjs --capture <work>/capture --findings <work>/findings.json
 ```
+
+It writes two files. `report.html` is for people. `findings.resolved.json` is the same review with
+every block already turned into an address, a rectangle and a screenshot — so a later session, or
+an editor that wants to highlight these elements on the live page, reads one file instead of
+redoing the lookup against every page's measurements.
 
 ```json
 {
@@ -159,6 +167,12 @@ point at `design-qa` rather than writing it up here.
 **Do not fix anything.** This skill diagnoses. The repair skills are `content-strategist` for copy,
 `discoverability-engineer` for markup, `merchant-optimizer` for catalogue gaps. Name the one that
 fits when it is obvious; do not start editing.
+
+**Leave the review where the next person will find it.** Inside a Tracy workspace that means
+`deliverables/ui-check/<date>/` — `deliverables/` is the folder for outputs meant for people, and
+nothing there is ever deployed. Never `surface/` or `digest/`: every Sync overwrites those.
+Standalone, the same shape goes in `./wordpress-ui-check/<date>/` where the person is working. A
+review nobody wrote down leaves the next session believing the site was never looked at.
 
 **Do not review pages you did not open.** Everything you write comes from a screenshot you looked
 at. If the survey dropped pages, say how many rather than implying the whole site was seen.

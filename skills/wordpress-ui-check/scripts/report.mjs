@@ -51,7 +51,7 @@ function blockIndex() {
     for (const [viewport, v] of Object.entries(data.viewports ?? {})) {
       const boxes = new Map();
       for (const group of ["sections", "images", "actions", "tinyText", "overflowingText"]) {
-        for (const item of v[group] ?? []) if (item.id && item.rect) boxes.set(item.id, item.rect);
+        for (const item of v[group] ?? []) if (item.id) boxes.set(item.id, item);
       }
       perViewport.set(viewport, { boxes, shot: v.screenshot, width: v.clientWidth, truncated: v.screenshotTruncated });
     }
@@ -59,6 +59,18 @@ function blockIndex() {
   }
   return byPage;
 }
+
+/**
+ * Where each named block lives on the page, as a css path rather than a rectangle.
+ *
+ * The report itself draws boxes from rectangles, which is all a saved screenshot needs. Anything
+ * that wants to point at the same element on the LIVE page — highlighting it in an editor, checking
+ * whether a fix landed — needs an address that survives a reload, and a rectangle is not that.
+ */
+const addresses = (f) => {
+  const vp = blocks.get(f.page)?.perViewport.get(f.viewport ?? "desktop");
+  return (f.blockIds ?? []).map((id) => vp?.boxes.get(id)?.selector).filter(Boolean);
+};
 
 const SEVERITY = {
   high: { label: "High", rank: 0 },
@@ -73,7 +85,7 @@ function shotWithBoxes(pageUrl, viewport, blockIds) {
   const page = blocks.get(pageUrl);
   const vp = page?.perViewport.get(viewport);
   if (!vp?.shot) return "";
-  const rects = (blockIds ?? []).map((id) => vp.boxes.get(id)).filter(Boolean);
+  const rects = (blockIds ?? []).map((id) => vp.boxes.get(id)?.rect).filter(Boolean);
   const overlay = rects
     .map((r) => {
       const pct = (n, total) => `${((n / total) * 100).toFixed(3)}%`;
@@ -192,4 +204,36 @@ ${freeSection}
 </main></body></html>`;
 
 writeFileSync(outPath, html);
-process.stdout.write(JSON.stringify({ report: outPath, findings: fixed.length, notes: free.length }) + "\n");
+
+/**
+ * The same findings with every block already resolved to an address, a rectangle and a shot.
+ *
+ * The reviewer names blocks, which keeps its job small and its output checkable; anyone consuming
+ * the review afterwards would otherwise have to open the measurement file for every page and do
+ * the lookup again. Doing it once here means a later session, or an editor that wants to highlight
+ * these elements on the live page, reads one file and has everything.
+ */
+const resolvedPath = path.join(path.dirname(outPath), "findings.resolved.json");
+const resolved = {
+  site: review.site,
+  reviewedAt: review.reviewedAt,
+  language: review.language,
+  summary: review.summary,
+  capturedAt: index.capturedAt,
+  findings: findings.map((f) => {
+    const vp = blocks.get(f.page)?.perViewport.get(f.viewport ?? "desktop");
+    return {
+      ...f,
+      blocks: (f.blockIds ?? [])
+        .map((id) => vp?.boxes.get(id))
+        .filter(Boolean)
+        .map((b) => ({ id: b.id, selector: b.selector, textHint: b.textHint, rect: b.rect })),
+      screenshot: vp?.shot ?? null
+    };
+  })
+};
+writeFileSync(resolvedPath, JSON.stringify(resolved, null, 2));
+
+process.stdout.write(
+  JSON.stringify({ report: outPath, resolved: resolvedPath, findings: fixed.length, notes: free.length }) + "\n"
+);

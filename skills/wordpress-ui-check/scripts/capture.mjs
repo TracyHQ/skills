@@ -93,15 +93,60 @@ function measure() {
     return el.dataset.reviewId;
   };
 
+  /**
+   * An address that survives the page being loaded again.
+   *
+   * The block ids above live only inside this one measurement — they are stamped onto the DOM in
+   * this pass and gone the moment the page reloads. That is fine for drawing a box on a saved
+   * screenshot, and useless for anything that wants to point at the same element on the live page
+   * later: highlighting it in an editor, re-checking whether a fix landed, telling a second
+   * reviewer where to look.
+   *
+   * So every element also gets a css path. Ids are preferred when they look authored rather than
+   * generated — WordPress writes `post-482` and `menu-item-91`, which are as stable as the content
+   * itself, while React writes `:r7:` and a build hash changes every deploy. Failing an id, the
+   * path is a chain of `tag:nth-of-type`, which survives text edits and css changes and breaks only
+   * when the page is genuinely rearranged. Breaking then is correct: the thing being pointed at
+   * really did move.
+   */
+  const AUTHORED_ID = /^[A-Za-z][\w-]{1,40}$/;
+  const GENERATED_ID = /^(:|r[0-9]|[a-f0-9]{8,})|[a-f0-9]{12,}/i;
+  const stableId = (el) => {
+    const id = el.id;
+    if (!id || !AUTHORED_ID.test(id) || GENERATED_ID.test(id)) return null;
+    return document.querySelectorAll(`#${CSS.escape(id)}`).length === 1 ? id : null;
+  };
+
+  const cssPath = (el) => {
+    const parts = [];
+    for (let node = el; node && node !== document.documentElement; node = node.parentElement) {
+      const id = stableId(node);
+      if (id) {
+        parts.unshift(`#${CSS.escape(id)}`);
+        return parts.join(" > ");
+      }
+      const tagName = node.tagName.toLowerCase();
+      const siblings = [...(node.parentElement?.children ?? [])].filter((c) => c.tagName === node.tagName);
+      parts.unshift(siblings.length > 1 ? `${tagName}:nth-of-type(${siblings.indexOf(node) + 1})` : tagName);
+      if (parts.length > 12) break;
+    }
+    return parts.join(" > ");
+  };
+
+  /** A few words of what the element said, so whoever follows the path can tell it is the same thing. */
+  const hint = (el) => trim(el.innerText || el.getAttribute("alt") || el.getAttribute("aria-label") || "", 40);
+
+  /** Everything a finding needs to point at this element, now and on a later page load. */
+  const addr = (el) => ({ id: tag(el), selector: cssPath(el), textHint: hint(el), rect: rect(el) });
+
   // Sections: the arrangement a reader perceives as "parts of the page". Anything shorter than a
   // line of text is furniture, not a part.
   const sectionEls = [...document.querySelectorAll("section, main > div, main > section, .elementor-section, .vc_row, .row, header, footer, article, aside")]
     .filter((el) => seen(el) && el.getBoundingClientRect().height >= 24);
   const sections = sectionEls.slice(0, 60).map((el) => ({
-    id: tag(el),
+    ...addr(el),
     tag: el.tagName.toLowerCase(),
     className: trim(el.className?.toString?.() ?? "", 120),
-    rect: rect(el),
     words: words(el.innerText),
     images: el.querySelectorAll("img").length,
     links: el.querySelectorAll("a[href]").length,
@@ -114,10 +159,9 @@ function measure() {
   // of displayed shape against natural shape calls every cropped thumbnail distorted — measured on
   // juneflower, where it flagged all seven category tiles on a page with nothing wrong with it.
   const images = [...document.querySelectorAll("img")].filter(seen).slice(0, 60).map((el) => ({
-    id: tag(el),
+    ...addr(el),
     src: el.currentSrc || el.src,
     alt: el.getAttribute("alt"),
-    rect: rect(el),
     naturalWidth: el.naturalWidth,
     naturalHeight: el.naturalHeight,
     objectFit: getComputedStyle(el).objectFit,
@@ -128,11 +172,10 @@ function measure() {
     .filter(seen)
     .slice(0, 120)
     .map((el) => ({
-      id: tag(el),
+      ...addr(el),
       kind: el.tagName.toLowerCase(),
       text: trim(el.innerText || el.value || el.getAttribute("aria-label") || "", 60),
-      href: el.getAttribute("href"),
-      rect: rect(el)
+      href: el.getAttribute("href")
     }));
 
   // Text that a model cannot judge from a screenshot without squinting: the actual pixel size.
@@ -143,7 +186,7 @@ function measure() {
   for (const el of textBits) {
     const px = Math.round(parseFloat(getComputedStyle(el).fontSize));
     sizes.set(px, (sizes.get(px) ?? 0) + 1);
-    if (px < 14 && tiny.length < 20) tiny.push({ id: tag(el), px, text: trim(el.innerText, 60), rect: rect(el) });
+    if (px < 14 && tiny.length < 20) tiny.push({ ...addr(el), px, text: trim(el.innerText, 60) });
   }
 
   // Text escaping the box that holds it — the thing a reader sees as a word sticking out of a
@@ -151,7 +194,7 @@ function measure() {
   const overflowing = [];
   for (const el of [...document.querySelectorAll("a, button, h1, h2, h3, .btn, [class*=button]")].filter(seen)) {
     if (el.scrollWidth > el.clientWidth + 2 && el.clientWidth > 0 && overflowing.length < 20) {
-      overflowing.push({ id: tag(el), text: trim(el.innerText, 60), clientWidth: el.clientWidth, scrollWidth: el.scrollWidth, rect: rect(el) });
+      overflowing.push({ ...addr(el), text: trim(el.innerText, 60), clientWidth: el.clientWidth, scrollWidth: el.scrollWidth });
     }
   }
 
