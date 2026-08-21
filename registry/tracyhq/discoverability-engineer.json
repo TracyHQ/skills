@@ -5,5 +5,14 @@
   "gitUrl": "https://github.com/TracyHQ/skills",
   "ref": "main",
   "skillPath": "skills/discoverability-engineer",
-  "platforms": ["shopify", "woocommerce", "wordpress", "joomla"]
+  "autoInstall": true,
+  "label": "Make it findable",
+  "tagline": "How search engines and AI reach the site",
+  "runMinutes": 3,
+  "platforms": [
+    "shopify",
+    "woocommerce",
+    "wordpress",
+    "joomla"
+  ]
 }

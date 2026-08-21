@@ -1,18 +1,16 @@
 {
   "$schema": "https://registry.tracy.ai/skills/schema/skill-record.schema.json",
   "namespace": "tracyhq",
-  "slug": "content-strategist",
+  "slug": "wordpress-ui-check",
   "gitUrl": "https://github.com/TracyHQ/skills",
   "ref": "main",
-  "skillPath": "skills/content-strategist",
+  "skillPath": "skills/wordpress-ui-check",
   "autoInstall": true,
-  "label": "Write missing copy",
-  "tagline": "Titles and descriptions the site never got",
-  "runMinutes": 2,
+  "label": "Design check",
+  "tagline": "Pages that look unfinished or inconsistent",
+  "runMinutes": 5,
   "platforms": [
-    "shopify",
-    "woocommerce",
     "wordpress",
-    "joomla"
+    "woocommerce"
   ]
 }

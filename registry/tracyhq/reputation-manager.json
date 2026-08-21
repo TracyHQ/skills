@@ -5,5 +5,14 @@
   "gitUrl": "https://github.com/TracyHQ/skills",
   "ref": "main",
   "skillPath": "skills/reputation-manager",
-  "platforms": ["shopify", "woocommerce", "wordpress", "joomla"]
+  "autoInstall": true,
+  "label": "Check trust signals",
+  "tagline": "What a stranger sees before deciding to buy",
+  "runMinutes": 3,
+  "platforms": [
+    "shopify",
+    "woocommerce",
+    "wordpress",
+    "joomla"
+  ]
 }

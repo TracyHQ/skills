@@ -95,6 +95,49 @@ export const SkillRecordSchema = z.object({
   ref: RefSchema.default('main'),
   skillPath: SkillPathSchema,
   /**
+   * Install this skill for every new site whose platform it declares, without being asked.
+   *
+   * A desk exists to make a site's work obvious, and a skill nobody knows to install helps nobody.
+   * But `platforms` alone cannot decide it: fifteen records match WordPress today, `skill-creator`
+   * among them, and handing a florist fifteen slash commands is the same as handing them none.
+   *
+   * So the two questions are separated. `platforms` answers "could this run here". This answers
+   * "should it be waiting when the site is added" — a product judgement, and one the person who
+   * wrote the skill is best placed to make.
+   *
+   * It lives here rather than in the desk's code because the alternative was a hardcoded list of
+   * slugs in the client: correct for the four it named, and a code change in another repository
+   * every time a fifth skill earned its place.
+   *
+   * Defaults to false. A skill has to ask for the front door.
+   */
+  autoInstall: z.boolean().default(false),
+  /**
+   * How the skill introduces itself where a person picks work rather than picks a tool: the
+   * Launchpad tile, and anywhere else the desk offers something to run.
+   *
+   * `description` cannot do this job. It is written to make an agent choose the skill, so it is
+   * long, keyword-dense and addressed to a model. A person scanning tiles needs three or four
+   * words, a line saying what they get, and — the part people actually decide on — how much of
+   * their afternoon it costs.
+   *
+   * Two rules the wording follows, learned by writing a screenful of bad ones first. Start with a
+   * verb, because someone is picking a job and not hiring a role: `content-strategist` is a job
+   * title, "Write missing copy" is the work. And name the outcome, not the technique: "Make it
+   * findable" rather than "structured data and llms.txt", because the owner does not need to know
+   * how.
+   *
+   * `runMinutes` is an estimate and reads as one — the tile shows `~3 min`. The real figure
+   * depends on the site, which is why every skill worth this label confirms the actual number
+   * after its first cheap look, before spending anyone's time.
+   *
+   * Tracy's classification, like `platforms`: it lives here so a record pointing at a repository
+   * Tracy does not own can still be given a name a person can read.
+   */
+  label: z.string().min(1).max(40).optional(),
+  tagline: z.string().min(1).max(90).optional(),
+  runMinutes: z.number().int().positive().max(120).optional(),
+  /**
    * Empty is legal — a skill genuinely may not be platform-specific — but never silent:
    * `build-index` warns by slug, because the alternative is a record that quietly disappears
    * from every platform filter and only surfaces as a gap in someone's UI.

@@ -5,5 +5,14 @@
   "gitUrl": "https://github.com/TracyHQ/skills",
   "ref": "main",
   "skillPath": "skills/merchant-optimizer",
-  "platforms": ["shopify", "woocommerce", "wordpress", "joomla"]
+  "autoInstall": true,
+  "label": "Check the catalogue",
+  "tagline": "Products with no price, photo or description",
+  "runMinutes": 3,
+  "platforms": [
+    "shopify",
+    "woocommerce",
+    "wordpress",
+    "joomla"
+  ]
 }

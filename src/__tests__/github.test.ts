@@ -9,6 +9,7 @@ const record: SkillRecord = {
   gitUrl: 'https://github.com/TracyHQ/skills',
   ref: 'main',
   skillPath: 'skills/refund-audit',
+  autoInstall: false,
   platforms: ['woocommerce']
 }
 

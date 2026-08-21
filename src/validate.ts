@@ -46,6 +46,22 @@ export function validateRecordFile(filePath: string, raw: unknown): ValidationEr
     })
   }
 
+  // A skill that asks to be installed unasked will be shown to somebody. Showing them
+  // `merchant-optimizer` with no idea what it does or what it costs is worse than not offering it
+  // at all, so the front door has an entry fee: say what to call you, and say what the person gets.
+  if (record.autoInstall && !record.label) {
+    errors.push({
+      code: 'auto_install_without_label',
+      message: 'autoInstall needs a label — a tile cannot introduce itself with a slug'
+    })
+  }
+  if (record.autoInstall && !record.tagline) {
+    errors.push({
+      code: 'auto_install_without_tagline',
+      message: 'autoInstall needs a tagline — one line saying what the person gets'
+    })
+  }
+
   if (pathSlug !== record.slug) {
     errors.push({
       code: 'path_slug_mismatch',

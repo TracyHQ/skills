@@ -186,6 +186,10 @@ export async function buildIndex(options: BuildOptions): Promise<BuildResult> {
       )
     }
 
+    // Every field of the record is listed by hand here, which means a field ADDED to the record
+    // and forgotten here does not fail — it silently arrives at every client as its default. That
+    // is exactly how `autoInstall` first shipped as false on records that had set it true. When
+    // extending `SkillRecordSchema`, extend this call in the same breath.
     skills.push(
       HydratedSkillSchema.parse({
         namespace: record.namespace,
@@ -193,6 +197,10 @@ export async function buildIndex(options: BuildOptions): Promise<BuildResult> {
         gitUrl: record.gitUrl,
         ref: record.ref,
         skillPath: record.skillPath,
+        autoInstall: record.autoInstall,
+        label: record.label,
+        tagline: record.tagline,
+        runMinutes: record.runMinutes,
         platforms: record.platforms,
         displayName: frontmatter.name ?? record.slug,
         description: frontmatter.description,
