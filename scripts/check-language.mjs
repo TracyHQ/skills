@@ -76,6 +76,7 @@
  * A gatekeeper that exempts its own directory is a gatekeeper nobody is checking.
  */
 
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -97,6 +98,55 @@ const ROOT = path.resolve(import.meta.dirname, '..')
  * what a regex cannot.
  */
 const VIETNAMESE = /[\u0102\u0103\u0110\u0111\u01A0\u01A1\u01AF\u01B0\u1EA0-\u1EF9]/u
+
+/**
+ * Vietnamese the character class above cannot see, because every diacritic in these words is one
+ * the Latin languages share. Widening the class instead would flag this repo's legitimate French
+ * and Spanish specimens, so the second reader is a short list of function words with no
+ * plausible collision in the languages this repo actually quotes.
+ *
+ * Six words, built from escapes for the same reason the alphabet above is: written literally
+ * they would match themselves and this file would fail its own check.
+ *
+ * Deliberately excluded, each for a measured reason: the word meaning "to be" collides with a
+ * French adverb; one more is also a common given name; and a third appears inside
+ * `faq-analysis.mjs`'s question cues, which are language DATA the matcher compares against and
+ * must never be translated. Measured across every tracked file, the six below add exactly one
+ * hit, and that hit was a real defect.
+ *
+ * THE DEFECT THEY FOUND, AND WHY A CHARACTER CLASS COULD NEVER HAVE
+ *
+ * `site-scan/engine/digest.ts` wrote a sentence into the digest a user reads — a count of
+ * remaining findings and a pointer to the JSON holding them. Its only diacritic was an
+ * o-with-grave, shared with French, so the class above passed it.
+ *
+ * Worse, the shipped artifact is a bundle, and esbuild escapes non-ASCII: in
+ * `site-scan/scripts/scan.cjs` that o-with-grave became a `\x` escape and the em dash a `\u`
+ * escape. No character check can reach text that has been escaped away, which means the string
+ * a user actually saw was invisible to this script by construction — while the source it was
+ * built from had already been fixed and the bundle never rebuilt.
+ *
+ * The words survive escaping. They are ASCII, so they pass through a bundler unchanged, and
+ * that is the whole reason this second reader exists.
+ */
+const VIETNAMESE_WORDS =
+  /(?<![\p{L}\p{N}])(c\u00F2n|x\u0065m|v\u00E0|ch\u006F|c\u00E1c|n\u00E0y)(?![\p{L}\p{N}])/iu
+
+/**
+ * Everything this file counts as non-English, applied to one line.
+ *
+ * Note what this deliberately does NOT do: decode escape sequences before judging. Escaping
+ * serves two opposite purposes — a bundler uses it to compress non-ASCII away, and hand-written
+ * source uses it to name a character explicitly, as the fold map further down does. Decoding
+ * treats the second as the first: it produced 34 false readings on this repo's own code, most of
+ * them inside this very file, which is a gate nobody would keep.
+ *
+ * It is also unnecessary, for the reason given above: escaping reaches the characters and leaves
+ * the words alone.
+ */
+function isNonEnglish(line) {
+  return VIETNAMESE.test(line) || VIETNAMESE_WORDS.test(line)
+}
 
 /**
  * Tracy-authored source. Anything added here must be prose we control.
@@ -182,7 +232,7 @@ function scanSourceFile(rel, offenders) {
   text.split('\n').forEach((line, i) => {
     const subject =
       isSkillDoc && FRONTMATTER_DESCRIPTION.test(line) ? withoutQuotedPhrases(line) : line
-    if (VIETNAMESE.test(subject)) {
+    if (isNonEnglish(subject)) {
       offenders.push({ rel, line: i + 1, text: line.trim().slice(0, 110) })
     }
   })
@@ -229,11 +279,74 @@ function distOffenders(owned, offenders) {
 }
 
 const owned = tracyNamespaces()
+
+/**
+ * Commit messages.
+ *
+ * ADR 0016 has always covered them — the docblock at the top of this file says so — and this
+ * script has never read one. Five Vietnamese subjects reached the public history of this repo
+ * while every run stayed green, and they cannot be taken back: rewriting the history of a public
+ * repository invalidates every clone, fork and open PR, which is a price far above five lines.
+ * So the history stands and this closes the door behind it.
+ *
+ * Choosing what to read is the whole difficulty. A pull_request build checks out a MERGE commit
+ * whose first parent is the base and whose second is the branch, so `base..head` is exactly the
+ * commits under review — no more, and none of the base's. Elsewhere (a push build, a local run)
+ * that shape does not exist and the comparison falls back to the default branch.
+ *
+ * When neither is available the check SAYS it is skipping rather than passing silently. A gate
+ * that quietly checks nothing reports the same green as one that checked everything, and that is
+ * how the four Vietnamese descriptions this script was written for survived in the first place.
+ */
+function commitRange() {
+  const git = (...args) => execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+  try {
+    const parents = git('rev-list', '--parents', '-n', '1', 'HEAD').split(/\s+/)
+    if (parents.length === 3) return `${parents[1]}..${parents[2]}` // a PR merge ref
+  } catch { /* not a merge, or no git */ }
+  for (const base of ['origin/main', 'main']) {
+    try {
+      git('rev-parse', '--verify', base)
+      const range = `${base}..HEAD`
+      git('rev-list', '--count', range)
+      return range
+    } catch { /* try the next one */ }
+  }
+  return null
+}
+
+function scanCommitMessages(offenders) {
+  const range = commitRange()
+  if (!range) {
+    console.warn('check-language: no commit range to compare against — commit messages NOT checked')
+    return 0
+  }
+  let raw
+  try {
+    raw = execFileSync('git', ['log', '--no-merges', '--format=%H%x1f%s%x1f%b%x1e', range],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+  } catch {
+    console.warn(`check-language: could not read commits in ${range} — commit messages NOT checked`)
+    return 0
+  }
+  const commits = raw.split('\x1e').map((c) => c.trim()).filter(Boolean)
+  for (const commit of commits) {
+    const [sha, subject, body] = commit.split('\x1f')
+    for (const [where, text] of [['subject', subject], ['body', body]]) {
+      if (!text) continue
+      const bad = text.split('\n').find(isNonEnglish)
+      if (bad) offenders.push({ rel: `commit ${sha.slice(0, 9)} (${where})`, line: 1, text: bad.trim().slice(0, 110) })
+    }
+  }
+  return commits.length
+}
+
 const targets = [...SOURCE.flatMap(walk), ...GENERATED.flatMap(walk)]
 const offenders = []
 
 for (const rel of targets) scanSourceFile(rel, offenders)
 distOffenders(owned, offenders)
+const commitCount = scanCommitMessages(offenders)
 
 if (offenders.length) {
   console.error('Non-English text in a public repo. Everything Tracy writes here must be English.')
@@ -248,6 +361,6 @@ if (offenders.length) {
 }
 
 console.log(
-  `OK English — scanned ${targets.length} files` +
+  `OK English — scanned ${targets.length} files and ${commitCount} commit message(s)` +
     `, plus served records in ${owned.size} Tracy-owned namespace(s): ${[...owned].sort().join(', ') || 'none'}`
 )
