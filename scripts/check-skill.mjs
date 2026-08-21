@@ -47,7 +47,13 @@ import fs from "node:fs";
 import path from "node:path";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
-const SKILLS = path.join(ROOT, "skills");
+
+// The directory to check, overridable by argument. A linter that can only ever run against one
+// hard-coded path is untestable by construction — the same trap the QA gates were in until their
+// verdicts moved out of `page.evaluate`. The tests build small skills in a temp directory and
+// point this at them, so every rule is exercised on an input designed to trip it rather than on
+// whatever the repo happens to contain today.
+const SKILLS = process.argv[2] ? path.resolve(process.argv[2]) : path.join(ROOT, "skills");
 
 const CODE_EXT = new Set([".sh", ".mjs", ".js", ".cjs", ".py", ".ts"]);
 const TEXT_EXT = new Set([".md"]);
@@ -80,8 +86,11 @@ function walk(dir, out = []) {
 function flagsParsedBy(source, file) {
   const flags = new Set();
   if (file.endsWith(".sh")) {
-    for (const m of source.matchAll(/^\s*(?:\*\|)?(--[a-z][a-z0-9-]*)\)/gm)) flags.add(m[1]);
-    for (const m of source.matchAll(/\|(--[a-z][a-z0-9-]*)\)/g)) flags.add(m[1]);
+    // A case arm, wherever it sits: at the start of its own line as every script here writes
+    // them, after a `|` in an alternation, or inline after `in` / `;;` on a compact one-liner.
+    // Missing the inline form only ever costs flags — a flag the reader cannot see reads as
+    // unhonoured — so the pattern errs toward seeing more.
+    for (const m of source.matchAll(/(?:^\s*|\||\bin\s+|;;\s*)(?:\*\|)?(--[a-z][a-z0-9-]*)\)/gm)) flags.add(m[1]);
   }
   const defaults = source.match(/defaults:\s*\{([\s\S]*?)\}/);
   if (defaults) {
