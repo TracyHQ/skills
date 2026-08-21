@@ -179,11 +179,14 @@ point at `design-qa` rather than writing it up here.
 `discoverability-engineer` for markup, `merchant-optimizer` for catalogue gaps. Name the one that
 fits when it is obvious; do not start editing.
 
-**Leave the review where the next person will find it.** Inside a Tracy workspace that means
-`deliverables/ui-check/<date>/` — `deliverables/` is the folder for outputs meant for people, and
-nothing there is ever deployed. Never `surface/` or `digest/`: every Sync overwrites those.
-Standalone, the same shape goes in `./wordpress-ui-check/<date>/` where the person is working. A
-review nobody wrote down leaves the next session believing the site was never looked at.
+**Leave the review where the next person will find it.** Inside a Tracy site folder that means
+`TracyWork/deliverables/ui-check/<date>/` — `TracyWork/` holds everything machine-made, and
+`deliverables/` within it is for outputs meant for people, none of which is ever deployed. Never
+`TracyWork/surface/` or `TracyWork/digest/`: every Sync overwrites those. Standalone, the same
+shape goes in `./wordpress-ui-check/<date>/` where the person is working.
+
+A review nobody wrote down leaves the next session believing the site was never looked at, which
+is the quiet way this fails: the skill keeps working, keeps writing, and keeps being invisible.
 
 **Do not review pages you did not open.** Everything you write comes from a screenshot you looked
 at. If the survey dropped pages, say how many rather than implying the whole site was seen.
