@@ -273,6 +273,15 @@ for (const skill of skills) {
       `text tells the reader to use $${v}, which no script here sets or reads — does the runtime actually provide it?`);
   }
 
+  // Skills vendored from upstream are measured but not judged on shape. `skill-creator` came
+  // from Anthropic with its own LICENSE.txt; it is 18 lines over the body limit and one of its
+  // references lacks a table of contents. Editing either would fork the copy from upstream to
+  // recover 3%, which is the same trap the vendored Mention Network skills are already in — a
+  // divergence nobody can see from either side, where an upstream fix never arrives and a local
+  // fix never travels back. The exemption is by LICENSE.txt rather than by name, so it covers
+  // the next vendored skill without anyone editing this file.
+  const vendored = fs.existsSync(path.join(dir, "LICENSE.txt"));
+
   // ---- 6. the three budgets of progressive disclosure ---------------------------------------
   // Anthropic's `skill-creator`, vendored at skills/skill-creator/, defines how a skill loads:
   // name and description are ALWAYS in context, the body loads when the skill triggers, and
@@ -289,7 +298,7 @@ for (const skill of skills) {
   // skill shorter than this repo's median.
   const body = fs.readFileSync(skillMd, "utf8");
   const bodyLines = body.split("\n").length;
-  if (bodyLines > 500)
+  if (!vendored && bodyLines > 500)
     add("warn", "skill_md_too_long", skill,
       `SKILL.md is ${bodyLines} lines; past ~500 the answer is another layer — move detail into references/ and point at it`);
 
@@ -300,8 +309,14 @@ for (const skill of skills) {
   const described = frontmatter.match(/^description:\s*([\s\S]*?)(?=\n[a-zA-Z-]+:|$)/m);
   if (described) {
     const words = described[1].trim().split(/\s+/).filter(Boolean).length;
+    // A FAILURE, unlike the two shape rules beside it, because the cost lands on other people.
+    // The listing is charged to one shared allowance; an entry over budget spends what every
+    // other skill needs in order to be found, and the entries truncated are the ones at the end,
+    // not the one that overran. Three descriptions were over when this rule shipped as a warning
+    // — 304, 186 and 162 words — and together they held 22% of the allowance. Rewritten, they
+    // took the repo from 136% of budget to 107%.
     if (words > 100)
-      add("warn", "description_too_long", skill,
+      add("FAIL", "description_too_long", skill,
         `description is ${words} words against a ~100 budget shared with every other skill's listing entry`);
   }
 
@@ -311,7 +326,7 @@ for (const skill of skills) {
     const lines = fs.readFileSync(f, "utf8").split("\n");
     if (lines.length <= 300) continue;
     const hasToc = lines.slice(0, 60).some((l) => /^\s*[-*]\s*\[/.test(l));
-    if (!hasToc)
+    if (!hasToc && !vendored)
       add("warn", "reference_needs_toc", skill,
         `${rel(f)} is ${lines.length} lines with no table of contents in its first 60`);
   }
