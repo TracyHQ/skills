@@ -6,6 +6,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # check-language reads commit messages, and a depth-1 checkout has none to read.
+          # It says so when it cannot, but a gate that reports skipping every run is a gate
+          # nobody notices has stopped working. publish.yml already fetches full history.
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:

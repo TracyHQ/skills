@@ -31096,7 +31096,7 @@ function seoFindings({ findings }) {
     lines.push("");
   }
   if (findings.length > TOP_FINDINGS) {
-    lines.push(`C\xF2n ${findings.length - TOP_FINDINGS} findings \u2014 xem surface/seo/findings.json.`);
+    lines.push(`${findings.length - TOP_FINDINGS} more findings \u2014 see surface/seo/findings.json.`);
   }
   return lines;
 }
