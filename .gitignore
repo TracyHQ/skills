@@ -11,3 +11,11 @@ __pycache__/
 # They hold a store's collected answers and meta — working artifacts, never source.
 .mn-runs/
 .mn-audits/
+
+# Local state written by the why.sh hook chain, not project content: `.why-guard` and
+# `.why-nudge` are per-session tokens, and `claude-activity.md` is a running log kept in the
+# author's own language — one commit of it would turn the English gate red for a file nobody
+# meant to publish. Scoped to those artefacts rather than to `.claude/` as a whole, so a
+# project-scope `.claude/settings.json` stays checkable-in if the team ever wants one.
+.claude/.why-*
+.claude/claude-activity.md
