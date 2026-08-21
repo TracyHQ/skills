@@ -41,6 +41,18 @@ these three it turns out to be:
 The middle row is the one that is easy to get wrong, and getting it wrong costs the person their
 own work: re-scanning resurrects every fault they already waved away.
 
+Inside Tracy Desk the Launchpad tile has already read the same file and says which of the three it
+is, so the request arrives carrying it:
+
+| Request | Means |
+|---|---|
+| `/wordpress-ui-check` | Nothing here yet, or they asked from scratch. Full run. |
+| `/wordpress-ui-check --continue` | Carry on with what is undecided. **Do not scan.** |
+| `/wordpress-ui-check --recheck` | Everything was decided; re-read the pages and see what moved. Start at `survey.mjs --since`. |
+
+Read the file anyway. The word is a hint from a tile that was drawn a moment ago, and the file is
+the truth — if they disagree, believe the file and say so.
+
 ## The run
 
 ```
@@ -216,11 +228,23 @@ than typing:
 
 | Choice | What you run |
 |---|---|
+| **See it on the page** | The `show_on_preview` tool, then **ask this same question again**. |
 | **Save it to fix** | `review.mjs decide --review <path> --id f7 --state saved` |
 | **Skip it** | `review.mjs decide --review <path> --id f7 --state ignored` |
 | **Tell me more** | Explain, then ask the same question again. Record it with `--state seen` if they leave it there. |
 
 `decide` hands back the next finding in the same breath, so a turn is one command and not three.
+
+**See it on the page** exists only inside Tracy Desk, where the site is open in the pane beside the
+chat. Pass the finding's `page` and the first entry of its `selectors`, plus a short `label` — the
+pane goes to that page, dims it, and lights the block up. Never write the selector yourself: the
+one in the review was recorded by the browser that measured the page, and one you invent is a guess
+about a DOM you never saw. If the block has since been edited away the pane says so on screen and
+marks nothing.
+
+Two things not to do with it. Do not offer it when `scannedAgainst.kind` is `live` — the pane shows
+the Preview, so the button would point at a page the review did not read. And do not treat it as an
+answer: looking is not deciding, so after the pane lights up, ask the same question again.
 
 There is deliberately no "fix it now". Repair is long work, and starting it mid-review loses the
 thread and leaves every remaining finding hanging. Fixing happens afterwards, from the saved list.
