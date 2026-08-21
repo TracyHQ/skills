@@ -17,8 +17,7 @@ Runs without pytest:  python3 tests/test_site_state.py
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent
-                       / "scripts"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 from site_state import classify, read_state  # noqa: E402
 
@@ -473,6 +472,27 @@ def test_a_site_read_without_package_manifests_is_unchanged():
     check("and no parts appear from nowhere", state["counts"]["part"] == 0)
 
 
+def test_the_unrecognised_warning_is_grammatical_at_one():
+    """Seen in real output on 2026-08-21: "1 of 2 non-core extensions are not in the public
+    registry, so their Joomla 6 status is unknown". This file already spells the scope line out
+    at one and at many rather than pluralising by rule, for the same reason: a sentence a
+    customer reads once should not announce that nobody read it back."""
+    reg = {"k2": {"slug": "k2", "title": "K2", "platformData": {"joomla": {"isJ6": True}}}}
+    one = read_state(version="5.4.8", registry=reg, extensions=[
+        _ext("K2", "com_k2"), _ext("Mystery", "com_mystery")])
+    text = " ".join(one["warnings"])
+    check("the case really is one of two", "1 of 2" in text)
+    check("singular verb", "1 of 2 non-core extensions are" not in text)
+    check("singular possessive", "so their Joomla 6 status" not in text)
+
+
+def test_the_unrecognised_warning_is_still_grammatical_at_many():
+    many = read_state(version="5.4.8", registry={}, extensions=[
+        _ext("A", "com_aaa"), _ext("B", "com_bbb")])
+    text = " ".join(many["warnings"])
+    check("plural stays plural", "2 of 2 non-core extensions are" in text)
+
+
 def main():
     for fn in (test_a_matched_row_carries_where_its_answer_came_from,
                test_a_record_without_provenance_does_not_claim_to_be_observed,
@@ -510,7 +530,9 @@ def main():
                test_the_unknown_count_stops_counting_one_product_many_times,
                test_a_row_the_package_does_not_claim_is_left_alone,
                test_a_core_row_a_package_declares_stays_core,
-               test_a_site_read_without_package_manifests_is_unchanged):
+               test_a_site_read_without_package_manifests_is_unchanged,
+               test_the_unrecognised_warning_is_grammatical_at_one,
+               test_the_unrecognised_warning_is_still_grammatical_at_many):
         fn()
     for name, ok in _RESULTS:
         print(f"  {'PASS' if ok else 'FAIL'}  {name}")

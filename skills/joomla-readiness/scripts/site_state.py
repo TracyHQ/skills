@@ -434,11 +434,20 @@ def read_state(*, version: str, extensions: list, registry: dict,
         # Parts are not lookups. Each one belongs to a package that was looked up on its
         # behalf, and counting them here would put the sevenfold back in the denominator.
         lookups = counts["total"] - counts["core"] - counts["part"]
+        # Spelled out at one and at many rather than pluralised by rule, the same way the
+        # scope line is, and for the same reason: a sentence a customer reads once should not
+        # announce that nobody read it back. Seen in real output 2026-08-21 as "1 of 2 non-core
+        # extensions are not in the public registry, so their Joomla 6 status is unknown".
+        n = counts["unrecognised"]
+        subject = ("1 of "
+                   f"{lookups} non-core extensions is not in the public registry, so its "
+                   "Joomla 6 status is unknown rather than fine."
+                   if n == 1 else
+                   f"{n} of {lookups} non-core extensions are not in the public registry, so "
+                   "their Joomla 6 status is unknown rather than fine.")
         warnings.append(
-            f"{counts['unrecognised']} of {lookups} non-core extensions are not in the public "
-            "registry, so their Joomla 6 status is unknown rather than fine. The registry is "
-            "keyed by directory listing and a site reports element names; the two do not always "
-            "meet.")
+            subject + " The registry is keyed by directory listing and a site reports element "
+            "names; the two do not always meet.")
 
     return {
         "core": {"version": version, "known": bool(version)},
