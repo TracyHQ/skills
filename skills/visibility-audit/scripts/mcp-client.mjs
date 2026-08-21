@@ -10,7 +10,7 @@
 // This skill ships pointed at PRODUCTION. Developers working against a non-prod backend set
 // MENTION_NETWORK_MCP_URL to the `-dev` host themselves — do not hardcode it here, and do not
 // assume a dev key works against prod or vice versa: a dev-issued key is REJECTED by prod with
-// `401 "Internal API key không hợp lệ"` (and a prod key is rejected by dev the same way), so a
+// `401 "Invalid internal API key"` (and a prod key is rejected by dev the same way), so a
 // stale key from the other environment fails loud, not quiet.
 //
 // Exports rpc() / callTool() for submit-audit.mjs and any other script; no npm deps (Node ≥18 fetch).
@@ -32,17 +32,17 @@ export function parseSSE(text) {
 export async function rpc(method, params, { url, key, fetchImpl = fetch } = {}) {
   const endpoint = url ?? process.env.MENTION_NETWORK_MCP_URL ?? DEFAULT_URL
   const bearer = key ?? process.env.MENTION_NETWORK_KEY
-  // KHÔNG có key thì gửi không kèm Authorization, thay vì tự chặn ở đây.
+  // With NO key, send no Authorization header at all rather than refusing here.
   //
-  // Server quyết định chuyện đó, không phải client: từ 19/08/2026 MCP nhận
-  // request không Bearer (MCP_OPTIONAL_API_KEY, mặc định bật) và gán principal
-  // `anonymous`. Throw sẵn ở client nghĩa là skill từ chối một cuộc gọi mà
-  // server sẵn sàng phục vụ — xác minh trên prod: không Bearer → 200 và
-  // tools/list trả đủ 22 tool.
+  // That is the server's call, not the client's: since 2026-08-19 MCP accepts a
+  // request carrying no Bearer (MCP_OPTIONAL_API_KEY, on by default) and assigns
+  // the `anonymous` principal. Throwing in the client means the skill refuses a
+  // call the server is willing to serve — verified on prod: no Bearer → 200, and
+  // tools/list returns all 22 tools.
   //
-  // Key SAI vẫn 401 (server giữ nguyên lằn ranh đó), nên gửi kèm một key hỏng
-  // TỆ HƠN là không gửi gì. Đó là lý do chỗ này bỏ header hẳn chứ không gửi
-  // chuỗi rỗng.
+  // A WRONG key still 401s (the server holds that line), so sending a broken key
+  // is WORSE than sending none. That is why this drops the header entirely
+  // instead of sending an empty string.
   const headers = {
     'Content-Type': 'application/json',
     Accept: 'application/json, text/event-stream',

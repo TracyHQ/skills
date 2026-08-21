@@ -1,5 +1,6 @@
-// Owner's decision (this branch): "khi thiếu key thì skill nên báo cho user rằng là bạn chưa có
-// key, bạn hãy cung cấp hoặc chọn bỏ qua không check engine này" — a missing key gets exactly two
+// Owner's decision (this branch), translated from the original: "when a key is missing the skill
+// should tell the user they have none, and ask them to supply one or choose to skip checking that
+// engine" — a missing key gets exactly two
 // real choices (supply it, or skip that engine for this run), never a silent skip and never a
 // silent fail. These tests pin the pure logic behind that conversation: turning
 // `credentials.mjs check`'s printed lines into per-engine status, and turning the user's Q1 answer

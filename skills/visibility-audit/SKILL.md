@@ -202,7 +202,7 @@ Alongside it, in the same batch:
   > production `MENTION_NETWORK_KEY` is issued for. A developer working against a non-prod
   > backend sets `MENTION_NETWORK_MCP_URL` to the `-dev` host themselves (`scripts/mcp-client.mjs`
   > reads it) rather than editing this command; a key from one environment is **rejected** by the
-  > other with `401 "Internal API key không hợp lệ"`, not silently accepted, so mixing them up
+  > other with `401 "Invalid internal API key"`, not silently accepted, so mixing them up
   > fails loud at the next call rather than producing a wrong audit.
   >
   > **Say this out loud when you hand over that second command:** unlike everything else here, it
@@ -528,3 +528,17 @@ Anything else that differs from the source is a bug in this copy. When re-portin
 scorers, `framework.mjs` and the prompt text verbatim — the wording *is* the calibration, and the
 server re-computes every score against its own weights, so a drifted scorer here shows up as a
 refused submit rather than a wrong number.
+
+## Fix bugs in this copy
+
+This skill was vendored from an internal repository and has since diverged from it, in both
+directions. Work has landed here that exists nowhere else — `d7b6a79` changed the client to stop
+refusing a call the MCP server is willing to serve — so re-vendoring from upstream would silently
+drop it.
+
+The registry record points at this repository, so the published index and every CI gate read THIS
+copy. A fix landed upstream changes nothing here until somebody carries it across by hand, and a
+fix landed here never travels back on its own.
+
+Fix bugs here. The exception is anything the backend itself owns — server-side strings, guards,
+API behaviour — which lives upstream and reaches this skill only as text quoting it.
