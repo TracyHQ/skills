@@ -51,7 +51,7 @@ if (!PAGES_ARG) {
  *
  * So three places are tried, in the order someone would actually have used: beside the skill,
  * where the person is standing, and installed globally. The one that answers is reported, because
- * "which copy am I running" is the first question when a browser misbehaves.
+ * "which Preview am I running" is the first question when a browser misbehaves.
  */
 async function loadPlaywright() {
   const attempts = [];
@@ -274,8 +274,12 @@ function measure() {
   };
 }
 
+// The parameter that reaches the page inside a Preview's frame is plumbing, not identity: leaving
+// it in would name every screenshot `...-tracy-frame-1--desktop.png` and make one page read on two
+// addresses look like two different pages.
 const slug = (url) =>
-  url.replace(/^https?:\/\//, "").replace(/[^a-z0-9.-]+/gi, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase() ||
+  url.replace(/[?&]__tracy_frame=1\b/, "").replace(/\?$/, "")
+    .replace(/^https?:\/\//, "").replace(/[^a-z0-9.-]+/gi, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase() ||
   "page";
 
 async function main() {
