@@ -30,9 +30,16 @@ export function fleetLabel(host) {
   return `${readable.slice(0, 63 - hash.length - 1).replace(/-+$/, "")}-${hash}`;
 }
 
-/** Where this site's Preview would live, if it has one. */
-export function previewUrl(siteOrigin) {
-  return `https://${fleetLabel(new URL(siteOrigin).hostname)}.${FLEET_ZONE}`;
+/**
+ * Where this site's Preview would live, if it has one.
+ *
+ * Takes an address written any way somebody writes one — `juneflower.vn` as readily as
+ * `https://juneflower.vn` — because the label is built from the hostname and nothing else, and
+ * throwing on a missing scheme has already cost one run (see survey.mjs).
+ */
+export function previewUrl(site) {
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(site) ? site : `https://${site}`;
+  return `https://${fleetLabel(new URL(withScheme).hostname)}.${FLEET_ZONE}`;
 }
 
 /**

@@ -43,7 +43,28 @@ if (!SITE) {
   process.exit(2);
 }
 
-const origin = new URL(SITE).origin;
+/**
+ * The address, however somebody wrote it.
+ *
+ * `juneflower.vn` is what a person types and what an agent passes on, and `new URL` throws on it —
+ * with a raw Node stack trace, which is the worst possible answer. Measured 21/08: an agent given
+ * that stack trace stopped trusting the whole run, went looking for what else might be broken,
+ * concluded Playwright was missing (it was not), and offered to install a package. One unhandled
+ * shape cost four minutes and nearly wrote to a folder nobody asked it to touch.
+ *
+ * So a bare host is assumed to be https, and anything still unreadable says so in one line.
+ */
+function siteOrigin(value) {
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(value) ? value : `https://${value}`;
+  try {
+    return new URL(withScheme).origin;
+  } catch {
+    process.stderr.write(`\`${value}\` is not an address this can read. Pass a site like juneflower.vn or https://juneflower.vn\n`);
+    process.exit(2);
+  }
+}
+
+const origin = siteOrigin(SITE);
 
 async function get(url, timeoutMs = 15000) {
   try {
