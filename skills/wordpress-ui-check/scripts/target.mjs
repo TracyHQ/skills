@@ -102,11 +102,19 @@ export async function resolveTarget(siteOrigin, want, fetchText) {
  * itself inside an iframe pointed at the same path with `__tracy_frame=1` on it.
  *
  * Measured 21/08 on juneflower's Preview. Fetching `https://<label>.tracy.ai/` returns 7.9KB of
- * chrome; the same path with the parameter returns the 129KB page. The shell is served on any
- * request that asks for `text/html`, which is every browser navigation and therefore every
- * screenshot — so without this, the review would have measured the Tracy bar on twenty pages and
- * reported that the whole site was empty. It nearly did: the first run against the Preview found
- * 119 of 120 pages identical, with no body class between them.
+ * chrome; the same path with the parameter returns the 129KB page.
+ *
+ * WHO gets the shell is the part worth writing down, because the first answer was wrong. It is not
+ * the `Accept` header: it is whether the viewer carries a Tracy session. A signed-in coworker's
+ * browser is served the site itself, which is right — the shell exists to offer a guest the sign-in
+ * and the invite. Everything this skill uses is signed out: a plain fetch, and Playwright on a
+ * fresh profile. Both get the shell, measured on the same URL within a minute of a signed-in
+ * browser getting the page.
+ *
+ * That is why this matters more than it looks. The screenshots are taken by a signed-out browser,
+ * so without the parameter the review would have measured the Tracy bar on twenty pages and
+ * reported an empty site. It nearly did: the first run against the Preview found 119 of 120 pages
+ * identical, with no body class between them.
  *
  * The parameter is the fleet's, not this repo's, and it appears nowhere in the desk's source — so
  * it is used AND checked. `looksLikeSnapshotShell` is what turns "the fleet renamed it" from a

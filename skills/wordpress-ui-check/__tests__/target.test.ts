@@ -100,8 +100,10 @@ describe('reading a Preview', () => {
   const preview = { kind: 'preview', url: 'https://juneflower-vn-7f6409d0.tracy.ai' }
 
   // Measured 21/08: the Preview's own address returns 7.9KB of Tracy chrome wrapping the site in an
-  // iframe, while the same path with this parameter returns the 129KB page. The first run against
-  // a copy found 119 of 120 pages identical because of it.
+  // iframe, while the same path with this parameter returns the 129KB page. Who gets the shell is
+  // decided by whether the viewer carries a Tracy session, not by any header, and everything this
+  // skill uses is signed out: the plain fetch and Playwright on a fresh profile both get it. The
+  // first run against a Preview found 119 of 120 pages identical because of it.
   it('asks for the page inside the frame, not the frame', () => {
     expect(pageUrl('https://juneflower-vn-7f6409d0.tracy.ai/contact/', preview)).toBe(
       'https://juneflower-vn-7f6409d0.tracy.ai/contact/?__tracy_frame=1'
