@@ -18,6 +18,8 @@ export type PageRecord = {
   canonical?: string
   /** A 200 hop page, not content — kept in the surface, excluded from Checks. */
   redirectStub?: boolean
+  /** The `content-type` the server sent. Absent on records written before it was kept. */
+  contentType?: string
   h1: string[]
   headings: { level: number; text: string }[]
   wordCount: number
@@ -157,3 +159,22 @@ export type Enrichment =
       reach?: string[]
     }
   | { found: false }
+
+/**
+ * Content types a CMS serves at ordinary-looking addresses that are not pages a person reads. A
+ * Joomla events component publishes `.ics` and RSS this way, and its category pages link them, so
+ * the crawl reaches them like anything else. They carry no title, no meta description and no
+ * heading structure because they are not documents.
+ */
+const NOT_A_DOCUMENT = ['calendar', 'rss', 'atom', 'json', 'csv', 'pdf', 'zip', 'octet-stream']
+
+/**
+ * Excluded only when the server SAID it was one of those. Anything else stays a page, including a
+ * response with no content type at all: a record written before the type was kept has none, and a
+ * server that mislabels its HTML should still be measured rather than silently dropped from every
+ * check.
+ */
+export const isDocument = (p: PageRecord): boolean => {
+  const type = p.contentType?.toLowerCase()
+  return type === undefined || !NOT_A_DOCUMENT.some((kind) => type.includes(kind))
+}

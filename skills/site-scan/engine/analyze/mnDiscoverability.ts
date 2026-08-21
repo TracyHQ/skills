@@ -1,4 +1,5 @@
 import { parseRobots } from '../robots'
+import { isDocument } from '../types'
 import type { Finding, PageRecord } from '../types'
 
 /**
@@ -90,7 +91,7 @@ function headingsFail(page: PageRecord): boolean {
 }
 
 export function runMnDiscoverability(allPages: PageRecord[], robotsText: string, siteKey: string): Finding[] {
-  const pages = allPages.filter((p) => !p.redirectStub)
+  const pages = allPages.filter((p) => !p.redirectStub && isDocument(p))
   const products = pages.filter(isProductPage)
   const findings: Finding[] = []
   const add = (checkId: string, title: string, urls: string[], count = urls.length) => {

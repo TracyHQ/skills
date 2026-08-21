@@ -1,3 +1,4 @@
+import { isDocument } from '../types'
 import type { Finding, PageRecord } from '../types'
 import type { LinkGraph } from './linkGraph'
 
@@ -82,7 +83,7 @@ export const SEO_CHECK_IDS: string[] = CHECKS.map((check) => check.id)
 export function runSeoChecks(allPages: PageRecord[], graph: LinkGraph): Finding[] {
   // Hop pages are 200s with nothing on them; every check would fire on one and
   // report a page the merchant cannot visit. They stay in the surface, not here.
-  const pages = allPages.filter((p) => !p.redirectStub)
+  const pages = allPages.filter((p) => !p.redirectStub && isDocument(p))
   const findings: Finding[] = []
   for (const check of CHECKS) {
     const affected = check.affected(pages, graph)

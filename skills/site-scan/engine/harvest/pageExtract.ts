@@ -15,7 +15,7 @@ const STUB_MAX_WORDS = 50
  * including ones whose content came from REST — because only the real HTML has
  * the title tag, canonical and structured data the site actually serves.
  */
-export function extractPage(url: string, html: string, origin: string): PageRecord {
+export function extractPage(url: string, html: string, origin: string, contentType?: string): PageRecord {
   const $ = cheerio.load(html)
 
   const headings: { level: number; text: string }[] = []
@@ -94,6 +94,9 @@ export function extractPage(url: string, html: string, origin: string): PageReco
   return {
     url,
     status: 200,
+    // What the server said it served. A check about pages has to be able to tell a document from
+    // an export endpoint: an .ics or an RSS feed has no <title> because it is not a page.
+    ...(contentType ? { contentType } : {}),
     title: title || undefined,
     metaDescription: metaDescription || undefined,
     canonical: canonical || undefined,
