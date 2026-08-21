@@ -21,41 +21,34 @@ skill-name/
 
 ## The three budgets
 
-A skill loads in stages, and each costs something different.
+A skill loads in three stages. The later it loads, the more room it has.
 
-| Stage | Loads | Budget |
-|---|---|---|
-| `name` + `description` | always, every session | ~100 words |
-| SKILL.md body | when the skill triggers | under 500 lines |
-| `scripts/`, `references/`, `assets/` | on demand | no limit |
+**1. `name` + `description` — ~100 words.**
+In context for every session, before anything triggers. This budget is *shared*: the listing gets
+~1% of the context window, and once the sum exceeds it entries are truncated — routing degrades
+for every skill, not just the long one.
 
-**The description budget is shared.** The skill listing gets ~1% of the context window; once the
-sum exceeds it, entries are truncated and routing degrades for every skill, not just the long
-one.
+**2. SKILL.md body — under 500 lines.**
+Loads when the skill triggers. A ceiling, not a target: where it binds, move detail into
+`references/` and point at it from SKILL.md, saying when to read it.
 
-**500 lines is a ceiling, not a target.** Where it binds, move detail into `references/` and
-point at it from SKILL.md, saying when to read it.
+**3. `scripts/`, `references/`, `assets/` — no limit.**
+Load on demand, and a script may never load at all. A reference over 300 lines needs a table of
+contents.
 
-**A reference over 300 lines needs a table of contents.**
-
-Measured 2026-08-21 — the corpus this repo already ships clears every threshold:
-
-| | mattpocock (38) | here (21) |
-|---|---|---|
-| SKILL.md, median / longest | 74 / 140 lines | 153 / 1,063 lines |
-| description, median / longest | 24 / 69 words | 68 / 304 words |
-| over any threshold | 0 of 38 | 3 bodies, 2 descriptions |
+Measured 2026-08-21. Across the 38 skills in `mattpocock/skills`, the median SKILL.md is 74 lines
+and the longest 140; the median description is 24 words and the longest 69. **Not one of the 38
+exceeds a threshold.** Here the medians are 153 lines and 68 words, three bodies are over 500
+lines and two descriptions over 100 words — the longest of each being 1,063 lines and 304 words.
 
 ## Frontmatter
 
 Required — `bin/validate.ts` rejects a record without them:
 
-| Key | |
-|---|---|
-| `name` | kebab-case, matching the directory |
-| `description` | what it does **and when to use it** — this is what routes a request here |
-| `version` | semver; bump when behaviour changes |
-| `provenOn` | where it has actually run, or `—` |
+- **`name`** — kebab-case, matching the directory
+- **`description`** — what it does *and when to use it*; this is what routes a request here
+- **`version`** — semver, bumped when behaviour changes
+- **`provenOn`** — where it has actually run, or `—`
 
 Optional: `platforms` (closed vocabulary, see `registry/README.md`), `requires-mcp`, `tags`.
 
