@@ -10,7 +10,7 @@
 // This skill ships pointed at PRODUCTION. Developers working against a non-prod backend set
 // MENTION_NETWORK_MCP_URL to the `-dev` host themselves — do not hardcode it here, and do not
 // assume a dev key works against prod or vice versa: a dev-issued key is REJECTED by prod with
-// `401 "Internal API key không hợp lệ"` (and a prod key is rejected by dev the same way), so a
+// a 401 invalid-key error (and a prod key is rejected by dev the same way), so a
 // stale key from the other environment fails loud, not quiet.
 //
 // Exports rpc() / callTool() for submit-audit.mjs and any other script; no npm deps (Node ≥18 fetch).

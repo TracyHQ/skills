@@ -266,7 +266,7 @@ Alongside it, in the same batch:
   send a stored key you have not verified with `check`. `mcp-client.mjs`'s own default points at
   this same production host; override with `MENTION_NETWORK_MCP_URL` only to point at the `-dev`
   host for development — and note that a **dev-issued key is rejected by prod** (measured: prod
-  answers it with `401 "Internal API key không hợp lệ"`), so switching hosts back to production
+  answers it with a 401 invalid-key error), so switching hosts back to production
   needs a production key, not just a URL change.
 - **A key per engine** — `ANTHROPIC_API_KEY` covers `claude`, `OPENAI_API_KEY` covers `chatgpt`,
   `GEMINI_API_KEY` covers `gemini`, `SERPAPI_API_KEY` covers `google_ai_mode`. That mapping is the

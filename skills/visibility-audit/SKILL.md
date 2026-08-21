@@ -202,7 +202,7 @@ Alongside it, in the same batch:
   > production `MENTION_NETWORK_KEY` is issued for. A developer working against a non-prod
   > backend sets `MENTION_NETWORK_MCP_URL` to the `-dev` host themselves (`scripts/mcp-client.mjs`
   > reads it) rather than editing this command; a key from one environment is **rejected** by the
-  > other with `401 "Internal API key không hợp lệ"`, not silently accepted, so mixing them up
+  > other with a 401 invalid-key error, not silently accepted, so mixing them up
   > fails loud at the next call rather than producing a wrong audit.
   >
   > **Say this out loud when you hand over that second command:** unlike everything else here, it

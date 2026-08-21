@@ -119,8 +119,8 @@ claude mcp add mention-network --transport http \
 
 That's the production host — the one to use. `MENTION_NETWORK_MCP_URL` overrides it for
 development against `https://shopify-mcp-dev.mention.network/api/v1/mcp`, but **the two hosts do
-not share keys**: a dev-issued key is rejected by prod (measured: `401 "Internal API key không hợp
-lệ"`). If a user's key stops working right after you point them back at production, this is why —
+not share keys**: a dev-issued key is rejected by prod (measured: a 401 invalid-key error). If a
+user's key stops working right after you point them back at production, this is why —
 they need a production key, not just the production URL.
 
 **Say this out loud when you hand that over:** unlike everything else here, it puts the live key in

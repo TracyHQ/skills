@@ -9,7 +9,7 @@
 //
 // Point MENTION_NETWORK_MCP_URL at https://shopify-mcp-dev.mention.network/api/v1/mcp for
 // development against the -dev host — but a dev-issued key is REJECTED by prod (measured: prod
-// answers a dev key with 401 "Internal API key không hợp lệ"), so switching the URL back to
+// answers a dev key with a 401 invalid-key error), so switching the URL back to
 // production needs a production key too, not just a different host.
 //
 // Exports rpc() / callTool() for submit.mjs and any other script; no npm deps (Node ≥18 fetch).
