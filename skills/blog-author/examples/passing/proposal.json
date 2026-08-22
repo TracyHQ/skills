@@ -1,0 +1,8 @@
+{
+  "name": "Blog September",
+  "slug": "blog-2026-09",
+  "author": "Tracy",
+  "brief": "Four articles for Insights, written from the site's own service pages. Nothing else changes.",
+  "carries": ["content"],
+  "previewUrl": "https://<label>--blog-2026-09.tracy.ai"
+}
