@@ -1,0 +1,14 @@
+{
+  "$schema": "https://registry.tracy.ai/skills/schema/skill-record.schema.json",
+  "namespace": "tracyhq",
+  "slug": "joomla-platform-knowledge",
+  "gitUrl": "https://github.com/TracyHQ/skills",
+  "ref": "main",
+  "skillPath": "skills/joomla-platform-knowledge",
+  "autoInstall": true,
+  "label": "Joomla knowledge",
+  "tagline": "What every agent on a Joomla site should know",
+  "platforms": [
+    "joomla"
+  ]
+}
