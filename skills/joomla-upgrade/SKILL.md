@@ -10,6 +10,8 @@ description: >-
 version: 0.1.0
 platforms: joomla
 requires-mcp:
+  - tracy-fleet
+  - tracy-reskin
   - tracy-apply
 provenOn: >-
   ja-teline-v.demo.joomlart.com (Joomla 4.3.4) driven end to end to 6.1.3 — front and admin
@@ -34,11 +36,22 @@ puts back.
 ## Preview first. Always offer the copy before the real one.
 
 The reason this skill exists is a customer question: *what does my site look like on Joomla 6?* You
-can answer it without risking their live site at all — upgrade a **working copy on the fleet**, show
-them the result at a URL, and let them decide. The live-site upgrade is a separate, later, explicit
-step, and it is gated on the one thing the preview does not need: a recovery path back into their
-own host (see **The recovery net**). Default to the preview. Only upgrade the live site when the
-customer has seen the preview, said yes, and the recovery net is in place.
+can answer it without risking their live site at all, and this is the default path:
+
+1. **`build_working_copy`** — stand a full copy of the site on the fleet (its own container, webroot
+   and database, at the site's fleet address). This is Migrate; it also installs the site's
+   component on the copy, which is the thing the hops drive. Minutes, not seconds. If a copy is
+   already standing, this joins it; do not rebuild one someone is looking at.
+2. **`upgrade_working_copy { to }`** — one launch-point hop on that copy, for each hop up the chain.
+   This is the copy-safe sibling of `core_upgrade`: the fleet snapshots the copy, moves PHP, drives
+   its component through prepare/finalise and verifies, and a broken hop is re-cloned, not recovered
+   — which is exactly why the copy needs no recovery net and the live site does.
+3. **`reload_preview`** after the last hop, and hand the customer the URL.
+
+The live-site upgrade (`core_upgrade` on tracy-apply) is a separate, later, explicit step, gated on
+the one thing the preview does not need: a recovery path back into the customer's own host (see
+**The recovery net**). Default to the preview. Only upgrade the live site when the customer has seen
+the preview, said yes, and the recovery net is in place.
 
 ## The chain is not negotiable, and you cannot skip a stop
 
@@ -75,7 +88,10 @@ separate calls, and it has to be two:
   the cached class map and opcache at the end of prepare so the finalise request loads the new code
   cleanly — you do not have to do anything for that.)
 
-So one hop is: `core_upgrade {to, step:'prepare'}` → `core_upgrade {to, step:'finalise'}` → verify.
+On the **preview** path a hop is a single `upgrade_working_copy {to}` call — the fleet does the two
+steps, the PHP move, the snapshot and the verify inside one job, and answers with the result. On the
+**live** path you drive the two steps yourself: `core_upgrade {to, step:'prepare'}` →
+`core_upgrade {to, step:'finalise'}` → verify.
 
 ## The loop, per hop, in order
 
