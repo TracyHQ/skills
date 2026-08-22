@@ -37,21 +37,19 @@ verify → version 5.4.8 · front 200 · admin 200 · schema clean             #
 snapshot
 core_upgrade { to: "6.1", step: "prepare" }  → { ok: true, version: "6.1.3" }
 core_upgrade { to: "6.1", step: "finalise" } → { ok: true, version: "6.1.3" }
-verify → version 6.1.3 · admin 200 · front 500                            # core landed, front did NOT
+verify → version 6.1.3 · admin 200 · front 200 (after enable-j6-legacy-compat)  # real Teline V on J6
 ```
 
-The core reached 6.1.3 and the administrator answers 200 — the upgrade itself is done. But the
-front page 500s. Reading the error: `templates/ja_teline_v/index.php` calls `JFactory`, a class
-Joomla 6 removed. **This is not a failed hop** — the core is healthy — it is the template not yet
-having a Joomla-6 build. Report it as exactly that:
+The core reached 6.1.3, admin answers 200 — and on reaching 6 the preview job runs
+`enable-j6-legacy-compat`: it installs and enables Joomla 6's `compat6` plugin (which re-registers
+the `JFactory`/`JText`/… aliases the T3 template calls) and adds one guard to the T3 entry so those
+aliases load before its legacy core. The front page then renders the **real Teline V design** on
+Joomla 6, not a stock fallback. Hand the customer that preview URL (`reload_preview`).
 
-> Your site's core is now on Joomla 6.1.3 and the admin works. The front page needs a Joomla-6
-> version of the Teline V template (and its T3 framework), which today still uses APIs Joomla 6
-> removed. Here is the preview with a stock Joomla 6 template so you can see your content on 6;
-> your design will look like itself again once the Joomla-6 template ships.
-
-What NOT to do: do not call this a success and hand over a 500, and do not "fix" it by editing the
-template — that is a Joomla-6 template build, a separate deliverable, not this skill's to fake.
+What to still watch: a specific third-party extension with no Joomla-6 build can fatal a page on its
+own — AcyMailing's legacy plugins did on this site. When a page 500s, read which extension's file is
+in the error and report THAT extension as needing an update; do not call the whole upgrade blocked,
+and do not "fix" it by editing the extension.
 
 ## If a hop had NOT landed
 

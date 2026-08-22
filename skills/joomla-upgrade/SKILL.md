@@ -117,15 +117,19 @@ Only when a hop verifies do you compute the next stop and go again, until the si
 These are not hypotheticals — every one cost a live JoomlArt site a red verify before it was
 understood. The component now handles the ones it can; the rest are yours to expect.
 
-- **Third-party and JoomlArt extensions can fatal on Joomla 6.** This is the big one. Joomla 6
-  removed the global `J*` class aliases (`JFactory`, `JPlugin`, …). Any extension still calling them
-  fatals the moment it loads — and that includes the **T3 / T4 framework the JoomlArt templates are
-  built on**. A site can reach 6.1.3 with its core perfectly healthy and its *front page still 500*,
-  because the template cannot run on 6. The core upgrade cannot fix this: it needs a Joomla-6 build
-  of the template and the extensions. Treat "the core is on 6" and "the site looks like itself on 6"
-  as two different milestones, and be honest with the customer about which one a preview is showing.
-  When the front page 500s after a clean core hop, read which extension's file is in the error and
-  report it — that is the list of what needs a Joomla-6 version, not a bug in the upgrade.
+- **The JoomlArt template on Joomla 6 — handled, not a wall.** Joomla 6 removed the global `J*`
+  class aliases (`JFactory`, `JText`, …), and the **T3 framework the older JoomlArt templates are
+  built on** calls them, so left alone a site reaches 6 with a healthy core and a *front page that
+  still 500s*. This looked like it needed JA to ship new templates first. It does not: Joomla 6
+  ships the replacement (the `compat6` behaviour plugin, whose classmap re-registers every alias),
+  and the **preview path installs and enables it and prepares the T3 entry automatically** — the
+  `upgrade_working_copy` job runs `enable-j6-legacy-compat` on reaching 6, and the real template
+  renders (proven on Teline V, 4.3.4 → 6.1.3, the actual T3 design). T4, the current framework,
+  already uses namespaced classes and needs none of it. So the preview shows the customer their
+  ACTUAL site on 6, not a stock fallback. What is still yours to watch: a *specific* third-party
+  extension with no Joomla-6 build (AcyMailing's legacy plugins, for one) can still fatal a page —
+  when one does, read which extension's file is in the error and report THAT single extension as
+  needing an update, rather than calling the whole upgrade blocked.
 - **The core update site is sometimes disabled**, and then every check answers "already latest". The
   component re-enables it before checking; if you still see "offered nothing" when a newer version
   plainly exists, that is where to look.
