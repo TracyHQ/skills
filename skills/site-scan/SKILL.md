@@ -26,13 +26,15 @@ A Finding is where the hand-off happens: you say what was measured, they decide 
 
 ## Where the answers live
 
-Read in this order; stop as soon as the question is answered.
+Read in this order; stop as soon as the question is answered. A folder not yet migrated to
+layout v4 (ADR 0078) still holds these at `TracyWork/digest/` and `TracyWork/surface/` — same
+contents, one level up.
 
-1. **`TracyWork/digest/`** — written for you, read it first:
+1. **`TracyWork/agents/digest/`** — written for you, read it first:
    - `SITE-BRIEF.md` — what this site is, in one page
    - `content-map.md` — what the site contains and how it links together
    - `seo-findings.md` — the current findings, prioritized
-2. **`TracyWork/surface/`** — the observed public face, when the digest is not enough:
+2. **`TracyWork/agents/surface/`** — the observed public face, when the digest is not enough:
    - `seo/findings.json` — every finding with counts; `seo/closed.json` — what the last scan
      verified as fixed; `seo/links.json` — broken links and orphan pages
    - `pages/` — every page that was read; `products/catalog.json` — the product catalog;
@@ -74,7 +76,7 @@ tool joins that run — say so instead of promising a second one.
 
 - **Invoked bare** — the message is just `/site-scan`, no question attached. The command's name
   is a verb: call `scan_now` FIRST, then, while it runs, give a short summary of the latest
-  completed scan from `TracyWork/digest/` so the wait starts with something to read.
+  completed scan from `TracyWork/agents/digest/` so the wait starts with something to read.
 - **Asked in words** — "rescan", "refresh", "check the site again": call `scan_now` and confirm.
 
 Nothing else starts a Scan. Adding a site does not, connecting a credential does not, a Migrate
@@ -104,7 +106,7 @@ with this skill in `examples/answers.md`. Read one before your first.
 
 ## When something breaks
 
-- **No `TracyWork/digest/`** (nor a root `digest/`) — no Scan has ever finished here. Say that,
+- **No `TracyWork/agents/digest/`** (nor a root `digest/`) — no Scan has ever finished here. Say that,
   and point at Scan now on the site's page. Do not read `surface/` and present it as a scan result.
 - **`finishedAt` is old, or older than the last thing they changed** — the answer is about the site
   as it was then. Say the date, and offer a Scan rather than quietly answering about the past.

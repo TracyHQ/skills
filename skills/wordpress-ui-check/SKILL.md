@@ -183,7 +183,7 @@ fits when it is obvious; do not start editing.
 **Leave the review where the next person will find it.** Inside a Tracy site folder that means
 `TracyWork/deliverables/ui-check/<date>/` — `TracyWork/` holds everything machine-made, and
 `deliverables/` within it is for outputs meant for people, none of which is ever deployed. Never
-`TracyWork/surface/` or `TracyWork/digest/`: every Sync overwrites those. Standalone, the same
+`TracyWork/agents/surface/` or `TracyWork/agents/digest/`: every Sync overwrites those. Standalone, the same
 shape goes in `./wordpress-ui-check/<date>/` where the person is working.
 
 A review nobody wrote down leaves the next session believing the site was never looked at, which

@@ -14,7 +14,7 @@ provenOn: —
 
 This is the platform pack (ADR 0009): knowledge shared by every Joomla site, curated once,
 versioned here. Site-specific facts — this site's version, template, installed extensions — are
-NOT here; they live in the site folder (`TracyWork/digest/`, `TracyWork/surface/`) and in tool
+NOT here; they live in the site folder (`TracyWork/agents/digest/`, `TracyWork/agents/surface/`) and in tool
 answers, and only those may be quoted as facts about the site.
 
 ## Versions
@@ -80,7 +80,7 @@ answers, and only those may be quoted as facts about the site.
   — they stamp timestamps, log every step under an `apply_id`, and can revert exactly. Direct
   DB or file writes have no undo trail and are not yours to make.
 - **State facts come from the site's data**: version, template, extension list belong to
-  `TracyWork/surface/` and tool answers, not to memory or guesswork.
+  `TracyWork/agents/surface/` and tool answers, not to memory or guesswork.
 
 ## Traps seen on real client sites
 
