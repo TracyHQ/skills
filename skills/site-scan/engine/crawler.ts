@@ -177,7 +177,9 @@ export async function runCrawl(input: CrawlInput): Promise<{ report: CrawlReport
   })
 
   progress('harvest', 0, 0, { step: 'sitemap' })
-  let inventory = await guarded<SitemapEntry[]>('sitemap', [], () => harvestSitemap(origin, queue))
+  // robots.txt was just read, and its `Sitemap:` lines are the one official declaration —
+  // hand them over so a sitemap under a non-conventional name is still found.
+  let inventory = await guarded<SitemapEntry[]>('sitemap', [], () => harvestSitemap(origin, queue, robots.sitemaps))
   progress('harvest', 0, 0, { note: noteInventory(inventory.length) })
   progress('harvest', 0, 0, {
     stepIo: {

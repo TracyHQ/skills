@@ -13,37 +13,57 @@ export type ParsedSitemap = { kind: 'index'; sitemaps: string[] } | { kind: 'url
  * children (bounded), keep only same-site urls, dedupe by url. No sitemap at
  * all is a normal outcome — the orchestrator falls back to a shallow BFS.
  *
- * The root fetch follows redirects with eyes open: a guessed `/sitemap.xml` that lands on
- * another site (a headless apex 301s to its checkout domain) is NOT this site's sitemap —
- * reading it silently is how a crawl inherits someone else's url inventory. When the apex
- * has none, the `www.` host is tried once: it is the same site by definition here, and on
- * headless setups it is where the real sitemap lives. Children named by an index we already
- * trusted are followed as declared — their entries still pass the same-site filter.
+ * Candidates, in trust order: the `Sitemap:` lines of robots.txt first — the protocol's one
+ * official declaration channel, and the only way a sitemap under a non-conventional name is
+ * ever found — then the `/sitemap.xml` convention (apex, then `www.`), then the big CMSes' own
+ * names (`/sitemap_index.xml`, `/wp-sitemap.xml`) for sites that alias nothing to the
+ * convention. The first candidate that yields any urls wins; nothing is merged across them.
+ *
+ * Every root fetch follows redirects with eyes open: a candidate that lands on another site
+ * (a headless apex 301s to its checkout domain) is NOT this site's sitemap — reading it
+ * silently is how a crawl inherits someone else's url inventory, and a robots line naming a
+ * foreign host is dropped for the same reason. Children named by an index we already trusted
+ * are followed as declared — their entries still pass the same-site filter.
  */
-export async function harvestSitemap(origin: string, queue: FetchQueue): Promise<SitemapEntry[]> {
-  let root = await fetchAndParse(new URL('/sitemap.xml', origin).toString(), queue, origin)
+export async function harvestSitemap(
+  origin: string,
+  queue: FetchQueue,
+  declared: readonly string[] = []
+): Promise<SitemapEntry[]> {
   const host = new URL(origin).hostname
-  if (!root && !host.startsWith('www.')) {
-    root = await fetchAndParse(`https://www.${host}/sitemap.xml`, queue, origin)
-  }
-  if (!root) return []
+  const candidates = [
+    ...declared.filter((url) => isSameSite(url, origin)),
+    new URL('/sitemap.xml', origin).toString(),
+    ...(host.startsWith('www.') ? [] : [`https://www.${host}/sitemap.xml`]),
+    new URL('/sitemap_index.xml', origin).toString(),
+    new URL('/wp-sitemap.xml', origin).toString()
+  ]
 
-  const collected = new Map<string, SitemapEntry>()
-  const absorb = (entries: SitemapEntry[]) => {
-    for (const entry of entries) {
-      if (isSameSite(entry.url, origin) && !collected.has(entry.url)) collected.set(entry.url, entry)
-    }
-  }
+  const tried = new Set<string>()
+  for (const candidate of candidates) {
+    if (tried.has(candidate)) continue
+    tried.add(candidate)
+    const root = await fetchAndParse(candidate, queue, origin)
+    if (!root) continue
 
-  if (root.kind === 'urlset') {
-    absorb(root.entries)
-  } else {
-    for (const childUrl of root.sitemaps.slice(0, MAX_CHILD_SITEMAPS)) {
-      const child = await fetchAndParse(childUrl, queue)
-      if (child?.kind === 'urlset') absorb(child.entries)
+    const collected = new Map<string, SitemapEntry>()
+    const absorb = (entries: SitemapEntry[]) => {
+      for (const entry of entries) {
+        if (isSameSite(entry.url, origin) && !collected.has(entry.url)) collected.set(entry.url, entry)
+      }
     }
+
+    if (root.kind === 'urlset') {
+      absorb(root.entries)
+    } else {
+      for (const childUrl of root.sitemaps.slice(0, MAX_CHILD_SITEMAPS)) {
+        const child = await fetchAndParse(childUrl, queue)
+        if (child?.kind === 'urlset') absorb(child.entries)
+      }
+    }
+    if (collected.size > 0) return [...collected.values()]
   }
-  return [...collected.values()]
+  return []
 }
 
 /** With `mustStayOn`, a fetch whose redirects left that site returns nothing — see harvestSitemap. */

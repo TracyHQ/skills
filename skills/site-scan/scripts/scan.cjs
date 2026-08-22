@@ -47024,28 +47024,38 @@ var Parser3 = class {
 
 // skills/site-scan/engine/harvest/sitemap.ts
 var MAX_CHILD_SITEMAPS = 50;
-async function harvestSitemap(origin, queue) {
-  let root2 = await fetchAndParse(new URL("/sitemap.xml", origin).toString(), queue, origin);
+async function harvestSitemap(origin, queue, declared = []) {
   const host = new URL(origin).hostname;
-  if (!root2 && !host.startsWith("www.")) {
-    root2 = await fetchAndParse(`https://www.${host}/sitemap.xml`, queue, origin);
-  }
-  if (!root2) return [];
-  const collected = /* @__PURE__ */ new Map();
-  const absorb = (entries) => {
-    for (const entry of entries) {
-      if (isSameSite(entry.url, origin) && !collected.has(entry.url)) collected.set(entry.url, entry);
+  const candidates = [
+    ...declared.filter((url) => isSameSite(url, origin)),
+    new URL("/sitemap.xml", origin).toString(),
+    ...host.startsWith("www.") ? [] : [`https://www.${host}/sitemap.xml`],
+    new URL("/sitemap_index.xml", origin).toString(),
+    new URL("/wp-sitemap.xml", origin).toString()
+  ];
+  const tried = /* @__PURE__ */ new Set();
+  for (const candidate of candidates) {
+    if (tried.has(candidate)) continue;
+    tried.add(candidate);
+    const root2 = await fetchAndParse(candidate, queue, origin);
+    if (!root2) continue;
+    const collected = /* @__PURE__ */ new Map();
+    const absorb = (entries) => {
+      for (const entry of entries) {
+        if (isSameSite(entry.url, origin) && !collected.has(entry.url)) collected.set(entry.url, entry);
+      }
+    };
+    if (root2.kind === "urlset") {
+      absorb(root2.entries);
+    } else {
+      for (const childUrl of root2.sitemaps.slice(0, MAX_CHILD_SITEMAPS)) {
+        const child = await fetchAndParse(childUrl, queue);
+        if (child?.kind === "urlset") absorb(child.entries);
+      }
     }
-  };
-  if (root2.kind === "urlset") {
-    absorb(root2.entries);
-  } else {
-    for (const childUrl of root2.sitemaps.slice(0, MAX_CHILD_SITEMAPS)) {
-      const child = await fetchAndParse(childUrl, queue);
-      if (child?.kind === "urlset") absorb(child.entries);
-    }
+    if (collected.size > 0) return [...collected.values()];
   }
-  return [...collected.values()];
+  return [];
 }
 async function fetchAndParse(url, queue, mustStayOn) {
   const outcome = await queue.get(url);
@@ -47247,7 +47257,7 @@ async function runCrawl(input) {
     }
   });
   progress("harvest", 0, 0, { step: "sitemap" });
-  let inventory = await guarded("sitemap", [], () => harvestSitemap(origin, queue));
+  let inventory = await guarded("sitemap", [], () => harvestSitemap(origin, queue, robots.sitemaps));
   progress("harvest", 0, 0, { note: noteInventory(inventory.length) });
   progress("harvest", 0, 0, {
     stepIo: {

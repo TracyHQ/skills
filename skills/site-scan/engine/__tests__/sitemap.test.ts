@@ -47,6 +47,33 @@ describe('harvestSitemap', () => {
     expect(await harvestSitemap('https://a.com', queue)).toEqual([])
   })
 
+  it('finds a sitemap under a non-conventional name when robots.txt declares it', async () => {
+    // The declaration channel is the only way this file is ever found — nothing guesses the name.
+    const queue = fakeQueue({ 'https://a.com/my-strange-map.xml': fixture('sitemap-posts.xml') })
+    const entries = await harvestSitemap('https://a.com', queue, ['https://a.com/my-strange-map.xml'])
+    expect(entries).toHaveLength(2)
+  })
+
+  it('drops a robots-declared sitemap on a foreign host — no inheriting someone else\'s inventory', async () => {
+    const queue = fakeQueue({ 'https://elsewhere.com/sitemap.xml': fixture('sitemap-posts.xml') })
+    expect(await harvestSitemap('https://a.com', queue, ['https://elsewhere.com/sitemap.xml'])).toEqual([])
+  })
+
+  it('falls back to the CMS names when nothing answers at /sitemap.xml', async () => {
+    const queue = fakeQueue({ 'https://a.com/wp-sitemap.xml': fixture('sitemap-posts.xml') })
+    const entries = await harvestSitemap('https://a.com', queue)
+    expect(entries).toHaveLength(2)
+  })
+
+  it('moves past a declared sitemap that yields nothing, to the convention that does', async () => {
+    const queue = fakeQueue({
+      'https://a.com/empty.xml': '<urlset></urlset>',
+      'https://a.com/sitemap.xml': fixture('sitemap-posts.xml')
+    })
+    const entries = await harvestSitemap('https://a.com', queue, ['https://a.com/empty.xml'])
+    expect(entries).toHaveLength(2)
+  })
+
   it('refuses a root sitemap that redirects off the site, then finds the real one on www', async () => {
     // A headless apex 301s its guessed /sitemap.xml to the checkout domain; the real inventory
     // lives on www — same site, so its entries are this site's entries.
