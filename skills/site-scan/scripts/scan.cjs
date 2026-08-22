@@ -47618,10 +47618,14 @@ async function writeTree(workspacePath, content) {
   }
   if (content.ucp) await write2(import_node_path.default.join("surface", "ucp.json"), content.ucp);
   if (content.inventory.length > 0) {
+    const titleByUrl = new Map(content.pages.filter((page) => page.title).map((page) => [page.url, page.title]));
     await write2(import_node_path.default.join("surface", "sitemap.json"), {
       total: content.inventory.length,
       capped: Math.max(0, content.inventory.length - SITEMAP_URL_CAP),
-      entries: content.inventory.slice(0, SITEMAP_URL_CAP)
+      entries: content.inventory.slice(0, SITEMAP_URL_CAP).map((entry) => {
+        const title = titleByUrl.get(entry.url);
+        return title ? { ...entry, title } : entry;
+      })
     });
   }
   await write2(import_node_path.default.join("surface", "seo", "links.json"), content.graph);

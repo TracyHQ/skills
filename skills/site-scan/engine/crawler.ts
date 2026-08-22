@@ -635,10 +635,16 @@ async function writeTree(
   // discovered addresses were thrown away, leaving an agent with 30 sample URLs for a
   // thousand-page site. Capped and saying so, per the counting rule: a number carries its bound.
   if (content.inventory.length > 0) {
+    // Crawled pages know their titles; the inventory rows that were fetched carry them, so a
+    // reader gets "Pricing — /pricing" instead of a bare path. Uncrawled rows stay url-only.
+    const titleByUrl = new Map(content.pages.filter((page) => page.title).map((page) => [page.url, page.title]))
     await write(path.join('surface', 'sitemap.json'), {
       total: content.inventory.length,
       capped: Math.max(0, content.inventory.length - SITEMAP_URL_CAP),
-      entries: content.inventory.slice(0, SITEMAP_URL_CAP)
+      entries: content.inventory.slice(0, SITEMAP_URL_CAP).map((entry) => {
+        const title = titleByUrl.get(entry.url)
+        return title ? { ...entry, title } : entry
+      })
     })
   }
   await write(path.join('surface', 'seo', 'links.json'), content.graph)
