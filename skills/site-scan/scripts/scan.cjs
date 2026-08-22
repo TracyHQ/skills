@@ -31025,14 +31025,15 @@ function generateDigests(input) {
     "seo-findings.md": fitBudget(seoFindings(input))
   };
 }
-function siteBrief({ siteKey, pages, report, wpItems, shopify, enrichment }) {
+function siteBrief({ siteKey, pages, report, wpItems, shopify, enrichment, platform }) {
   const lines = [];
   lines.push(`# Site brief \u2014 ${siteKey}`);
   lines.push("");
   lines.push("What the public web sees of this site (Evidence: Observed unless noted).");
   lines.push("");
   const enriched = enrichment && enrichment.found ? enrichment : void 0;
-  if (enriched?.platform) lines.push(`- Platform: ${enriched.platform}`);
+  const knownPlatform = platform ?? enriched?.platform;
+  if (knownPlatform) lines.push(`- Platform: ${knownPlatform}`);
   lines.push(`- Crawled pages: ${pages.length} (of ${report.discovered} discovered)`);
   if (shopify) {
     lines.push(`- Catalog: ${shopify.products.length} products in ${shopify.collections.length} collections`);
@@ -47496,7 +47497,12 @@ async function runCrawl(input) {
     findings,
     report,
     wpItems: wpItems?.items,
-    shopify: shopify ? { products: shopify.products, collections: shopify.collections } : void 0
+    shopify: shopify ? { products: shopify.products, collections: shopify.collections } : void 0,
+    // The last Sync's enrichment: written by the caller beside the surface on its own age gate,
+    // so the freshest copy on disk is the previous run's — good enough for a brief's Platform
+    // and Categories lines, and absent on a first run without harm.
+    enrichment: await readPreviousEnrichment(input.workspacePath),
+    platform: input.platform
   });
   await writeTree(input.workspacePath, {
     pages,
@@ -47505,6 +47511,7 @@ async function runCrawl(input) {
     closed,
     report,
     digests,
+    inventory,
     shopify,
     wpItems,
     state,
@@ -47562,6 +47569,16 @@ async function readCachedPage(workspacePath, url) {
     return void 0;
   }
 }
+async function readPreviousEnrichment(workspacePath) {
+  for (const relative of [import_node_path.default.join("TracyWork", "surface", "site.json"), import_node_path.default.join("surface", "site.json")]) {
+    try {
+      return JSON.parse(await (0, import_promises.readFile)(import_node_path.default.join(workspacePath, relative), "utf8"));
+    } catch {
+    }
+  }
+  return void 0;
+}
+var SITEMAP_URL_CAP = 2e3;
 async function writeTree(workspacePath, content) {
   const write2 = async (relative, data2) => {
     const target = import_node_path.default.join(workspacePath, relative);
@@ -47579,6 +47596,13 @@ async function writeTree(workspacePath, content) {
     await write2(import_node_path.default.join("surface", "content.json"), content.wpItems.items);
   }
   if (content.ucp) await write2(import_node_path.default.join("surface", "ucp.json"), content.ucp);
+  if (content.inventory.length > 0) {
+    await write2(import_node_path.default.join("surface", "sitemap.json"), {
+      total: content.inventory.length,
+      capped: Math.max(0, content.inventory.length - SITEMAP_URL_CAP),
+      entries: content.inventory.slice(0, SITEMAP_URL_CAP)
+    });
+  }
   await write2(import_node_path.default.join("surface", "seo", "links.json"), content.graph);
   await write2(import_node_path.default.join("surface", "seo", "findings.json"), content.findings);
   await write2(import_node_path.default.join("surface", "seo", "closed.json"), content.closed);

@@ -35,7 +35,7 @@ import {
 } from './narration'
 import { parseRobots } from './robots'
 import { isSameSite } from './sameSite'
-import type { CrawlReport, CrawlState, Finding, PageRecord, SitemapEntry } from './types'
+import type { CrawlReport, CrawlState, Enrichment, Finding, PageRecord, SitemapEntry } from './types'
 import { CRAWLER_USER_AGENT } from './userAgent'
 
 const logger = loggerService.withContext('tracySiteCrawler')
@@ -464,7 +464,12 @@ export async function runCrawl(input: CrawlInput): Promise<{ report: CrawlReport
     findings,
     report,
     wpItems: wpItems?.items,
-    shopify: shopify ? { products: shopify.products, collections: shopify.collections } : undefined
+    shopify: shopify ? { products: shopify.products, collections: shopify.collections } : undefined,
+    // The last Sync's enrichment: written by the caller beside the surface on its own age gate,
+    // so the freshest copy on disk is the previous run's — good enough for a brief's Platform
+    // and Categories lines, and absent on a first run without harm.
+    enrichment: await readPreviousEnrichment(input.workspacePath),
+    platform: input.platform
   })
 
   await writeTree(input.workspacePath, {
@@ -474,6 +479,7 @@ export async function runCrawl(input: CrawlInput): Promise<{ report: CrawlReport
     closed,
     report,
     digests,
+    inventory,
     shopify,
     wpItems,
     state,
@@ -549,6 +555,29 @@ async function readCachedPage(workspacePath: string, url: string): Promise<PageR
   }
 }
 
+/**
+ * The enrichment the caller keeps beside the surface (`site.json`), from wherever the last Sync
+ * left it — the layout-v2 home first, the engine's own output dir as fallback. Absence is an
+ * ordinary answer: a first run has none, and the brief simply says less.
+ */
+async function readPreviousEnrichment(workspacePath: string): Promise<Enrichment | undefined> {
+  for (const relative of [path.join('TracyWork', 'surface', 'site.json'), path.join('surface', 'site.json')]) {
+    try {
+      return JSON.parse(await readFile(path.join(workspacePath, relative), 'utf8')) as Enrichment
+    } catch {
+      // try the next home
+    }
+  }
+  return undefined
+}
+
+/**
+ * How many discovered URLs the surface keeps verbatim. Enough for every real sitemap seen so
+ * far; a larger one is cut and says so, because the surface is committed to git on every Sync
+ * and an unbounded file would grow the repo with the site.
+ */
+const SITEMAP_URL_CAP = 2000
+
 async function writeTree(
   workspacePath: string,
   content: {
@@ -558,6 +587,7 @@ async function writeTree(
     closed: { checkId: string; title: string; count: number }[]
     report: CrawlReport
     digests: ReturnType<typeof generateDigests>
+    inventory: SitemapEntry[]
     shopify?: { products: unknown[]; collections: unknown[] }
     wpItems?: { items: unknown[] }
     state: CrawlState
@@ -581,6 +611,16 @@ async function writeTree(
     await write(path.join('surface', 'content.json'), content.wpItems.items)
   }
   if (content.ucp) await write(path.join('surface', 'ucp.json'), content.ucp)
+  // The URL inventory itself, not just its count: until now `discovered` was a number and the
+  // discovered addresses were thrown away, leaving an agent with 30 sample URLs for a
+  // thousand-page site. Capped and saying so, per the counting rule: a number carries its bound.
+  if (content.inventory.length > 0) {
+    await write(path.join('surface', 'sitemap.json'), {
+      total: content.inventory.length,
+      capped: Math.max(0, content.inventory.length - SITEMAP_URL_CAP),
+      entries: content.inventory.slice(0, SITEMAP_URL_CAP)
+    })
+  }
   await write(path.join('surface', 'seo', 'links.json'), content.graph)
   await write(path.join('surface', 'seo', 'findings.json'), content.findings)
   await write(path.join('surface', 'seo', 'closed.json'), content.closed)

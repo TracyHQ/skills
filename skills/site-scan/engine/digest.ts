@@ -15,6 +15,12 @@ export type DigestInput = {
   wpItems?: WpItem[]
   shopify?: { products: ShopifyProduct[]; collections: ShopifyCollection[] }
   enrichment?: Enrichment
+  /**
+   * What the caller already knows the site runs on. Authoritative over enrichment's guess: the
+   * desktop app detected it against the site itself, and every platform-gated skill reads the
+   * brief's Platform line to decide which of its procedures apply.
+   */
+  platform?: string | null
 }
 
 /**
@@ -35,14 +41,15 @@ export function generateDigests(input: DigestInput): {
   }
 }
 
-function siteBrief({ siteKey, pages, report, wpItems, shopify, enrichment }: DigestInput): string[] {
+function siteBrief({ siteKey, pages, report, wpItems, shopify, enrichment, platform }: DigestInput): string[] {
   const lines: string[] = []
   lines.push(`# Site brief — ${siteKey}`)
   lines.push('')
   lines.push('What the public web sees of this site (Evidence: Observed unless noted).')
   lines.push('')
   const enriched = enrichment && enrichment.found ? enrichment : undefined
-  if (enriched?.platform) lines.push(`- Platform: ${enriched.platform}`)
+  const knownPlatform = platform ?? enriched?.platform
+  if (knownPlatform) lines.push(`- Platform: ${knownPlatform}`)
   lines.push(`- Crawled pages: ${pages.length} (of ${report.discovered} discovered)`)
   if (shopify) {
     lines.push(`- Catalog: ${shopify.products.length} products in ${shopify.collections.length} collections`)

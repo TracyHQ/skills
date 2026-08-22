@@ -93,4 +93,27 @@ describe('generateDigests', () => {
     const input = { siteKey: 'https://a.com', pages: [page('https://a.com/')], findings, report }
     expect(generateDigests(input)).toEqual(generateDigests(input))
   })
+
+  it('names the platform the caller knows, over the enrichment guess', () => {
+    // Every platform-gated skill reads this line to decide which procedures apply, so the
+    // caller's own detection must win over a vendor dataset's guess.
+    const base = { siteKey: 'https://a.com', pages: [page('https://a.com/')], findings, report }
+    const known = generateDigests({ ...base, platform: 'joomla' })
+    expect(known['SITE-BRIEF.md']).toContain('- Platform: joomla')
+
+    const guessed = generateDigests({
+      ...base,
+      enrichment: { found: true, platform: 'shopify', items: [] }
+    })
+    expect(guessed['SITE-BRIEF.md']).toContain('- Platform: shopify')
+
+    const both = generateDigests({
+      ...base,
+      platform: 'joomla',
+      enrichment: { found: true, platform: 'shopify', items: [] }
+    })
+    expect(both['SITE-BRIEF.md']).toContain('- Platform: joomla')
+
+    expect(generateDigests(base)['SITE-BRIEF.md']).not.toContain('- Platform:')
+  })
 })
