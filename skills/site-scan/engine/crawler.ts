@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { appendFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 import { loggerService } from './logger'
@@ -417,7 +417,9 @@ export async function runCrawl(input: CrawlInput): Promise<{ report: CrawlReport
   // moment the product can point at and say "this got fixed, we re-measured". Strictly gone, not
   // improved: 312 → 5 is progress, 312 → absent is proof. Platform limits never close because
   // they were never anyone's to fix.
-  const previousFindings = await readJson<Finding[]>(path.join(input.workspacePath, 'surface', 'seo', 'findings.json'))
+  const previousFindings = await readJson<Finding[]>(
+    path.join(await outputRoot(input.workspacePath), 'surface', 'seo', 'findings.json')
+  )
   const closed = (Array.isArray(previousFindings) ? previousFindings : [])
     .filter((prev) => !prev.platformLimit && !findings.some((f) => f.checkId === prev.checkId))
     .map(({ checkId, title, count }) => ({ checkId, title, count }))
@@ -548,10 +550,25 @@ async function readJson<T>(filePath: string): Promise<T | undefined> {
 
 async function readCachedPage(workspacePath: string, url: string): Promise<PageRecord | undefined> {
   try {
-    const raw = await readFile(path.join(workspacePath, 'surface', 'pages', pageFileName(url)), 'utf8')
+    const raw = await readFile(path.join(await outputRoot(workspacePath), 'surface', 'pages', pageFileName(url)), 'utf8')
     return JSON.parse(raw) as PageRecord
   } catch {
     return undefined
+  }
+}
+
+/**
+ * Where this workspace keeps the engine's outputs (ADR 0071): `TracyWork/` when the folder has
+ * the v2 layout, the workspace root for one not yet migrated. Decided by looking, not by
+ * version flags — the folder either has the room or it does not, and writing v2 paths into a
+ * v1 folder would strand every file where nothing reads them.
+ */
+async function outputRoot(workspacePath: string): Promise<string> {
+  try {
+    await stat(path.join(workspacePath, 'TracyWork'))
+    return path.join(workspacePath, 'TracyWork')
+  } catch {
+    return workspacePath
   }
 }
 
@@ -594,8 +611,9 @@ async function writeTree(
     ucp?: UcpSurface
   }
 ): Promise<void> {
+  const root = await outputRoot(workspacePath)
   const write = async (relative: string, data: unknown) => {
-    const target = path.join(workspacePath, relative)
+    const target = path.join(root, relative)
     await mkdir(path.dirname(target), { recursive: true })
     await writeFile(target, typeof data === 'string' ? data : JSON.stringify(data, null, 2))
   }

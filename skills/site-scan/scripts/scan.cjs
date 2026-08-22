@@ -47454,7 +47454,9 @@ async function runCrawl(input) {
     ...runMnDiscoverability(pages, robotsText, input.siteKey),
     ...ucp ? runUcpChecks(ucp) : []
   ];
-  const previousFindings = await readJson(import_node_path.default.join(input.workspacePath, "surface", "seo", "findings.json"));
+  const previousFindings = await readJson(
+    import_node_path.default.join(await outputRoot(input.workspacePath), "surface", "seo", "findings.json")
+  );
   const closed = (Array.isArray(previousFindings) ? previousFindings : []).filter((prev2) => !prev2.platformLimit && !findings.some((f) => f.checkId === prev2.checkId)).map(({ checkId, title, count }) => ({ checkId, title, count }));
   progress("analyze", pages.length, pages.length, {
     stepIo: {
@@ -47563,10 +47565,18 @@ async function readJson(filePath) {
 }
 async function readCachedPage(workspacePath, url) {
   try {
-    const raw = await (0, import_promises.readFile)(import_node_path.default.join(workspacePath, "surface", "pages", pageFileName(url)), "utf8");
+    const raw = await (0, import_promises.readFile)(import_node_path.default.join(await outputRoot(workspacePath), "surface", "pages", pageFileName(url)), "utf8");
     return JSON.parse(raw);
   } catch {
     return void 0;
+  }
+}
+async function outputRoot(workspacePath) {
+  try {
+    await (0, import_promises.stat)(import_node_path.default.join(workspacePath, "TracyWork"));
+    return import_node_path.default.join(workspacePath, "TracyWork");
+  } catch {
+    return workspacePath;
   }
 }
 async function readPreviousEnrichment(workspacePath) {
@@ -47580,8 +47590,9 @@ async function readPreviousEnrichment(workspacePath) {
 }
 var SITEMAP_URL_CAP = 2e3;
 async function writeTree(workspacePath, content) {
+  const root2 = await outputRoot(workspacePath);
   const write2 = async (relative, data2) => {
-    const target = import_node_path.default.join(workspacePath, relative);
+    const target = import_node_path.default.join(root2, relative);
     await (0, import_promises.mkdir)(import_node_path.default.dirname(target), { recursive: true });
     await (0, import_promises.writeFile)(target, typeof data2 === "string" ? data2 : JSON.stringify(data2, null, 2));
   };

@@ -1,7 +1,7 @@
 ---
 name: site-scan
 description: Answer questions about this site's Scan — what it read, what it found, what changed — and start a new Scan on request. Use when someone asks about scan results, findings, pages, products, broken links, how fresh the local copy is, or asks to rescan.
-version: 1.3.0
+version: 1.4.0
 platforms: any
 requires-mcp:
   - tracy-site
@@ -28,11 +28,11 @@ A Finding is where the hand-off happens: you say what was measured, they decide 
 
 Read in this order; stop as soon as the question is answered.
 
-1. **`digest/`** — written for you, read it first:
+1. **`TracyWork/digest/`** — written for you, read it first:
    - `SITE-BRIEF.md` — what this site is, in one page
    - `content-map.md` — what the site contains and how it links together
    - `seo-findings.md` — the current findings, prioritized
-2. **`surface/`** — the observed public face, when the digest is not enough:
+2. **`TracyWork/surface/`** — the observed public face, when the digest is not enough:
    - `seo/findings.json` — every finding with counts; `seo/closed.json` — what the last scan
      verified as fixed; `seo/links.json` — broken links and orphan pages
    - `pages/` — every page that was read; `products/catalog.json` — the product catalog;
@@ -40,6 +40,9 @@ Read in this order; stop as soon as the question is answered.
    - `site.json`, `vitals.json`, `ucp.json` — identity, performance, agent-readiness
    - `crawl-report.json` — **what the run itself did**. Read it before quoting any number: see below.
 3. **`.tracy/crawl-state.json`** — when each URL was last seen changed, if asked about freshness.
+
+(A folder from before the v2 layout keeps these at the root — `digest/`, `surface/` — and the
+scan keeps writing them there until the folder is migrated. Look where `TracyWork/` is absent.)
 
 ## What the scan did not read
 
@@ -71,7 +74,7 @@ tool joins that run — say so instead of promising a second one.
 
 - **Invoked bare** — the message is just `/site-scan`, no question attached. The command's name
   is a verb: call `scan_now` FIRST, then, while it runs, give a short summary of the latest
-  completed scan from `digest/` so the wait starts with something to read.
+  completed scan from `TracyWork/digest/` so the wait starts with something to read.
 - **Asked in words** — "rescan", "refresh", "check the site again": call `scan_now` and confirm.
 
 Nothing else starts a Scan. Adding a site does not, connecting a credential does not, a Migrate
@@ -101,8 +104,8 @@ with this skill in `examples/answers.md`. Read one before your first.
 
 ## When something breaks
 
-- **No `digest/`** — no Scan has ever finished here. Say that, and point at Scan now on the site's
-  page. Do not read `surface/` and present it as a scan result.
+- **No `TracyWork/digest/`** (nor a root `digest/`) — no Scan has ever finished here. Say that,
+  and point at Scan now on the site's page. Do not read `surface/` and present it as a scan result.
 - **`finishedAt` is old, or older than the last thing they changed** — the answer is about the site
   as it was then. Say the date, and offer a Scan rather than quietly answering about the past.
 - **`errors` is not 0** — a source failed and the picture is thinner than usual. Say which part is
