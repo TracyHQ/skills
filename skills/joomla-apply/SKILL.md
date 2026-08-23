@@ -7,7 +7,7 @@ description: >-
   under one apply_id so the whole deliverable reverts to exactly what was there. Only Owner/Admin
   seats may apply, and the relay enforces it. Use when a deliverable has been approved and must land
   on the live site.
-version: 1.3.0
+version: 1.4.0
 platforms: joomla
 requires-mcp:
   - tracy-apply
@@ -69,8 +69,12 @@ host or hold a credential.
   `category`, `tag`, `field`, `menuItem`, `menutype`, `redirect`, `banner`, `bannerClient`,
   `contact`, `newsfeed` (content kinds — every Editor), `module`, `templateStyle` (code kinds —
   Developers), `user`, `extensionParams` (site kinds — Admins). **A menu item rename is kind
-  `menuItem`** — an ordinary content edit. Leave `id` at 0 to insert where allowed; tree-shaped
-  kinds (menuItem, category, tag) can be edited but not created, and never accept `alias`.
+  `menuItem`** — an ordinary content edit. Leave `id` at 0 to insert where allowed — including
+  tree-shaped kinds since component 0.8.14: a new `menuItem` needs `title`, `menutype` and
+  `link` (`type` defaults to `url`; use `component` with an `option=` link for component pages);
+  a new `category` or `tag` needs a `title`; `parent_id` is optional and defaults to root.
+  Aliases are minted for you — never send `alias`, and moving an existing node to another
+  parent is not supported yet.
   `fields` is a map of column → value; only the columns allowed for that kind are written.
 - **`delete_content`** — move one row to Joomla's own trash (revertable through the same
   `apply_id`). Structure and identity kinds (menutype, user, templateStyle, extensionParams)
