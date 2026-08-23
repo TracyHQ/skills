@@ -30561,18 +30561,27 @@ function runDbResidueCheck(input) {
   if (!dbResidueCheckRan(input)) return [];
   const adapter2 = ADAPTERS[input.platform];
   const tables = (input.dbTables?.tables ?? []).filter((t) => typeof t === "string");
-  const disabled = (input.inventory?.items ?? []).filter((item) => item.state === "disabled");
+  const items = input.inventory?.items ?? [];
+  const families = /* @__PURE__ */ new Map();
+  for (const item of items) {
+    for (const candidate of adapter2.candidatesOf(item)) {
+      if (!adapter2.fragments[candidate]) continue;
+      const family = families.get(candidate) ?? { disabled: [], live: false };
+      if (item.state === "disabled") family.disabled.push(item);
+      else family.live = true;
+      families.set(candidate, family);
+    }
+  }
   const residueTables = /* @__PURE__ */ new Set();
   const culprits = /* @__PURE__ */ new Set();
-  for (const item of disabled) {
-    for (const candidate of adapter2.candidatesOf(item)) {
-      const fragments = adapter2.fragments[candidate];
-      if (!fragments) continue;
-      for (const table of tables) {
-        if (fragments.some((fragment) => tableCarriesFragment(table, fragment))) {
-          residueTables.add(table);
-          culprits.add(item.name || candidate);
-        }
+  for (const [key, family] of families) {
+    if (family.disabled.length === 0 || family.live) continue;
+    const fragments = adapter2.fragments[key];
+    const face = family.disabled.find((d) => (d.id ?? "").startsWith("com_")) ?? family.disabled[0];
+    for (const table of tables) {
+      if (fragments.some((fragment) => tableCarriesFragment(table, fragment))) {
+        residueTables.add(table);
+        culprits.add(face.name || key);
       }
     }
   }

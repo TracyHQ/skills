@@ -139,7 +139,16 @@ export function dbResidueCheckRan(input: {
   )
 }
 
-/** Count the tables still owned by disabled extensions. Empty when not measurable or clean. */
+/**
+ * Count the tables still owned by disabled extensions. Empty when not measurable or clean.
+ *
+ * A fragment counts only when the extension family is disabled WHOLESALE: one live claimant —
+ * enabled or unknown — vetoes it. Measured on joomlart.com (first live fire of this check):
+ * `plg_pagecache_rsform` sits disabled while `com_rsform` runs the site's forms; matching the
+ * connector's `rsform` candidate naively would have claimed all 18 live `ja_rsform_*` tables.
+ * A connector being off says nothing about the owner of the tables — only the whole family
+ * being off does.
+ */
 export function runDbResidueCheck(input: {
   platform: string | null
   inventory: InventoryDoc | undefined
@@ -148,19 +157,32 @@ export function runDbResidueCheck(input: {
   if (!dbResidueCheckRan(input)) return []
   const adapter = ADAPTERS[input.platform as string]
   const tables = (input.dbTables?.tables ?? []).filter((t): t is string => typeof t === 'string')
-  const disabled = (input.inventory?.items ?? []).filter((item) => item.state === 'disabled')
+  const items = input.inventory?.items ?? []
+
+  // Group every inventory item (any state) by the map key its candidates hit.
+  const families = new Map<string, { disabled: Array<{ name?: string; id?: string }>; live: boolean }>()
+  for (const item of items) {
+    for (const candidate of adapter.candidatesOf(item)) {
+      if (!adapter.fragments[candidate]) continue
+      const family = families.get(candidate) ?? { disabled: [], live: false }
+      if (item.state === 'disabled') family.disabled.push(item)
+      else family.live = true
+      families.set(candidate, family)
+    }
+  }
 
   const residueTables = new Set<string>()
   const culprits = new Set<string>()
-  for (const item of disabled) {
-    for (const candidate of adapter.candidatesOf(item)) {
-      const fragments = adapter.fragments[candidate]
-      if (!fragments) continue
-      for (const table of tables) {
-        if (fragments.some((fragment) => tableCarriesFragment(table, fragment))) {
-          residueTables.add(table)
-          culprits.add(item.name || candidate)
-        }
+  for (const [key, family] of families) {
+    if (family.disabled.length === 0 || family.live) continue
+    const fragments = adapter.fragments[key]
+    // The family's face is its component (`com_…`) when one exists — "sh404SEF", not the name
+    // of whichever installer plugin happened to be listed first.
+    const face = family.disabled.find((d) => (d.id ?? '').startsWith('com_')) ?? family.disabled[0]
+    for (const table of tables) {
+      if (fragments.some((fragment) => tableCarriesFragment(table, fragment))) {
+        residueTables.add(table)
+        culprits.add(face.name || key)
       }
     }
   }

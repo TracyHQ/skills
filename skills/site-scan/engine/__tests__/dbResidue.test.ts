@@ -77,6 +77,43 @@ describe('dbResidue', () => {
     expect(runDbResidueCheck({ platform: 'joomla', inventory, dbTables: undefined })).toEqual([])
   })
 
+  it('does not claim a live family because one connector plugin is off (joomlart rsform case)', () => {
+    const findings = runDbResidueCheck({
+      platform: 'joomla',
+      inventory: {
+        items: [
+          { id: 'com_rsform', name: 'RSForm! Pro', state: 'enabled' },
+          { id: 'plg_pagecache_rsform', name: 'Page Cache - RSForm! Pro', state: 'disabled' },
+          { id: 'com_sh404sef', name: 'sh404SEF', state: 'disabled' },
+          { id: 'plg_system_sh404sef', name: 'sh404sef - System plugin', state: 'disabled' }
+        ]
+      },
+      dbTables: {
+        tables: ['ja_rsform_forms', 'ja_rsform_submissions', 'ja_sh404sef_pageids', 'ja_sh404sef_urls']
+      }
+    })
+    // rsform is vetoed by its enabled owner; sh404sef is disabled wholesale, so only its
+    // tables count.
+    expect(findings).toHaveLength(1)
+    expect(findings[0].count).toBe(2)
+    expect(findings[0].title).not.toContain('RSForm')
+  })
+
+  it('treats an unknown-state claimant as live, never as residue', () => {
+    expect(
+      runDbResidueCheck({
+        platform: 'joomla',
+        inventory: {
+          items: [
+            { id: 'com_k2', name: 'K2', state: 'unknown' },
+            { id: 'plg_xmap_com_k2', name: 'Xmap - K2 Plugin', state: 'disabled' }
+          ]
+        },
+        dbTables: { tables: ['ja_k2_items'] }
+      })
+    ).toEqual([])
+  })
+
   it('reports nothing when every mapped extension is clean or enabled', () => {
     expect(
       runDbResidueCheck({
