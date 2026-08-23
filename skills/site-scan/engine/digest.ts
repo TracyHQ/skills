@@ -29,6 +29,8 @@ export type DigestInput = {
    */
   stack?: { technologies?: { name?: string; version?: string; evidence?: string }[] }
   extensionInventory?: { items?: { state?: string }[]; gaps?: unknown[] }
+  /** Same-site links the owner curated in llms.txt — their hand-written map for AI readers. */
+  llmsCuratedLinks?: number
 }
 
 /**
@@ -58,7 +60,8 @@ function siteBrief({
   enrichment,
   platform,
   stack,
-  extensionInventory
+  extensionInventory,
+  llmsCuratedLinks
 }: DigestInput): string[] {
   const lines: string[] = []
   lines.push(`# Site brief — ${siteKey}`)
@@ -88,6 +91,9 @@ function siteBrief({
       .map((entry) => `${entry.name}${entry.version ? ` ${entry.version}` : ''}${entry.evidence === 'verified' ? ' (Verified)' : ''}`)
     const more = stackEntries.length > 4 ? ` +${stackEntries.length - 4} more` : ''
     lines.push(`- Stack: ${named.join(' · ')}${more} — read surface/stack.json`)
+  }
+  if (llmsCuratedLinks) {
+    lines.push(`- llms.txt: present — ${llmsCuratedLinks} owner-curated links (their own map for AI readers)`)
   }
   const inventoryItems = extensionInventory?.items ?? []
   if (inventoryItems.length > 0) {

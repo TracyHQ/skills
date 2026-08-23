@@ -13,6 +13,12 @@ export type UcpSurface = {
   platform?: UcpProbe
   /** The other machine-readable files a platform publishes at the root, probed on the brand origin. */
   agentFiles: { path: string; status: number; json: boolean; redirectedTo?: string }[]
+  /**
+   * The llms.txt body when the site serves one on its own origin — the owner's hand-written map
+   * for AI readers, worth keeping whole (capped) because its links and summary feed the crawl
+   * and the digest. Absent when the file is missing or answered from another origin.
+   */
+  llmsTxt?: string
 }
 
 export type UcpProbe = {
@@ -36,6 +42,8 @@ export type UcpProbe = {
 
 const PROFILE_PATH = '/.well-known/ucp'
 const AGENT_FILES = ['/llms.txt', '/agents.md']
+/** Enough for any sane llms.txt; a megabyte one is a generated dump, not a curated map. */
+const LLMS_TXT_CAP = 64 * 1024
 
 /**
  * The agent-facing surface of a Crawl (Domain Language: Surface).
@@ -68,6 +76,7 @@ export async function harvestUcp(
   }
 
   const agentFiles: UcpSurface['agentFiles'] = []
+  let llmsTxt: string | undefined
   for (const path of AGENT_FILES) {
     const outcome = await queue.get(new URL(path, origin).toString())
     const redirectedTo = outcome.ok && !isSameSite(outcome.finalUrl, origin) ? originOf(outcome.finalUrl) : undefined
@@ -77,9 +86,12 @@ export async function harvestUcp(
       json: false,
       ...(redirectedTo ? { redirectedTo } : {})
     })
+    if (path === '/llms.txt' && outcome.ok && !redirectedTo && outcome.text.trim()) {
+      llmsTxt = outcome.text.slice(0, LLMS_TXT_CAP)
+    }
   }
 
-  return { brand, platform, agentFiles }
+  return { brand, platform, agentFiles, ...(llmsTxt ? { llmsTxt } : {}) }
 }
 
 /** A profile that both answered and parsed — the pair the checks care about, so it is named once. */

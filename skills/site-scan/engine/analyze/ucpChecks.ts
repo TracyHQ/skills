@@ -1,3 +1,4 @@
+import { parseLlmsTxt } from '../harvest/llmsTxt'
 import type { UcpSurface } from '../harvest/ucp'
 import { usable } from '../harvest/ucp'
 import type { Finding } from '../types'
@@ -50,6 +51,20 @@ const CHECKS: UcpCheck[] = [
         (f) =>
           `${f.path} → ${f.redirectedTo ? `redirects off your domain, to ${f.redirectedTo}` : f.status || 'unreachable'}`
       )
+  },
+  {
+    id: 'llms-txt-empty',
+    title: () => 'Your llms.txt gives AI nothing to follow',
+    priority: 3,
+    evidence: (surface) => {
+      if (!surface.llmsTxt) return []
+      const parsed = parseLlmsTxt(surface.llmsTxt)
+      if (parsed.links.length > 0 && parsed.hasTitle) return []
+      const problems: string[] = []
+      if (!parsed.hasTitle) problems.push('/llms.txt has no `# Title` heading')
+      if (parsed.links.length === 0) problems.push('/llms.txt contains no markdown links for an AI to follow')
+      return problems
+    }
   },
   {
     id: 'ucp-signing-keys-absent',

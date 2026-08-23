@@ -30858,6 +30858,25 @@ function duplicates(pages, key) {
   return [...seen.values()].filter((urls) => urls.length > 1).flat();
 }
 
+// skills/site-scan/engine/harvest/llmsTxt.ts
+var MARKDOWN_LINK = /\[([^\]]*)\]\(([^)\s]+)\)/g;
+function parseLlmsTxt(text4) {
+  const lines = text4.split("\n");
+  const hasTitle = lines.some((line) => /^#\s+\S/.test(line.trim()));
+  const summaryLine = lines.find((line) => line.trim().startsWith("> "));
+  const summary = summaryLine?.trim().slice(2).trim() || void 0;
+  const links = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const match of text4.matchAll(MARKDOWN_LINK)) {
+    const url = match[2].trim();
+    if (!/^https?:\/\//.test(url) || seen.has(url)) continue;
+    seen.add(url);
+    const title = match[1].trim();
+    links.push(title ? { url, title } : { url });
+  }
+  return { hasTitle, ...summary ? { summary } : {}, links };
+}
+
 // skills/site-scan/engine/sameSite.ts
 function isSameSite(a, b) {
   const left = hostOf(a);
@@ -30874,6 +30893,7 @@ function hostOf(url) {
 // skills/site-scan/engine/harvest/ucp.ts
 var PROFILE_PATH = "/.well-known/ucp";
 var AGENT_FILES = ["/llms.txt", "/agents.md"];
+var LLMS_TXT_CAP = 64 * 1024;
 async function harvestUcp(origin, queue, platformOrigins = []) {
   const brand = await probeProfile(origin, queue);
   let platform;
@@ -30889,6 +30909,7 @@ async function harvestUcp(origin, queue, platformOrigins = []) {
     }
   }
   const agentFiles = [];
+  let llmsTxt;
   for (const path2 of AGENT_FILES) {
     const outcome = await queue.get(new URL(path2, origin).toString());
     const redirectedTo = outcome.ok && !isSameSite(outcome.finalUrl, origin) ? originOf(outcome.finalUrl) : void 0;
@@ -30898,8 +30919,11 @@ async function harvestUcp(origin, queue, platformOrigins = []) {
       json: false,
       ...redirectedTo ? { redirectedTo } : {}
     });
+    if (path2 === "/llms.txt" && outcome.ok && !redirectedTo && outcome.text.trim()) {
+      llmsTxt = outcome.text.slice(0, LLMS_TXT_CAP);
+    }
   }
-  return { brand, platform, agentFiles };
+  return { brand, platform, agentFiles, ...llmsTxt ? { llmsTxt } : {} };
 }
 function usable(probe) {
   return probe.status === 200 && probe.json && probe.version !== void 0;
@@ -30974,6 +30998,20 @@ var CHECKS2 = [
     )
   },
   {
+    id: "llms-txt-empty",
+    title: () => "Your llms.txt gives AI nothing to follow",
+    priority: 3,
+    evidence: (surface) => {
+      if (!surface.llmsTxt) return [];
+      const parsed = parseLlmsTxt(surface.llmsTxt);
+      if (parsed.links.length > 0 && parsed.hasTitle) return [];
+      const problems = [];
+      if (!parsed.hasTitle) problems.push("/llms.txt has no `# Title` heading");
+      if (parsed.links.length === 0) problems.push("/llms.txt contains no markdown links for an AI to follow");
+      return problems;
+    }
+  },
+  {
     id: "ucp-signing-keys-absent",
     title: () => "The profile is unsigned \u2014 an agent cannot prove it came from you",
     priority: 3,
@@ -31034,7 +31072,8 @@ function siteBrief({
   enrichment,
   platform,
   stack,
-  extensionInventory
+  extensionInventory,
+  llmsCuratedLinks
 }) {
   const lines = [];
   lines.push(`# Site brief \u2014 ${siteKey}`);
@@ -31062,6 +31101,9 @@ function siteBrief({
     const named = stackEntries.slice(0, 4).map((entry) => `${entry.name}${entry.version ? ` ${entry.version}` : ""}${entry.evidence === "verified" ? " (Verified)" : ""}`);
     const more = stackEntries.length > 4 ? ` +${stackEntries.length - 4} more` : "";
     lines.push(`- Stack: ${named.join(" \xB7 ")}${more} \u2014 read surface/stack.json`);
+  }
+  if (llmsCuratedLinks) {
+    lines.push(`- llms.txt: present \u2014 ${llmsCuratedLinks} owner-curated links (their own map for AI readers)`);
   }
   const inventoryItems = extensionInventory?.items ?? [];
   if (inventoryItems.length > 0) {
@@ -47328,6 +47370,18 @@ async function runCrawl(input) {
     void 0,
     () => harvestUcp(origin, queue, checkoutOrigins(origin, shopify?.products[0]?.url))
   );
+  let llmsCuratedLinks = 0;
+  if (ucp?.llmsTxt) {
+    const parsed = parseLlmsTxt(ucp.llmsTxt);
+    const known = new Set(inventory.map((entry) => entry.url));
+    for (const link of parsed.links) {
+      if (!isSameSite(link.url, origin)) continue;
+      llmsCuratedLinks++;
+      if (known.has(link.url)) continue;
+      known.add(link.url);
+      inventory.push(link.title ? { url: link.url, title: link.title } : { url: link.url });
+    }
+  }
   const catalogNote = shopify && noteCatalog(shopify.products.length);
   if (catalogNote) progress("harvest", 0, 0, { note: catalogNote });
   if (ucp) {
@@ -47545,7 +47599,8 @@ async function runCrawl(input) {
     // technologies with evidence, and the installed-extension inventory. The digest names
     // them so a reader knows they exist — the files themselves carry the detail.
     stack: await readPreviousSurfaceFile(input.workspacePath, "stack.json"),
-    extensionInventory: await readPreviousSurfaceFile(input.workspacePath, "inventory.json")
+    extensionInventory: await readPreviousSurfaceFile(input.workspacePath, "inventory.json"),
+    llmsCuratedLinks
   });
   await writeTree(input.workspacePath, {
     pages,

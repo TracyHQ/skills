@@ -3,7 +3,7 @@
  * Domain Language: Crawl / Probe / Surface / Digest / Check / Finding.
  */
 
-export type SitemapEntry = { url: string; lastmod?: string }
+export type SitemapEntry = { url: string; lastmod?: string; title?: string }
 
 /**
  * No `fetchedAt`. Wall-clock time belongs to {@link CrawlReport}, which is the record of a run —

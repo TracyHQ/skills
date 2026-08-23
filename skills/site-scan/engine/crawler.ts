@@ -20,6 +20,7 @@ import { createFetchQueue } from './fetchQueue'
 import { extractPage } from './harvest/pageExtract'
 import { harvestShopifyPublic } from './harvest/shopifyPublic'
 import { harvestSitemap } from './harvest/sitemap'
+import { parseLlmsTxt } from './harvest/llmsTxt'
 import { harvestUcp, type UcpSurface } from './harvest/ucp'
 import { harvestWpRest } from './harvest/wpRest'
 import {
@@ -231,6 +232,22 @@ export async function runCrawl(input: CrawlInput): Promise<{ report: CrawlReport
   const ucp = await guarded<UcpSurface | undefined>('ucp', undefined, () =>
     harvestUcp(origin, queue, checkoutOrigins(origin, shopify?.products[0]?.url))
   )
+  // The owner-curated links of llms.txt join the url inventory ahead of the crawl: the owner
+  // just named the pages that matter, and a curated page missing from the sitemap deserves a
+  // fetch more than a deep archive page does. Same-site only, and titles ride along.
+  let llmsCuratedLinks = 0
+  if (ucp?.llmsTxt) {
+    const parsed = parseLlmsTxt(ucp.llmsTxt)
+    const known = new Set(inventory.map((entry) => entry.url))
+    for (const link of parsed.links) {
+      if (!isSameSite(link.url, origin)) continue
+      llmsCuratedLinks++
+      if (known.has(link.url)) continue
+      known.add(link.url)
+      inventory.push(link.title ? { url: link.url, title: link.title } : { url: link.url })
+    }
+  }
+
   const catalogNote = shopify && noteCatalog(shopify.products.length)
   if (catalogNote) progress('harvest', 0, 0, { note: catalogNote })
   if (ucp) {
@@ -478,7 +495,8 @@ export async function runCrawl(input: CrawlInput): Promise<{ report: CrawlReport
     // technologies with evidence, and the installed-extension inventory. The digest names
     // them so a reader knows they exist — the files themselves carry the detail.
     stack: await readPreviousSurfaceFile(input.workspacePath, 'stack.json'),
-    extensionInventory: await readPreviousSurfaceFile(input.workspacePath, 'inventory.json')
+    extensionInventory: await readPreviousSurfaceFile(input.workspacePath, 'inventory.json'),
+    llmsCuratedLinks
   })
 
   await writeTree(input.workspacePath, {
