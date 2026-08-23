@@ -145,6 +145,20 @@ export const SkillRecordSchema = z.object({
   platforms: z
     .array(PlatformSchema)
     .refine((value) => new Set(value).size === value.length, 'platforms must not repeat a value')
+    .default([]),
+  /**
+   * Extension keys that bind this skill (ADR 0075 amendment): a site whose surface inventory
+   * answers to ANY of them receives the skill, the `platforms` filter still applying on top.
+   * Each inventory item answers to its `id`, its `name`, and its platform-native
+   * `attributes.template` / `attributes.module` — because the platforms differ on which of
+   * those is stable: WordPress ids are slugs (`plugin:woocommerce/woocommerce`), Joomla ids are
+   * per-site numbers, leaving the manifest name (`T4 System`) and the template directory name
+   * (`t4blank`) as the stable handles. Matching is EXACT full-string, never a substring: a
+   * near-miss installing the wrong pack is worse than a miss.
+   */
+  extensions: z
+    .array(z.string().min(2))
+    .refine((value) => new Set(value).size === value.length, 'extensions must not repeat a value')
     .default([])
 })
 

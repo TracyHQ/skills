@@ -1,0 +1,19 @@
+{
+  "$schema": "https://registry.tracy.ai/skills/schema/skill-record.schema.json",
+  "namespace": "tracyhq",
+  "slug": "t4-framework-knowledge",
+  "gitUrl": "https://github.com/TracyHQ/skills",
+  "ref": "main",
+  "skillPath": "skills/t4-framework-knowledge",
+  "autoInstall": true,
+  "label": "T4 Framework knowledge",
+  "tagline": "What an agent should know on a T4-built Joomla site",
+  "platforms": [
+    "joomla"
+  ],
+  "extensions": [
+    "plg_system_t4",
+    "T4 System",
+    "t4blank"
+  ]
+}

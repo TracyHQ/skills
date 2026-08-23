@@ -63,6 +63,15 @@
           "shopify"
         ]
       }
+    },
+    "extensions": {
+      "description": "Extension keys that bind this skill to a site by what it runs (ADR 0075 amendment): the skill reaches a site whose surface inventory answers to ANY listed key, with the platforms filter still applying on top. An inventory item answers to its id, its name, and its attributes.template / attributes.module values; list whichever of those is stable for the platform (WordPress: the id slug; Joomla: the manifest name or template directory name). Matching is exact full-string, never a substring.",
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 2
+      }
     }
   },
   "required": [
