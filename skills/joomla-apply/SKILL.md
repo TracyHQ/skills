@@ -7,7 +7,7 @@ description: >-
   under one apply_id so the whole deliverable reverts to exactly what was there. Only Owner/Admin
   seats may apply, and the relay enforces it. Use when a deliverable has been approved and must land
   on the live site.
-version: 1.2.0
+version: 1.3.0
 platforms: joomla
 requires-mcp:
   - tracy-apply
@@ -65,9 +65,16 @@ on the id shows whether it has begun.
 A Site agent is handed these by `tracy-apply`; the site is resolved for you, so you never name a
 host or hold a credential.
 
-- **`update_content`** — one article, module, or template style. `kind` is `article` | `module` |
-  `templateStyle`. Leave `id` at 0 to insert; give an existing id to update it. `fields` is a map of
-  column → value; only the columns allowed for that kind are written, the rest are ignored.
+- **`update_content`** — one row of the site's catalog (ADR 0080). `kind` is one of: `article`,
+  `category`, `tag`, `field`, `menuItem`, `menutype`, `redirect`, `banner`, `bannerClient`,
+  `contact`, `newsfeed` (content kinds — every Editor), `module`, `templateStyle` (code kinds —
+  Developers), `user`, `extensionParams` (site kinds — Admins). **A menu item rename is kind
+  `menuItem`** — an ordinary content edit. Leave `id` at 0 to insert where allowed; tree-shaped
+  kinds (menuItem, category, tag) can be edited but not created, and never accept `alias`.
+  `fields` is a map of column → value; only the columns allowed for that kind are written.
+- **`delete_content`** — move one row to Joomla's own trash (revertable through the same
+  `apply_id`). Structure and identity kinds (menutype, user, templateStyle, extensionParams)
+  cannot be deleted through Apply at all.
 - **`upload_media`** — one file under `images/` or `media/` only (never code), carried as base64.
 - **`install_extension`** — a component, template, or plugin from a public `https` `.zip` URL the
   site downloads itself. Use when a template needs a supporting extension. Not part of the revert
