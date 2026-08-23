@@ -30486,6 +30486,109 @@ function siteSlug(siteKey) {
   return noScheme.toLowerCase().replace(/[^a-z0-9.-]+/g, "-").replace(/-{2,}/g, "-").replace(/^-+|-+$/g, "");
 }
 
+// skills/site-scan/engine/analyze/dbResidue.ts
+var DB_RESIDUE_CHECK_ID = "disabled-extension-residue";
+var JOOMLA_TABLE_FRAGMENTS = {
+  sh404sef: ["sh404sef"],
+  osmap: ["osmap"],
+  jcomments: ["jcomments"],
+  k2: ["k2"],
+  kunena: ["kunena"],
+  comprofiler: ["comprofiler", "cbsubs"],
+  acymailing: ["acymailing"],
+  acym: ["acym"],
+  virtuemart: ["virtuemart"],
+  hikashop: ["hikashop"],
+  rsform: ["rsform"],
+  akeeba: ["ak_profiles", "ak_stats", "ak_storage"],
+  admintools: ["admintools"],
+  falang: ["falang"],
+  jomsocial: ["community"],
+  easyblog: ["easyblog"],
+  easysocial: ["social"],
+  jevents: ["jevents"],
+  djcatalog2: ["djc2"],
+  phocagallery: ["phocagallery"]
+};
+var WORDPRESS_TABLE_FRAGMENTS = {
+  woocommerce: ["woocommerce", "wc"],
+  "wordpress-seo": ["yoast"],
+  redirection: ["redirection"],
+  wpforms: ["wpforms"],
+  "contact-form-7": ["cf7"],
+  elementor: ["e_events", "e_submissions"],
+  "wp-mail-smtp": ["wpmailsmtp"],
+  buddypress: ["bp"],
+  bbpress: ["bb"]
+};
+var JOOMLA_ID_PREFIX = /^(plg|com|mod|tpl|pkg|lib|files)_/;
+var ADAPTERS = {
+  joomla: {
+    candidatesOf: (item) => {
+      const id = (item.id ?? "").toLowerCase();
+      const stripped = id.replace(JOOMLA_ID_PREFIX, "");
+      const segments = stripped.split("_");
+      return [stripped, segments[segments.length - 1] ?? ""].filter(Boolean);
+    },
+    fragments: JOOMLA_TABLE_FRAGMENTS
+  },
+  wordpress: {
+    candidatesOf: (item) => {
+      const id = (item.id ?? "").toLowerCase();
+      if (!id.startsWith("plugin:")) return [];
+      const slug = id.slice("plugin:".length).split("/")[0];
+      return slug ? [slug] : [];
+    },
+    fragments: WORDPRESS_TABLE_FRAGMENTS
+  }
+};
+function tableCarriesFragment(table, fragment) {
+  const t = table.toLowerCase();
+  const f = fragment.toLowerCase();
+  const at = t.indexOf(f);
+  if (at < 0) return false;
+  const before2 = at === 0 || t[at - 1] === "_";
+  const end2 = at + f.length;
+  const after2 = end2 === t.length || t[end2] === "_";
+  return before2 && after2;
+}
+function dbResidueCheckRan(input) {
+  return Boolean(
+    input.platform && ADAPTERS[input.platform] && Array.isArray(input.inventory?.items) && Array.isArray(input.dbTables?.tables)
+  );
+}
+function runDbResidueCheck(input) {
+  if (!dbResidueCheckRan(input)) return [];
+  const adapter2 = ADAPTERS[input.platform];
+  const tables = (input.dbTables?.tables ?? []).filter((t) => typeof t === "string");
+  const disabled = (input.inventory?.items ?? []).filter((item) => item.state === "disabled");
+  const residueTables = /* @__PURE__ */ new Set();
+  const culprits = /* @__PURE__ */ new Set();
+  for (const item of disabled) {
+    for (const candidate of adapter2.candidatesOf(item)) {
+      const fragments = adapter2.fragments[candidate];
+      if (!fragments) continue;
+      for (const table of tables) {
+        if (fragments.some((fragment) => tableCarriesFragment(table, fragment))) {
+          residueTables.add(table);
+          culprits.add(item.name || candidate);
+        }
+      }
+    }
+  }
+  if (residueTables.size === 0) return [];
+  const named = [...culprits].sort().slice(0, 3).join(", ");
+  return [
+    {
+      checkId: DB_RESIDUE_CHECK_ID,
+      title: `Disabled extensions still keep database tables (${named})`,
+      count: residueTables.size,
+      priority: 2,
+      urls: []
+    }
+  ];
+}
+
 // skills/site-scan/engine/analyze/linkGraph.ts
 var DEFAULT_MAX_HEAD_CHECKS = 100;
 async function analyzeLinkGraph(pages, opts) {
@@ -47538,16 +47641,27 @@ async function runCrawl(input) {
   });
   progress("analyze", pages.length, pages.length, { step: "checks" });
   const robotsText = robotsOutcome.ok ? robotsOutcome.text : "";
-  const checksRun = [...SEO_CHECK_IDS, ...Object.keys(MN_DISCOVERABILITY), ...ucp ? UCP_CHECK_IDS : []];
+  const residueInventory = await readPreviousSurfaceFile(input.workspacePath, "inventory.json");
+  const residueTables = await readPreviousSurfaceFile(input.workspacePath, "db-tables.json");
+  const residueInput = { platform: input.platform, inventory: residueInventory, dbTables: residueTables };
+  const checksRun = [
+    ...SEO_CHECK_IDS,
+    ...Object.keys(MN_DISCOVERABILITY),
+    ...ucp ? UCP_CHECK_IDS : [],
+    ...dbResidueCheckRan(residueInput) ? [DB_RESIDUE_CHECK_ID] : []
+  ];
   const findings = [
     ...runSeoChecks(pages, graph),
     ...runMnDiscoverability(pages, robotsText, input.siteKey),
-    ...ucp ? runUcpChecks(ucp) : []
+    ...ucp ? runUcpChecks(ucp) : [],
+    ...runDbResidueCheck(residueInput)
   ];
   const previousFindings = await readJson(
     import_node_path.default.join(await outputRoot(input.workspacePath), "surface", "seo", "findings.json")
   );
-  const closed = (Array.isArray(previousFindings) ? previousFindings : []).filter((prev2) => !prev2.platformLimit && !findings.some((f) => f.checkId === prev2.checkId)).map(({ checkId, title, count }) => ({ checkId, title, count }));
+  const closed = (Array.isArray(previousFindings) ? previousFindings : []).filter(
+    (prev2) => !prev2.platformLimit && checksRun.includes(prev2.checkId) && !findings.some((f) => f.checkId === prev2.checkId)
+  ).map(({ checkId, title, count }) => ({ checkId, title, count }));
   progress("analyze", pages.length, pages.length, {
     stepIo: {
       key: "analyze.checks",

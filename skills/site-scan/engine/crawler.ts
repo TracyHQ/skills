@@ -6,6 +6,13 @@ import path from 'node:path'
 import { loggerService } from './logger'
 
 import { siteSlug } from './siteSlug'
+import {
+  DB_RESIDUE_CHECK_ID,
+  type DbTablesDoc,
+  dbResidueCheckRan,
+  type InventoryDoc,
+  runDbResidueCheck
+} from './analyze/dbResidue'
 import { analyzeLinkGraph } from './analyze/linkGraph'
 import {
   isProductPage,
@@ -421,26 +428,43 @@ export async function runCrawl(input: CrawlInput): Promise<{ report: CrawlReport
   })
   progress('analyze', pages.length, pages.length, { step: 'checks' })
   const robotsText = robotsOutcome.ok ? robotsOutcome.text : ''
-  // 8 SEO + the pinned MN table + 4 agent-door checks when the door was probed. Kept as the ids
-  // rather than their count: the count could only ever be shown, while the ids can be subtracted
-  // from the findings to say which checks the site actually passed.
-  const checksRun = [...SEO_CHECK_IDS, ...Object.keys(MN_DISCOVERABILITY), ...(ucp ? UCP_CHECK_IDS : [])]
+  // 8 SEO + the pinned MN table + 4 agent-door checks when the door was probed + the DB-residue
+  // check when the Sync left its fuel (inventory + table list). Kept as the ids rather than
+  // their count: the count could only ever be shown, while the ids can be subtracted from the
+  // findings to say which checks the site actually passed.
+  const residueInventory = await readPreviousSurfaceFile<InventoryDoc>(input.workspacePath, 'inventory.json')
+  const residueTables = await readPreviousSurfaceFile<DbTablesDoc>(input.workspacePath, 'db-tables.json')
+  const residueInput = { platform: input.platform, inventory: residueInventory, dbTables: residueTables }
+  const checksRun = [
+    ...SEO_CHECK_IDS,
+    ...Object.keys(MN_DISCOVERABILITY),
+    ...(ucp ? UCP_CHECK_IDS : []),
+    ...(dbResidueCheckRan(residueInput) ? [DB_RESIDUE_CHECK_ID] : [])
+  ]
   const findings = [
     ...runSeoChecks(pages, graph),
     ...runMnDiscoverability(pages, robotsText, input.siteKey),
-    ...(ucp ? runUcpChecks(ucp) : [])
+    ...(ucp ? runUcpChecks(ucp) : []),
+    ...runDbResidueCheck(residueInput)
   ]
 
   // The Verify half of the loop (Domain Language: "the next Scan re-counts and can close them as
   // verified"): a check the previous Scan raised that this one measured as gone is CLOSED — the
   // moment the product can point at and say "this got fixed, we re-measured". Strictly gone, not
   // improved: 312 → 5 is progress, 312 → absent is proof. Platform limits never close because
-  // they were never anyone's to fix.
+  // they were never anyone's to fix. And only a check that RAN can close its finding: a scan
+  // where the agent door or the residue fuel is absent did not re-measure anything — silence
+  // must read as "not measured", never as "verified fixed".
   const previousFindings = await readJson<Finding[]>(
     path.join(await outputRoot(input.workspacePath), 'surface', 'seo', 'findings.json')
   )
   const closed = (Array.isArray(previousFindings) ? previousFindings : [])
-    .filter((prev) => !prev.platformLimit && !findings.some((f) => f.checkId === prev.checkId))
+    .filter(
+      (prev) =>
+        !prev.platformLimit &&
+        checksRun.includes(prev.checkId) &&
+        !findings.some((f) => f.checkId === prev.checkId)
+    )
     .map(({ checkId, title, count }) => ({ checkId, title, count }))
   progress('analyze', pages.length, pages.length, {
     stepIo: {
