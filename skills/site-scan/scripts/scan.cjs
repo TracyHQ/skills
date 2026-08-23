@@ -47791,12 +47791,14 @@ async function readCachedPage(workspacePath, url) {
   }
 }
 async function outputRoot(workspacePath) {
-  try {
-    await (0, import_promises.stat)(import_node_path.default.join(workspacePath, "TracyWork"));
-    return import_node_path.default.join(workspacePath, "TracyWork");
-  } catch {
-    return workspacePath;
+  for (const home of [import_node_path.default.join("TracyWork", "agents"), "TracyWork"]) {
+    try {
+      await (0, import_promises.stat)(import_node_path.default.join(workspacePath, home));
+      return import_node_path.default.join(workspacePath, home);
+    } catch {
+    }
   }
+  return workspacePath;
 }
 async function readPreviousEnrichment(workspacePath) {
   return readPreviousSurfaceFile(workspacePath, "site.json");

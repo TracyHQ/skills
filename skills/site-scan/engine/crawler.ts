@@ -612,13 +612,23 @@ async function readCachedPage(workspacePath: string, url: string): Promise<PageR
  * version flags — the folder either has the room or it does not, and writing v2 paths into a
  * v1 folder would strand every file where nothing reads them.
  */
+/**
+ * Where `surface/` and `digest/` land: the layout-v4 home (`TracyWork/agents/`, ADR 0078) when
+ * the folder has one, the v2 home (`TracyWork/`) otherwise, the engine's own root as the last
+ * resort. Writing anywhere older leaves the output invisible to readers that resolve the newest
+ * home first — measured 23/08: the desk's findings pane resolved `TracyWork/agents/surface`,
+ * found no `seo/findings.json` there, and reported a three-times-scanned site as never scanned.
+ */
 async function outputRoot(workspacePath: string): Promise<string> {
-  try {
-    await stat(path.join(workspacePath, 'TracyWork'))
-    return path.join(workspacePath, 'TracyWork')
-  } catch {
-    return workspacePath
+  for (const home of [path.join('TracyWork', 'agents'), 'TracyWork']) {
+    try {
+      await stat(path.join(workspacePath, home))
+      return path.join(workspacePath, home)
+    } catch {
+      // try the next home
+    }
   }
+  return workspacePath
 }
 
 /**
