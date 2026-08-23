@@ -69,6 +69,10 @@ function siteBrief({ siteKey, pages, report, wpItems, shopify, enrichment, platf
   )
   if (report.cappedHtml > 0)
     lines.push(`Capped: ${report.cappedHtml} urls beyond the html budget — see surface/crawl-report.json.`)
+  lines.push('')
+  // The preflight pointer of ADR 0078: the digest names where shared working memory lives, the
+  // agent decides whether to read it — a pointer costs nothing until it is followed.
+  lines.push('Teammates may have shared session notes in TracyWork/team/ — search them when a task touches earlier work.')
   return lines
 }
 

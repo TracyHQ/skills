@@ -31053,6 +31053,8 @@ function siteBrief({ siteKey, pages, report, wpItems, shopify, enrichment, platf
   );
   if (report.cappedHtml > 0)
     lines.push(`Capped: ${report.cappedHtml} urls beyond the html budget \u2014 see surface/crawl-report.json.`);
+  lines.push("");
+  lines.push("Teammates may have shared session notes in TracyWork/team/ \u2014 search them when a task touches earlier work.");
   return lines;
 }
 function contentMap({ pages }) {

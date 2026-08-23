@@ -1,7 +1,7 @@
 ---
 name: site-scan
 description: Answer questions about this site's Scan — what it read, what it found, what changed — and start a new Scan on request. Use when someone asks about scan results, findings, pages, products, broken links, how fresh the local copy is, or asks to rescan.
-version: 1.4.0
+version: 1.4.1
 platforms: any
 requires-mcp:
   - tracy-site

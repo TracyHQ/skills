@@ -75,6 +75,8 @@ describe('generateDigests', () => {
     })
     expect(digests['SITE-BRIEF.md']).toContain('https://a.com')
     expect(digests['SITE-BRIEF.md']).toContain('1 products')
+    // The ADR 0078 preflight pointer: the brief names where shared session notes live.
+    expect(digests['SITE-BRIEF.md']).toContain('TracyWork/team/')
     expect(digests['content-map.md']).toContain('/blog')
     expect(digests['seo-findings.md']).toContain('Pages without a meta description')
     expect(digests['seo-findings.md']).toContain('Observed')
