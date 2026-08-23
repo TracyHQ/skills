@@ -7,7 +7,7 @@ description: >-
   under one apply_id so the whole deliverable reverts to exactly what was there. Only Owner/Admin
   seats may apply, and the relay enforces it. Use when a deliverable has been approved and must land
   on the live site.
-version: 1.6.0
+version: 1.7.0
 platforms: joomla
 requires-mcp:
   - tracy-apply
@@ -95,6 +95,12 @@ host or hold a credential.
   that the next Scan will close the finding as verified.
 - **`restore_db_tables`** — the way back: a trash-named table returns to its original name.
   Refused if the original name exists again.
+- **`purge_db_tables`** — empty the trash FOR GOOD (component ≥ 0.8.17): the tables are dropped
+  and their disk space freed. A full SQL backup of every table is pulled and written into the
+  site folder (`.tracy/db-backups/<stamp>/`) BEFORE anything is dropped — if any backup fails,
+  nothing is dropped. Only `_tracy_trash_*` names are accepted. Use only after a Scan confirmed
+  the site healthy without these tables, and always report the backup file paths alongside what
+  was dropped — the person must know where their way back lives.
 - **`revert_apply`** — undo a whole Apply by its `apply_id`, newest step first.
 - **`list_apply`** — see what an `apply_id` touched (kind, id or path, create-or-update) without the
   before-payload.
