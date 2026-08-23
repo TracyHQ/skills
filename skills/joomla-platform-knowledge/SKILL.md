@@ -5,7 +5,7 @@ description: >-
   their support state, the extension taxonomy and where each kind lives, how content and menus
   shape URLs, how templates and overrides work, and the traps that bite on real client sites.
   Reference knowledge, not a procedure. Loaded automatically for Joomla sites.
-version: 1.1.0
+version: 1.2.0
 platforms: joomla
 provenOn: —
 ---
@@ -76,9 +76,17 @@ answers, and only those may be quoted as facts about the site.
 
 - **Core is untouchable** (ADR 0070): Joomla's own files are managed by its updater. Work in
   overrides, extensions, and content. The webroot copy in `.webroot/` is read-only reference.
-- **Writes go through the Apply tools** (`update_content`, `upload_media`, `install_extension`)
-  — they stamp timestamps, log every step under an `apply_id`, and can revert exactly. Direct
-  DB or file writes have no undo trail and are not yours to make.
+- **Writes go through the Apply tools, and they are the ONLY door** (ADR 0080):
+  `update_content` / `delete_content` / `upload_media` / `install_extension` — they log every
+  step under an `apply_id` and revert exactly. There is no Admin API fallback and no other way
+  in; if a kind or field is refused, report the refusal to the user rather than hunting another
+  route. `update_content` speaks the FULL catalog of kinds: `article`, `category`, `tag`,
+  `field`, `menuItem`, `menutype`, `redirect`, `banner`, `bannerClient`, `contact`, `newsfeed`
+  (content — every Editor), `module`, `templateStyle` (code — Developers), `user`,
+  `extensionParams` (site — Admins). **Renaming a menu item is kind `menuItem`** — an ordinary
+  content edit, not "site configuration". Tree-shaped kinds (menuItem, category, tag) can be
+  edited but not created, and never accept `alias` (paths derive from it). `delete_content` is
+  Joomla's own trash (revertable); find ids with `content.list` for the kind.
 - **State facts come from the site's data, and two files carry most of them**:
   `TracyWork/agents/surface/stack.json` — what the site runs, each fact labeled
   verified/observed/declared — and `TracyWork/agents/surface/inventory.json` — every installed
