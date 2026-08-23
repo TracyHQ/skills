@@ -1,0 +1,14 @@
+{
+  "$schema": "https://registry.tracy.ai/skills/schema/skill-record.schema.json",
+  "namespace": "tracyhq",
+  "slug": "shopify-platform-knowledge",
+  "gitUrl": "https://github.com/TracyHQ/skills",
+  "ref": "main",
+  "skillPath": "skills/shopify-platform-knowledge",
+  "autoInstall": true,
+  "label": "Shopify knowledge",
+  "tagline": "What every agent on a Shopify store should know",
+  "platforms": [
+    "shopify"
+  ]
+}
