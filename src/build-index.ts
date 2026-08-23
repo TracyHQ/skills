@@ -202,6 +202,7 @@ export async function buildIndex(options: BuildOptions): Promise<BuildResult> {
         tagline: record.tagline,
         runMinutes: record.runMinutes,
         platforms: record.platforms,
+        extensions: record.extensions,
         displayName: frontmatter.name ?? record.slug,
         description: frontmatter.description,
         tags: frontmatter.tags,

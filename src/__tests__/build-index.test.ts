@@ -96,6 +96,26 @@ describe('buildIndex', () => {
     expect(skills[0]!.requiresMcp).toEqual([])
   })
 
+  it('carries the extensions keys through hydration — the field the hand-listed call forgot once', async () => {
+    await fs.mkdir(path.join(root, 'registry', 'tracyhq'), { recursive: true })
+    await fs.writeFile(
+      path.join(root, 'registry', 'tracyhq', 'refund-audit.json'),
+      JSON.stringify({
+        namespace: 'tracyhq',
+        slug: 'refund-audit',
+        gitUrl: 'https://github.com/tracyhq/skills',
+        ref: 'main',
+        skillPath: 'skills/refund-audit',
+        platforms: ['joomla'],
+        extensions: ['plg_system_t4', 'T4 System']
+      })
+    )
+
+    const { skills } = await buildIndex({ rootDir: root, fetcher })
+
+    expect(skills[0]!.extensions).toEqual(['plg_system_t4', 'T4 System'])
+  })
+
   it('takes platforms from the record, not from the tags in SKILL.md', async () => {
     // SKILL_MD declares `tags: [woocommerce]`; the record says joomla. The record wins,
     // because the record is the classification and the tags are the author's own prose.
