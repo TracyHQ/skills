@@ -31025,7 +31025,17 @@ function generateDigests(input) {
     "seo-findings.md": fitBudget(seoFindings(input))
   };
 }
-function siteBrief({ siteKey, pages, report, wpItems, shopify, enrichment, platform }) {
+function siteBrief({
+  siteKey,
+  pages,
+  report,
+  wpItems,
+  shopify,
+  enrichment,
+  platform,
+  stack,
+  extensionInventory
+}) {
   const lines = [];
   lines.push(`# Site brief \u2014 ${siteKey}`);
   lines.push("");
@@ -31047,6 +31057,20 @@ function siteBrief({ siteKey, pages, report, wpItems, shopify, enrichment, platf
     lines.push(`- Content: ${posts} posts, ${wpItems.length - posts} pages via the open REST api`);
   }
   if (enriched?.categories?.length) lines.push(`- Categories (Evidence: Estimated): ${enriched.categories.join(", ")}`);
+  const stackEntries = (stack?.technologies ?? []).filter((entry) => entry.name);
+  if (stackEntries.length > 0) {
+    const named = stackEntries.slice(0, 4).map((entry) => `${entry.name}${entry.version ? ` ${entry.version}` : ""}${entry.evidence === "verified" ? " (Verified)" : ""}`);
+    const more = stackEntries.length > 4 ? ` +${stackEntries.length - 4} more` : "";
+    lines.push(`- Stack: ${named.join(" \xB7 ")}${more} \u2014 read surface/stack.json`);
+  }
+  const inventoryItems = extensionInventory?.items ?? [];
+  if (inventoryItems.length > 0) {
+    const disabled = inventoryItems.filter((item) => item.state === "disabled").length;
+    const gaps = extensionInventory?.gaps?.length ?? 0;
+    lines.push(
+      `- Extensions: ${inventoryItems.length} installed${disabled ? `, ${disabled} disabled` : ""}${gaps ? `, ${gaps} gaps` : ""} \u2014 read surface/inventory.json`
+    );
+  }
   lines.push("");
   lines.push(
     `Coverage: ${report.htmlFetched} pages fetched, ${report.errors} errors, ${report.robotsBlocked} blocked by robots.`
@@ -47516,7 +47540,12 @@ async function runCrawl(input) {
     // so the freshest copy on disk is the previous run's — good enough for a brief's Platform
     // and Categories lines, and absent on a first run without harm.
     enrichment: await readPreviousEnrichment(input.workspacePath),
-    platform: input.platform
+    platform: input.platform,
+    // The stack layer, written by the desktop app's Sync beside this surface: the merged
+    // technologies with evidence, and the installed-extension inventory. The digest names
+    // them so a reader knows they exist — the files themselves carry the detail.
+    stack: await readPreviousSurfaceFile(input.workspacePath, "stack.json"),
+    extensionInventory: await readPreviousSurfaceFile(input.workspacePath, "inventory.json")
   });
   await writeTree(input.workspacePath, {
     pages,
@@ -47592,9 +47621,13 @@ async function outputRoot(workspacePath) {
   }
 }
 async function readPreviousEnrichment(workspacePath) {
-  for (const relative of [import_node_path.default.join("TracyWork", "surface", "site.json"), import_node_path.default.join("surface", "site.json")]) {
+  return readPreviousSurfaceFile(workspacePath, "site.json");
+}
+var SURFACE_HOMES = [import_node_path.default.join("TracyWork", "agents", "surface"), import_node_path.default.join("TracyWork", "surface"), "surface"];
+async function readPreviousSurfaceFile(workspacePath, name) {
+  for (const home of SURFACE_HOMES) {
     try {
-      return JSON.parse(await (0, import_promises.readFile)(import_node_path.default.join(workspacePath, relative), "utf8"));
+      return JSON.parse(await (0, import_promises.readFile)(import_node_path.default.join(workspacePath, home, name), "utf8"));
     } catch {
     }
   }

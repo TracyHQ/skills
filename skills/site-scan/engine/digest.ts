@@ -21,6 +21,14 @@ export type DigestInput = {
    * brief's Platform line to decide which of its procedures apply.
    */
   platform?: string | null
+  /**
+   * The stack layer the desktop app's Sync writes beside this surface: merged technologies with
+   * evidence (`surface/stack.json`) and the installed-extension inventory
+   * (`surface/inventory.json`). The brief NAMES them — the files carry the detail, and a
+   * pointer costs nothing until it is followed.
+   */
+  stack?: { technologies?: { name?: string; version?: string; evidence?: string }[] }
+  extensionInventory?: { items?: { state?: string }[]; gaps?: unknown[] }
 }
 
 /**
@@ -41,7 +49,17 @@ export function generateDigests(input: DigestInput): {
   }
 }
 
-function siteBrief({ siteKey, pages, report, wpItems, shopify, enrichment, platform }: DigestInput): string[] {
+function siteBrief({
+  siteKey,
+  pages,
+  report,
+  wpItems,
+  shopify,
+  enrichment,
+  platform,
+  stack,
+  extensionInventory
+}: DigestInput): string[] {
   const lines: string[] = []
   lines.push(`# Site brief — ${siteKey}`)
   lines.push('')
@@ -63,6 +81,22 @@ function siteBrief({ siteKey, pages, report, wpItems, shopify, enrichment, platf
     lines.push(`- Content: ${posts} posts, ${wpItems.length - posts} pages via the open REST api`)
   }
   if (enriched?.categories?.length) lines.push(`- Categories (Evidence: Estimated): ${enriched.categories.join(', ')}`)
+  const stackEntries = (stack?.technologies ?? []).filter((entry) => entry.name)
+  if (stackEntries.length > 0) {
+    const named = stackEntries
+      .slice(0, 4)
+      .map((entry) => `${entry.name}${entry.version ? ` ${entry.version}` : ''}${entry.evidence === 'verified' ? ' (Verified)' : ''}`)
+    const more = stackEntries.length > 4 ? ` +${stackEntries.length - 4} more` : ''
+    lines.push(`- Stack: ${named.join(' · ')}${more} — read surface/stack.json`)
+  }
+  const inventoryItems = extensionInventory?.items ?? []
+  if (inventoryItems.length > 0) {
+    const disabled = inventoryItems.filter((item) => item.state === 'disabled').length
+    const gaps = extensionInventory?.gaps?.length ?? 0
+    lines.push(
+      `- Extensions: ${inventoryItems.length} installed${disabled ? `, ${disabled} disabled` : ''}${gaps ? `, ${gaps} gaps` : ''} — read surface/inventory.json`
+    )
+  }
   lines.push('')
   lines.push(
     `Coverage: ${report.htmlFetched} pages fetched, ${report.errors} errors, ${report.robotsBlocked} blocked by robots.`

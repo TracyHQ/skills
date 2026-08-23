@@ -473,7 +473,12 @@ export async function runCrawl(input: CrawlInput): Promise<{ report: CrawlReport
     // so the freshest copy on disk is the previous run's — good enough for a brief's Platform
     // and Categories lines, and absent on a first run without harm.
     enrichment: await readPreviousEnrichment(input.workspacePath),
-    platform: input.platform
+    platform: input.platform,
+    // The stack layer, written by the desktop app's Sync beside this surface: the merged
+    // technologies with evidence, and the installed-extension inventory. The digest names
+    // them so a reader knows they exist — the files themselves carry the detail.
+    stack: await readPreviousSurfaceFile(input.workspacePath, 'stack.json'),
+    extensionInventory: await readPreviousSurfaceFile(input.workspacePath, 'inventory.json')
   })
 
   await writeTree(input.workspacePath, {
@@ -580,9 +585,20 @@ async function outputRoot(workspacePath: string): Promise<string> {
  * ordinary answer: a first run has none, and the brief simply says less.
  */
 async function readPreviousEnrichment(workspacePath: string): Promise<Enrichment | undefined> {
-  for (const relative of [path.join('TracyWork', 'surface', 'site.json'), path.join('surface', 'site.json')]) {
+  return readPreviousSurfaceFile<Enrichment>(workspacePath, 'site.json')
+}
+
+/** Every home the surface has had, newest first (layout v4 → v2 → the engine's own root). */
+const SURFACE_HOMES = [path.join('TracyWork', 'agents', 'surface'), path.join('TracyWork', 'surface'), 'surface']
+
+/**
+ * A surface file from wherever the last Sync left it. Absence is an ordinary answer: a first
+ * run has none, and the brief simply says less.
+ */
+async function readPreviousSurfaceFile<T>(workspacePath: string, name: string): Promise<T | undefined> {
+  for (const home of SURFACE_HOMES) {
     try {
-      return JSON.parse(await readFile(path.join(workspacePath, relative), 'utf8')) as Enrichment
+      return JSON.parse(await readFile(path.join(workspacePath, home, name), 'utf8')) as T
     } catch {
       // try the next home
     }

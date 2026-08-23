@@ -118,4 +118,26 @@ describe('generateDigests', () => {
 
     expect(generateDigests(base)['SITE-BRIEF.md']).not.toContain('- Platform:')
   })
+
+  it('names the stack and the inventory as pointers, evidence shown, detail left in the files', () => {
+    const base = { siteKey: 'https://a.com', pages: [page('https://a.com/')], findings, report }
+    const digests = generateDigests({
+      ...base,
+      stack: {
+        technologies: [
+          { name: 'Joomla', version: '5.2.3', evidence: 'verified' },
+          { name: 'PHP', version: '8.3', evidence: 'verified' },
+          { name: 'Cloudflare', evidence: 'observed' },
+          { name: 'Bootstrap', evidence: 'observed' },
+          { name: 'jQuery', evidence: 'observed' }
+        ]
+      },
+      extensionInventory: { items: [{ state: 'enabled' }, { state: 'disabled' }, { state: 'enabled' }], gaps: [{}] }
+    })
+    const brief = digests['SITE-BRIEF.md']
+    expect(brief).toContain('- Stack: Joomla 5.2.3 (Verified) · PHP 8.3 (Verified) · Cloudflare · Bootstrap +1 more — read surface/stack.json')
+    expect(brief).toContain('- Extensions: 3 installed, 1 disabled, 1 gaps — read surface/inventory.json')
+    // Absent files say nothing at all — no data and no line are the same honest answer.
+    expect(generateDigests(base)['SITE-BRIEF.md']).not.toContain('- Stack:')
+  })
 })
