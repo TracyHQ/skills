@@ -114,6 +114,16 @@ describe('dbResidue', () => {
     ).toEqual([])
   })
 
+  it('never counts a table already in the trash, so a cleanup closes the finding', () => {
+    expect(
+      runDbResidueCheck({
+        platform: 'joomla',
+        inventory: { items: [{ id: 'com_sh404sef', name: 'sh404SEF', state: 'disabled' }] },
+        dbTables: { tables: ['_tracy_trash_20260823__ja_sh404sef_pageids', 'ja_content'] }
+      })
+    ).toEqual([])
+  })
+
   it('reports nothing when every mapped extension is clean or enabled', () => {
     expect(
       runDbResidueCheck({

@@ -7,7 +7,7 @@ description: >-
   under one apply_id so the whole deliverable reverts to exactly what was there. Only Owner/Admin
   seats may apply, and the relay enforces it. Use when a deliverable has been approved and must land
   on the live site.
-version: 1.5.0
+version: 1.6.0
 platforms: joomla
 requires-mcp:
   - tracy-apply
@@ -85,6 +85,16 @@ host or hold a credential.
 - **`install_extension`** — a component, template, or plugin from a public `https` `.zip` URL the
   site downloads itself. Use when a template needs a supporting extension. Not part of the revert
   log: installing is additive and the CMS owns the uninstall.
+- **`cleanup_db_tables`** — retire tables that DISABLED extensions left behind (the
+  `disabled-extension-residue` finding, component ≥ 0.8.16). NEVER a drop: each table is renamed
+  into `_tracy_trash_<ts>__<name>` — instant and fully reversible (ADR 0083). Only Admin/Owner
+  seats; the site refuses core-looking tables on its own. Take the table names from
+  `surface/db-tables.json`, and only tables whose WHOLE extension family shows `disabled` in
+  `surface/inventory.json` — one enabled member means the tables are alive, leave them. Not part
+  of the apply_id revert log: it has its own undo below. Always report which tables moved and
+  that the next Scan will close the finding as verified.
+- **`restore_db_tables`** — the way back: a trash-named table returns to its original name.
+  Refused if the original name exists again.
 - **`revert_apply`** — undo a whole Apply by its `apply_id`, newest step first.
 - **`list_apply`** — see what an `apply_id` touched (kind, id or path, create-or-update) without the
   before-payload.

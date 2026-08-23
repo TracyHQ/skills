@@ -30560,7 +30560,9 @@ function dbResidueCheckRan(input) {
 function runDbResidueCheck(input) {
   if (!dbResidueCheckRan(input)) return [];
   const adapter2 = ADAPTERS[input.platform];
-  const tables = (input.dbTables?.tables ?? []).filter((t) => typeof t === "string");
+  const tables = (input.dbTables?.tables ?? []).filter(
+    (t) => typeof t === "string" && !t.startsWith("_tracy_trash_")
+  );
   const items = input.inventory?.items ?? [];
   const families = /* @__PURE__ */ new Map();
   for (const item of items) {

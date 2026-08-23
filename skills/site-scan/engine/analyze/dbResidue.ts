@@ -156,7 +156,12 @@ export function runDbResidueCheck(input: {
 }): Finding[] {
   if (!dbResidueCheckRan(input)) return []
   const adapter = ADAPTERS[input.platform as string]
-  const tables = (input.dbTables?.tables ?? []).filter((t): t is string => typeof t === 'string')
+  // Trash is invisible (ADR 0083 §5): a cleaned table keeps its old name inside the trash name,
+  // so counting `_tracy_trash_*` would keep the finding open forever. Skipping it is also what
+  // lets the next Scan close the finding as verified after a cleanup.
+  const tables = (input.dbTables?.tables ?? []).filter(
+    (t): t is string => typeof t === 'string' && !t.startsWith('_tracy_trash_')
+  )
   const items = input.inventory?.items ?? []
 
   // Group every inventory item (any state) by the map key its candidates hit.
