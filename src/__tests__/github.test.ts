@@ -10,7 +10,8 @@ const record: SkillRecord = {
   ref: 'main',
   skillPath: 'skills/refund-audit',
   autoInstall: false,
-  platforms: ['woocommerce']
+  platforms: ['woocommerce'],
+  extensions: []
 }
 
 const ok = (body: string, json: unknown = {}) => ({
