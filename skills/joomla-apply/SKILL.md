@@ -7,7 +7,7 @@ description: >-
   under one apply_id so the whole deliverable reverts to exactly what was there. Only Owner/Admin
   seats may apply, and the relay enforces it. Use when a deliverable has been approved and must land
   on the live site.
-version: 1.4.0
+version: 1.5.0
 platforms: joomla
 requires-mcp:
   - tracy-apply
@@ -73,8 +73,10 @@ host or hold a credential.
   tree-shaped kinds since component 0.8.14: a new `menuItem` needs `title`, `menutype` and
   `link` (`type` defaults to `url`; use `component` with an `option=` link for component pages);
   a new `category` or `tag` needs a `title`; `parent_id` is optional and defaults to root.
-  Aliases are minted for you — never send `alias`, and moving an existing node to another
-  parent is not supported yet.
+  Aliases are minted for you — never send `alias`. On an EXISTING tree node, `parent_id`
+  MOVES it under that parent (optional `move_after`: a sibling id to slot in after, 0 for
+  first); paths rebuild for the whole branch and revert restores the exact old position. An
+  article changes category by writing `catid` — a plain field, not a move.
   `fields` is a map of column → value; only the columns allowed for that kind are written.
 - **`delete_content`** — move one row to Joomla's own trash (revertable through the same
   `apply_id`). Structure and identity kinds (menutype, user, templateStyle, extensionParams)
