@@ -73,6 +73,34 @@ the site.
   most plugins' settings — often as **serialized PHP**. Serialized values break if edited by
   hand; only write them through the option tools, whole.
 
+## Branding: logo and favicon
+
+A logo is not a file you put somewhere. It is **an attachment id held in an option**, and a
+**template that renders it** — and both halves have to be there.
+
+- **The favicon** is the option `site_icon`, holding an attachment id. One write, no template
+  involved. It is the cheapest of these to change, and the one to try first when proving the
+  path works.
+- **The site logo** on a block theme is the option `site_logo` (attachment id), rendered by a
+  `wp:site-logo` block in the template. On a classic theme it is `custom_logo` inside
+  `theme_mods_<stylesheet>` — a serialized option — rendered by `the_custom_logo()`.
+- So changing a logo is three steps, in this order: `upload_media` to put the file in the
+  library, take the **attachment id from its answer**, then `update_content` (kind `option`) to
+  point `site_logo` at it. Skip the middle and you set the option to nothing.
+- **A `wp:site-logo` block with no image renders NOTHING.** It does not fall back to the site
+  title. Replacing a hand-written wordmark with that block before the image exists leaves the
+  header blank — seen on a real site 24/08/2026, where the upload had failed and the block
+  shipped anyway.
+- **Many themes never use either option.** They hard-code the wordmark as markup in a template
+  part, exactly as this site's did. Read the header template BEFORE assuming an option controls
+  anything: if there is no `wp:site-logo` block and no `the_custom_logo()` call, setting the
+  option changes nothing at all, and the change to make is to the template.
+- **An SVG is text, and text does not need the media library.** Where `uploads/` refuses writes
+  (a permissions problem on the host, which no tool here can fix), an SVG logo can be embedded
+  straight into the template part — the whole `<svg>…</svg>` inline. It costs a few KB on every
+  page and it takes the upload, the attachment and the option out of the picture entirely.
+  Weigh that against a raster logo, which has no such escape.
+
 ## Rules of engagement on a Tracy site
 
 - **Core is untouchable** (ADR 0070): `wp-admin/`, `wp-includes/`, and core files at the root
