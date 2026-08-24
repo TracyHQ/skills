@@ -100,6 +100,12 @@ A logo is not a file you put somewhere. It is **an attachment id held in an opti
   straight into the template part — the whole `<svg>…</svg>` inline. It costs a few KB on every
   page and it takes the upload, the attachment and the option out of the picture entirely.
   Weigh that against a raster logo, which has no such escape.
+- **The header itself is reachable: `update_content` kind `templatePart`.** A block theme's
+  header, footer and layouts live in `templates/` and `parts/` as files, and WordPress lets a
+  database row override any of them — which is what the Site Editor writes when a person edits a
+  header by hand. That row is what Apply writes too, so a hard-coded wordmark can be replaced on a
+  live site without touching a file of the theme. Reverting removes the override and the theme's
+  own file takes over again.
 
 ## Rules of engagement on a Tracy site
 
