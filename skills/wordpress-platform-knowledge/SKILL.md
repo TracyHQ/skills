@@ -107,6 +107,32 @@ A logo is not a file you put somewhere. It is **an attachment id held in an opti
   live site without touching a file of the theme. Reverting removes the override and the theme's
   own file takes over again.
 
+## Changing a logo: the order to decide in
+
+Every branch below is settled by something you can READ, so none of it is a question for the
+person who asked. They said what they wanted; this is how it gets done.
+
+1. **Open the header template and look.** `wp:site-logo` block, `the_custom_logo()`, or a
+   hand-written wordmark? On a block theme the header is `parts/header.html` and its database
+   override, and reading both is two tool calls.
+2. **If it is a hand-written wordmark, the template is what must change.** No option controls it,
+   so setting `site_logo` does nothing at all. Do not go looking for one.
+3. **Change the template with `update_content` kind `templatePart`.** That writes the database
+   override the Site Editor writes, so nothing of the theme's own files is touched and a revert
+   hands the part back. This is the door; there is no other one to a live site.
+4. **Is the new logo an SVG? Then it needs no upload.** Put the whole `<svg>…</svg>` inline in the
+   markup. No media library, no attachment, no `site_logo`, no permissions to go wrong. Only a
+   raster logo needs `upload_media`, and only then does `uploads/` being writable matter.
+5. **If the template DOES use `wp:site-logo` or `the_custom_logo()`**, then and only then is this
+   an upload plus an option write: `upload_media`, take the attachment id from its answer, point
+   `site_logo` (block theme) or `custom_logo` in `theme_mods_<stylesheet>` (classic) at it.
+6. **Then look at the site** and say what changed. A logo swap is verifiable in one fetch; a
+   report that skips it is a guess.
+
+**`uploads/` refusing to be written is a host permission**, not something to route around and not
+something to ask about twice. Say it plainly, and if the logo is an SVG, note that step 4 does not
+need it anyway.
+
 ## Rules of engagement on a Tracy site
 
 - **Core is untouchable** (ADR 0070): `wp-admin/`, `wp-includes/`, and core files at the root
