@@ -116,8 +116,8 @@ plugin list in the digest). Do not guess the key from the plugin's name — read
 A Site agent is handed these by `tracy-apply`; the site is resolved for you, so you never name a
 host or hold a credential.
 
-- **`update_content`** — one post, one post meta, or one option. `kind` is `post` | `postmeta` |
-  `option`.
+- **`update_content`** — one post, one post meta, one option, or one template part. `kind` is
+  `post` | `postmeta` | `option` | `templatePart`.
   - `post`: `id` is the post; leave it at 0 to insert. `fields` may carry `post_title`,
     `post_content`, `post_excerpt`, `post_status`, `post_name`, `post_parent`, `menu_order`, and
     `post_type` on insert only. **Any other field is refused**, with both lists named — it is not
@@ -130,6 +130,15 @@ host or hold a credential.
     refused outright (`siteurl`, `home`, `active_plugins`, `template`, `stylesheet`, `user_roles`,
     the plugin's own token, and transients): each of those takes the site away from whoever would
     have to fix it, and breaking one breaks the way back to the revert too.
+  - `templatePart`: `key` is the part slug (`header`, `footer`), `fields.content` is the block
+    markup, `fields.area` groups it (`header` | `footer` | `uncategorized`) and defaults to what
+    the part already had. **This is the only door to how a block theme LOOKS** — its header, its
+    footer and every layout are template parts, not posts, so no amount of `post` editing reaches
+    them. The write is a database override of the theme's own file, which is exactly what the Site
+    Editor does: nothing of somebody else's theme is touched, and reverting removes the override
+    and hands the part back to the theme.
+    Read the part before you replace it, and keep what you are not changing — a template part is
+    the whole header, so an edit that only remembers the logo throws away the navigation with it.
 - **`upload_media`** — one file under `wp-content/uploads/` only (never code), carried as base64,
   registered in the **Media Library** so a person can find it where they would look. **The ceiling
   is 8 MiB of decoded bytes** (`MAX_MEDIA_BYTES` in the site plugin's engine); past that the answer
