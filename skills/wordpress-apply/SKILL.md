@@ -116,8 +116,8 @@ plugin list in the digest). Do not guess the key from the plugin's name — read
 A Site agent is handed these by `tracy-apply`; the site is resolved for you, so you never name a
 host or hold a credential.
 
-- **`update_content`** — one post, one post meta, one option, or one template part. `kind` is
-  `post` | `postmeta` | `option` | `templatePart`.
+- **`update_content`** — one post, post meta, option, template part, term or menu entry. `kind` is
+  `post` | `postmeta` | `option` | `templatePart` | `term` | `menuItem`.
   - `post`: `id` is the post; leave it at 0 to insert. `fields` may carry `post_title`,
     `post_content`, `post_excerpt`, `post_status`, `post_name`, `post_parent`, `menu_order`, and
     `post_type` on insert only. **Any other field is refused**, with both lists named — it is not
@@ -139,6 +139,30 @@ host or hold a credential.
     and hands the part back to the theme.
     Read the part before you replace it, and keep what you are not changing — a template part is
     the whole header, so an edit that only remembers the logo throws away the navigation with it.
+  - `term`: `key` is the **taxonomy** (`category`, `post_tag`, `nav_menu`), `id` the term — 0
+    creates. `fields` may carry `name`, `slug`, `description`, `parent`. WordPress keeps
+    categories, tags AND menus in taxonomies, which is why one kind covers what Joomla needs
+    three for. **Renaming keeps the slug**: a slug is an address, and changing it breaks every
+    link to that archive. Pass `slug` only when you mean to move the page.
+  - `menuItem`: `key` is the **menu** it belongs to, `id` the entry — 0 creates. `fields` may
+    carry `title`, `url`, `type`, `object`, `object_id`, `parent`, `position`. **Anything you
+    leave out keeps what it had**, so moving an entry does not blank the link it points at. A
+    menu entry's destination lives in meta rather than in its row, which is why this is its own
+    kind and not a `post` write.
+- **`delete_content`** — a post or page to WordPress's own trash, or a menu entry or template-part
+  override removed. `kind` is `post` | `menuItem` | `templatePart`; a template part is named by
+  `key` (its slug), the other two by `id`. A trashed post stays recoverable from the admin screens
+  long after this Apply's revert window closes, so Tracy is never the only way back.
+  **A term cannot be deleted**, and that is a decision rather than a gap: re-creating one mints a
+  new id, and every post filed under the old one silently loses its category. Rename it or leave it.
+- **`cleanup_db_tables`** — retire tables a removed plugin left behind. NEVER a drop: each is
+  renamed to `_tracy_trash_<timestamp>__<name>`, instantly and reversibly. Core tables are refused
+  by the site itself, matched by name ending so a randomised table prefix does not matter. Only
+  name a table whose plugin is entirely gone: one still read by something installed is not residue.
+- **`restore_db_tables`** — a trash-named table returns to its original name.
+- **`purge_db_tables`** — empty the trash for good. Only `_tracy_trash_*` names are accepted, so
+  nothing else can ever be dropped through this door. Use it only after a scan confirmed the site
+  healthy without them.
 - **`upload_media`** — one file under `wp-content/uploads/` only (never code), carried as base64,
   registered in the **Media Library** so a person can find it where they would look. **The ceiling
   is 8 MiB of decoded bytes** (`MAX_MEDIA_BYTES` in the site plugin's engine); past that the answer

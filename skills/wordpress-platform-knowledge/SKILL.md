@@ -111,12 +111,35 @@ A logo is not a file you put somewhere. It is **an attachment id held in an opti
 
 - **Core is untouchable** (ADR 0070): `wp-admin/`, `wp-includes/`, and core files at the root
   are the updater's. Work in a child theme, a plugin, blocks, and content.
-- **Writes go through the Apply tools**: `update_content` (kind `post`, `postmeta`, `option`),
-  `upload_media`, and the two-step `install_plugin`/`activate_plugin` (same for themes). Every
-  step logs under an `apply_id` and reverts exactly. A new post lands as a **draft** by design —
+- **Writes go through the Apply tools**: `update_content` (kind `post`, `postmeta`, `option`,
+  `templatePart`, `term`, `menuItem`), `delete_content`, `upload_media`, the two-step
+  `install_plugin`/`activate_plugin` (same for themes), and `cleanup_db_tables` /
+  `restore_db_tables` / `purge_db_tables` for residue a removed plugin left behind. Every step
+  logs under an `apply_id` and reverts exactly. A new post lands as a **draft** by design —
   publishing is a decision, not a side effect.
+- **Three things are addressed by name, not by row id**, because WordPress does not keep them as
+  plain rows: a template part by its slug, a term by its taxonomy, a menu entry by its menu. A
+  term outside a vocabulary and a menu entry outside a menu are not things.
+- **A delete is a trash, and a term is not deletable at all.** A post goes to WordPress's own
+  trash, recoverable from the admin screens long after an Apply can be reverted. A term cannot be
+  removed through Apply: re-creating one mints a new term id, and every post filed under the old
+  one silently loses its category.
 - **State facts come from the site's data**: `stack.json` and `inventory.json` first, tool
   answers second, memory never.
+
+## Menus and taxonomies
+
+- A **menu is a taxonomy term** (`nav_menu`), and each entry is a `nav_menu_item` post whose
+  destination lives in five meta keys (`_menu_item_type`, `_menu_item_object`,
+  `_menu_item_object_id`, `_menu_item_url`, `_menu_item_menu_item_parent`). A row written without
+  them renders as a link to nowhere, which is why an entry is written through WordPress's own
+  `wp_update_nav_menu_item` and never as a raw post.
+- **Which menu appears where** is the theme's business: a block theme places a navigation block in
+  a template part, a classic theme registers menu locations. Editing a menu does not decide where
+  it shows.
+- **Categories and tags are terms too**, and so is every custom taxonomy. Renaming one keeps its
+  slug unless the slug is passed explicitly — a slug is an address, and changing it breaks every
+  link to that archive along with anything a person bookmarked.
 
 ## Traps seen on real client sites
 
