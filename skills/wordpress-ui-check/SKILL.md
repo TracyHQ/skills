@@ -2,8 +2,10 @@
 name: wordpress-ui-check
 description: Look at a WordPress site the way a visitor does and report what is unfinished or missing — empty sections, filler text, demo pages, dead buttons, text spilling out of its box. Renders each page in a real browser, walks the findings one at a time, and remembers each decision. Use whenever someone asks how their site looks, whether it looks finished, wants a design or UX review, or says "check my site", "review my homepage", "soi giao diện", "review giao diện website" — even without saying WordPress. For robots.txt and structured data use site-scan; for broken pages use design-qa.
 
-version: 0.1.0
+version: 0.2.0
 platforms: wordpress
+requires-mcp:
+  - browser
 provenOn: juneflower.vn (Flatsome + WooCommerce, 1,001 urls, 11 templates — five pages reviewed, and the theme's own /price-table/ demo was still live)
 ---
 
@@ -69,8 +71,26 @@ is another page to look at.
 
 Playwright is the one thing this skill needs that does not ship with it. The script looks for it
 beside itself, in the directory the person is standing in, and in a global install — and if none of
-those answer it prints the two commands that fix it and stops. Pass those on and stop too; a review
-assembled from raw HTML is not the review this skill promises.
+those answer it prints the two commands that fix it and stops.
+
+**Do not stop there.** The person who asked how their site looks is usually not the person who
+installs npm packages, and telling them to run two commands before they can have an answer is a
+refusal wearing a helpful face. Fall back to the `browser` tools, which are mounted for every agent
+and need nothing installed:
+
+- `mcp__browser__open` on the page, `mcp__browser__screenshot` to see it.
+- `mcp__browser__execute` for the measurements `capture.mjs` would have taken — the section
+  rectangles, the images whose natural size differs from their displayed size, the text overflowing
+  its box. One script per page returning JSON.
+
+What you give up is scale, so spend it where it counts: the homepage and the two or three pages the
+survey ranked highest, at desktop width, and say plainly that you reviewed those and not the site.
+A short honest review of four pages beats a perfect review nobody can run. Offer the install as the
+way to widen it next time, once they have something in hand.
+
+What you must NOT do is assemble a review out of raw HTML, and you must never reach for the
+person's own browser: no `open -a`, no `osascript`, no `screencapture`. Their screen is theirs, and
+those commands only work on a developer's machine anyway.
 
 The install is one-time and takes a couple of minutes:
 
