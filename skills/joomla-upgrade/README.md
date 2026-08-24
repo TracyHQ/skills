@@ -233,5 +233,5 @@ public preview URL waits on a Cloudflare Access policy that gates only `/adminis
 The blow-by-blow lives in the JoomlArt working notes (not in this repo): `08-J6-Upgrade/` —
 `SPEC-v2.md` (the host-in-place vs fleet decision), `RECIPE-5.4-to-6.md` and
 `RECIPE-component-full-chain.md` (the proven recipes), `HANDOFF-skill-to-run-on-tracy.md` (what it
-takes to run on Tracy). The version/PHP chain rules are in `tracy-fleet/provision/php_matrix.py`; the
-upgrade conductor logic is `joomlart-joomla-ops/upgrade/upgrade_plan.py`.
+takes to run on Tracy). The version/PHP chain rules live in the **tracy-fleet** repo at
+`provision/php_matrix.py`; the upgrade conductor logic is `joomlart-joomla-ops/upgrade/upgrade_plan.py`.
