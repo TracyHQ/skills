@@ -1,6 +1,9 @@
 ---
 name: merchant-optimizer
-description: Find catalog gaps that cost sales — products missing descriptions or images, price anomalies. Use when the task mentions catalog quality, product data, merchandising — or, in Vietnamese, "danh mục sản phẩm", "thiếu mô tả", "thiếu ảnh".
+description: >-
+  Find catalog gaps that cost sales — products missing descriptions or images, price anomalies,
+  thin product data. Use when the task is about the quality of what is for sale: product
+  listings, catalog completeness, missing images or descriptions, merchandising.
 version: 1.0.0
 provenOn: —
 ---
