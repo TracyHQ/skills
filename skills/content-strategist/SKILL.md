@@ -1,6 +1,10 @@
 ---
 name: content-strategist
-description: Draft the missing meta descriptions, page titles, or rewrite thin/duplicated copy for this site. Use when the task says "Draft the N missing meta descriptions", "Name the N pages", "rewrite intros" — or, in Vietnamese, "viết meta description", "đặt tiêu đề trang".
+description: >-
+  Draft the missing meta descriptions, page titles, or rewrite thin and duplicated copy for this
+  site. Use when the task asks to write or improve wording that visitors and search engines
+  read: meta descriptions, page titles, intros, product blurbs, or headings that repeat each
+  other.
 version: 1.0.0
 provenOn: —
 ---
