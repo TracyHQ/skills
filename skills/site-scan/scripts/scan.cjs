@@ -30867,8 +30867,8 @@ function runMnDiscoverability(allPages, robotsText, siteKey) {
     add2("organization-schema", "No machine-readable brand identity anywhere", [`no Organization markup on ${siteKey}`]);
   } else if (!orgs.some((o) => o.name && o.logo && o.sameAs)) {
     const best = orgs[0];
-    const missing = [!best.name && "name", !best.logo && "logo", !best.sameAs && "sameAs"].filter(Boolean).join(", ");
-    add2("organization-schema", "Brand identity markup is incomplete", [`Organization missing: ${missing}`]);
+    const missing2 = [!best.name && "name", !best.logo && "logo", !best.sameAs && "sameAs"].filter(Boolean).join(", ");
+    add2("organization-schema", "Brand identity markup is incomplete", [`Organization missing: ${missing2}`]);
   }
   add2(
     "video-schema",
@@ -31170,6 +31170,30 @@ function describe(probe) {
 var DIGEST_BYTE_BUDGET = 32 * 1024;
 var TOP_FINDINGS = 50;
 var TOP_RECENT_PAGES = 30;
+var DOOR_NAMES = {
+  "shopify:admin": "the Shopify admin door",
+  "shopify:content": "the Shopify content door",
+  "wordpress:rest": "the WordPress REST API",
+  "joomla:web-services": "Joomla Web Services"
+};
+function coverageLine(coverage) {
+  if (!coverage?.door) return [];
+  const door = DOOR_NAMES[coverage.door] ?? coverage.door;
+  const gaps = (coverage.gaps ?? []).map((gap) => gap.what).filter((what) => Boolean(what));
+  if (gaps.length === 0) {
+    return [`> **Coverage:** this local copy was read through ${door}, which sees everything Tracy copies.`, ""];
+  }
+  return [`> **Coverage:** this local copy was read through ${door}. Not in it: ${missing(coverage, gaps)}`, HEDGE, ""];
+}
+var HEDGE = "> Any count taken here covers only what this door can see, so say that rather than describing it as the whole site.";
+var NAMED_GAPS = 4;
+function missing(coverage, gaps) {
+  const only = gaps.length === 1 ? (coverage.gaps ?? []).find((gap) => gap.what)?.detail : void 0;
+  if (gaps.length === 1) return only ? `${gaps[0]} \u2014 ${only}` : `${gaps[0]}.`;
+  const named = gaps.slice(0, NAMED_GAPS).join("; ");
+  const rest = gaps.length - NAMED_GAPS;
+  return rest > 0 ? `${named}; and ${rest} more \u2014 see surface/coverage.json.` : `${named}.`;
+}
 function generateDigests(input) {
   return {
     "SITE-BRIEF.md": fitBudget(siteBrief(input)),
@@ -31187,9 +31211,11 @@ function siteBrief({
   platform,
   stack,
   extensionInventory,
-  llmsCuratedLinks
+  llmsCuratedLinks,
+  coverage
 }) {
   const lines = [];
+  lines.push(...coverageLine(coverage));
   lines.push(`# Site brief \u2014 ${siteKey}`);
   lines.push("");
   lines.push("What the public web sees of this site (Evidence: Observed unless noted).");
@@ -31229,7 +31255,7 @@ function siteBrief({
   }
   lines.push("");
   lines.push(
-    `Coverage: ${report.htmlFetched} pages fetched, ${report.errors} errors, ${report.robotsBlocked} blocked by robots.`
+    `Crawl: ${report.htmlFetched} pages fetched, ${report.errors} errors, ${report.robotsBlocked} blocked by robots.`
   );
   if (report.cappedHtml > 0)
     lines.push(`Capped: ${report.cappedHtml} urls beyond the html budget \u2014 see surface/crawl-report.json.`);
@@ -36462,8 +36488,8 @@ function filterParsed(selector, elements, options) {
   }
   for (let i = 0; i < filteredSelectors.length && (found === null || found === void 0 ? void 0 : found.size) !== elements.length; i++) {
     const filteredSelector = filteredSelectors[i];
-    const missing = found ? elements.filter((e) => isTag2(e) && !found.has(e)) : elements;
-    if (missing.length === 0)
+    const missing2 = found ? elements.filter((e) => isTag2(e) && !found.has(e)) : elements;
+    if (missing2.length === 0)
       break;
     const filtered = filterBySelector(filteredSelector, elements, options);
     if (filtered.length) {
@@ -47368,8 +47394,8 @@ function noteAgentDoor(ucp) {
   return ucp.platform ? { kind: "agent-door-split" } : { kind: "agent-door-missing" };
 }
 function noteAgentFiles(ucp) {
-  const missing = ucp.agentFiles.filter((f) => f.status !== 200).length;
-  return missing > 0 ? { kind: "agent-files-missing", count: missing } : void 0;
+  const missing2 = ucp.agentFiles.filter((f) => f.status !== 200).length;
+  return missing2 > 0 ? { kind: "agent-files-missing", count: missing2 } : void 0;
 }
 function noteVerdict(findings) {
   const actionable = findings.filter((f) => !f.platformLimit).length;
@@ -47725,6 +47751,10 @@ async function runCrawl(input) {
     // them so a reader knows they exist — the files themselves carry the detail.
     stack: await readPreviousSurfaceFile(input.workspacePath, "stack.json"),
     extensionInventory: await readPreviousSurfaceFile(input.workspacePath, "inventory.json"),
+    // Which door built this local copy, as the MIRROR measured it (ADR 0092 §3). The file is the
+    // whole contract: this engine never calls the mirror and never works Coverage out for itself,
+    // so a crawl with no mirror behind it simply finds no file — which is correct, not a gap.
+    coverage: await readPreviousSurfaceFile(input.workspacePath, "coverage.json"),
     llmsCuratedLinks
   });
   await writeTree(input.workspacePath, {

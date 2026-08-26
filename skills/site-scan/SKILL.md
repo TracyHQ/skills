@@ -1,7 +1,7 @@
 ---
 name: site-scan
 description: Answer questions about this site's Scan — what it read, what it found, what changed — and start a new Scan on request. Use when someone asks about scan results, findings, pages, products, broken links, how fresh the local copy is, or asks to rescan.
-version: 1.4.1
+version: 1.5.0
 platforms: any
 requires-mcp:
   - tracy-site
@@ -66,6 +66,19 @@ never over the site.
 So: **"312 pages are missing a meta description"** is wrong if `cappedHtml` is not 0.
 **"312 of the 500 pages the scan read"** is right, and it invites the obvious next question
 instead of hiding it. Say the cap once, plainly; do not repeat it in every line.
+
+### The door, when there is one
+
+A second limit, and a different one. The cap above is about how far the crawl reached; **Coverage**
+is about which door read the site at all, and what that door cannot see. When a Sync has read this
+site through a platform credential, `SITE-BRIEF.md` **opens** with it:
+
+> **Coverage:** this local copy was read through the Shopify content door. Not in it: draft and
+> archived products — the Storefront API serves published products only.
+
+Obey that line. A count over products in a copy built through that door is a count over the
+published catalog, and reporting it as a count over the store is wrong in the same way a capped
+crawl is. No such line means no Sync has measured one — it never means the copy is whole.
 
 ## Starting a Scan
 

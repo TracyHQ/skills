@@ -22,7 +22,7 @@ import {
 } from './analyze/mnDiscoverability'
 import { runSeoChecks, SEO_CHECK_IDS } from './analyze/seoChecks'
 import { runUcpChecks, UCP_CHECK_IDS } from './analyze/ucpChecks'
-import { generateDigests } from './digest'
+import { type CoverageDoc, generateDigests } from './digest'
 import { createFetchQueue } from './fetchQueue'
 import { extractPage } from './harvest/pageExtract'
 import { harvestShopifyPublic } from './harvest/shopifyPublic'
@@ -520,6 +520,10 @@ export async function runCrawl(input: CrawlInput): Promise<{ report: CrawlReport
     // them so a reader knows they exist — the files themselves carry the detail.
     stack: await readPreviousSurfaceFile(input.workspacePath, 'stack.json'),
     extensionInventory: await readPreviousSurfaceFile(input.workspacePath, 'inventory.json'),
+    // Which door built this local copy, as the MIRROR measured it (ADR 0092 §3). The file is the
+    // whole contract: this engine never calls the mirror and never works Coverage out for itself,
+    // so a crawl with no mirror behind it simply finds no file — which is correct, not a gap.
+    coverage: await readPreviousSurfaceFile<CoverageDoc>(input.workspacePath, 'coverage.json'),
     llmsCuratedLinks
   })
 

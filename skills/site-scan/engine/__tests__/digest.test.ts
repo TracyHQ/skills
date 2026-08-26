@@ -119,6 +119,133 @@ describe('generateDigests', () => {
     expect(generateDigests(base)['SITE-BRIEF.md']).not.toContain('- Platform:')
   })
 
+  /**
+   * The Digest's opening line (ADR 0092 §3) — the half of Coverage that pays for the concept.
+   *
+   * A local copy built through a narrow door LOOKS complete: right folders, right commit, content
+   * in place, drafts missing with nothing saying so. A warning that lives only on a screen leaves
+   * the one thing that writes Proposals unaware of its own blind spot, so the brief opens with it.
+   *
+   * Every case here is driven by the FILE the mirror wrote. Nothing is recomputed, and nothing
+   * here knows what a door can see — that is the adapter's to declare and this line's to repeat.
+   */
+  describe('the Coverage line', () => {
+    const base = { siteKey: 'https://a.com', pages: [page('https://a.com/')], findings, report }
+
+    it('opens the brief by naming the door and what that door cannot see', () => {
+      const brief = generateDigests({
+        ...base,
+        coverage: {
+          door: 'shopify:content',
+          gaps: [
+            {
+              what: 'draft and archived products',
+              reason: 'platform-limit',
+              detail: 'The Storefront API serves published products only.'
+            }
+          ]
+        }
+      })['SITE-BRIEF.md']
+
+      const first = brief.split('\n')[0]
+      expect(first).toContain('Coverage')
+      expect(first).toContain('the Shopify content door')
+      expect(first).toContain('draft and archived products')
+      expect(first).toContain('The Storefront API serves published products only.')
+    })
+
+    it('tells the reader to hedge, so a count here is not reported as a count over the site', () => {
+      const brief = generateDigests({
+        ...base,
+        coverage: {
+          door: 'shopify:content',
+          gaps: [{ what: 'draft and archived products', reason: 'platform-limit', detail: 'Published only.' }]
+        }
+      })['SITE-BRIEF.md']
+
+      // Its own line of the same blockquote: what the reader must DO is a separate idea from
+      // what is missing, and fusing the two is what made the first version a run-on.
+      expect(brief.split('\n')[1]).toMatch(/what this door can see/)
+    })
+
+    it('terminates the sentence even when a gap carries no detail', () => {
+      // The no-detail branch used to run straight into the next sentence with no full stop:
+      // "…draft and archived products Any count taken here…", in the one line that must not skim.
+      const brief = generateDigests({
+        ...base,
+        coverage: { door: 'shopify:content', gaps: [{ what: 'draft and archived products', reason: 'permission' }] }
+      })['SITE-BRIEF.md']
+
+      expect(brief.split('\n')[0]).toMatch(/draft and archived products\.$/)
+    })
+
+    it('names a few gaps and points at the file for the rest, instead of building a wall', () => {
+      // The content door declares three gaps by design plus one per role it is refused, so nine
+      // full sentences joined end to end is the realistic case, not the pathological one.
+      const many = Array.from({ length: 9 }, (_, i) => ({
+        what: `thing ${i}`,
+        reason: 'permission' as const,
+        detail: `A whole sentence explaining thing ${i}, at the length these actually run to.`
+      }))
+      const first = generateDigests({ ...base, coverage: { door: 'shopify:content', gaps: many } })[
+        'SITE-BRIEF.md'
+      ].split('\n')[0]
+
+      expect(first).toContain('thing 0; thing 1; thing 2; thing 3; and 5 more — see surface/coverage.json.')
+      expect(first).not.toContain('thing 8')
+      expect(first.length).toBeLessThan(300)
+    })
+
+    it('says a wide door sees everything, as a claim and not as silence', () => {
+      const brief = generateDigests({ ...base, coverage: { door: 'shopify:admin', gaps: [] } })['SITE-BRIEF.md']
+
+      expect(brief.split('\n')[0]).toContain('the Shopify admin door')
+      expect(brief.split('\n')[0]).toContain('sees everything')
+    })
+
+    it('says nothing at all with no Coverage file, and never claims completeness', () => {
+      // A Crawl with no mirror behind it has no door to name. That is correct, not a gap.
+      const brief = generateDigests(base)['SITE-BRIEF.md']
+
+      expect(brief).not.toContain('Coverage:')
+      expect(brief).not.toContain('sees everything')
+      expect(brief.split('\n')[0]).toBe('# Site brief — https://a.com')
+    })
+
+    it('repeats a door it has never heard of rather than dropping the warning', () => {
+      // A newer adapter can name a door this bundle predates. Silence would read as complete.
+      const brief = generateDigests({
+        ...base,
+        coverage: { door: 'squarespace:content', gaps: [{ what: 'everything', reason: 'permission', detail: 'x' }] }
+      })['SITE-BRIEF.md']
+
+      expect(brief.split('\n')[0]).toContain('squarespace:content')
+    })
+
+    it('survives the byte budget — it is never the line that gets trimmed', () => {
+      const pages = Array.from({ length: 5000 }, (_, i) => page(`https://a.com/blog/post-${i}`))
+      const brief = generateDigests({
+        ...base,
+        pages,
+        coverage: {
+          door: 'shopify:content',
+          gaps: [{ what: 'draft and archived products', reason: 'platform-limit', detail: 'Published only.' }]
+        }
+      })['SITE-BRIEF.md']
+
+      expect(Buffer.byteLength(brief, 'utf8')).toBeLessThanOrEqual(DIGEST_BYTE_BUDGET)
+      expect(brief.split('\n')[0]).toContain('draft and archived products')
+    })
+
+    it('keeps the crawl reach under its own name, so one word does not mean two things', () => {
+      // "Coverage" is the door now (ADR 0092). What the crawl reached is the crawl's own line.
+      const brief = generateDigests({ ...base, coverage: { door: 'shopify:admin', gaps: [] } })['SITE-BRIEF.md']
+
+      expect(brief).toContain('Crawl: 3 pages fetched, 0 errors, 0 blocked by robots.')
+      expect(brief.match(/Coverage/g)).toHaveLength(1)
+    })
+  })
+
   it('names the stack and the inventory as pointers, evidence shown, detail left in the files', () => {
     const base = { siteKey: 'https://a.com', pages: [page('https://a.com/')], findings, report }
     const digests = generateDigests({

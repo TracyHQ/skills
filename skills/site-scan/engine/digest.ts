@@ -31,6 +31,87 @@ export type DigestInput = {
   extensionInventory?: { items?: { state?: string }[]; gaps?: unknown[] }
   /** Same-site links the owner curated in llms.txt — their hand-written map for AI readers. */
   llmsCuratedLinks?: number
+  /**
+   * `surface/coverage.json`, exactly as the mirror wrote it (ADR 0092 §3): which door built this
+   * local copy, and what that door cannot see.
+   *
+   * Read from the file and never recomputed — nothing here knows what a Shopify door can see, and
+   * the module that does is not called from here. Absent is an ordinary answer: a crawl with no
+   * mirror behind it has no door to name, and the brief then says nothing about Coverage rather
+   * than claiming completeness.
+   */
+  coverage?: CoverageDoc
+}
+
+/**
+ * `surface/coverage.json` as this engine reads it — structural, and deliberately loose.
+ *
+ * The file is written by a published adapter that ships on its own release train, so a door this
+ * bundle has never heard of must still produce a warning. Every field is optional for the same
+ * reason: a shape that fails to parse would silently drop the one line the reader needs most.
+ */
+export type CoverageDoc = {
+  door?: string
+  /**
+   * A gap carries more than this — a `reason` and sometimes a `remedy` — and the opening line
+   * uses two fields of it. The index signature says that out loud rather than re-declaring a
+   * shape this engine does not own.
+   */
+  gaps?: Array<{ what?: string; detail?: string; [field: string]: unknown }>
+}
+
+/** The doors in the reader's words. An unknown door falls back to its own name — never to silence. */
+const DOOR_NAMES: Record<string, string> = {
+  'shopify:admin': 'the Shopify admin door',
+  'shopify:content': 'the Shopify content door',
+  'wordpress:rest': 'the WordPress REST API',
+  'joomla:web-services': 'Joomla Web Services'
+}
+
+/**
+ * The brief's opening line: which door built this local copy, and what it cannot see.
+ *
+ * This is the half of Coverage that pays for the concept. A local copy built through a narrow door
+ * LOOKS complete — right folders, right commit, content in place — and is missing drafts with
+ * nothing saying so, which is how a Proposal comes out right about a narrow set and wrong about
+ * the store. A warning that lives only on a screen leaves the one thing that writes Proposals
+ * unaware of its own blind spot, so it goes here, first, before anything else.
+ *
+ * It carries an instruction and not just a fact, because the reader is an agent about to count
+ * things: what it must do differently is the part a bare door name would leave it to infer.
+ */
+function coverageLine(coverage: CoverageDoc | undefined): string[] {
+  if (!coverage?.door) return []
+  const door = DOOR_NAMES[coverage.door] ?? coverage.door
+  const gaps = (coverage.gaps ?? []).map((gap) => gap.what).filter((what): what is string => Boolean(what))
+  if (gaps.length === 0) {
+    return [`> **Coverage:** this local copy was read through ${door}, which sees everything Tracy copies.`, '']
+  }
+  return [`> **Coverage:** this local copy was read through ${door}. Not in it: ${missing(coverage, gaps)}`, HEDGE, '']
+}
+
+/** The instruction half, on its own line: what the reader must DO about the line above. */
+const HEDGE =
+  '> Any count taken here covers only what this door can see, so say that rather than ' +
+  'describing it as the whole site.'
+
+/** How many gaps the opening line names before it stops and points at the file. */
+const NAMED_GAPS = 4
+
+/**
+ * What the door cannot see, as one properly terminated sentence.
+ *
+ * One gap gets its `detail` — that field exists to be the reason in this line. Several do not:
+ * the content door alone declares three by design plus one per role it was refused, and nine
+ * full sentences joined together is a wall in the one place the reader must not skim. Past
+ * `NAMED_GAPS` it names a count and the file that holds the rest.
+ */
+function missing(coverage: CoverageDoc, gaps: string[]): string {
+  const only = gaps.length === 1 ? (coverage.gaps ?? []).find((gap) => gap.what)?.detail : undefined
+  if (gaps.length === 1) return only ? `${gaps[0]} — ${only}` : `${gaps[0]}.`
+  const named = gaps.slice(0, NAMED_GAPS).join('; ')
+  const rest = gaps.length - NAMED_GAPS
+  return rest > 0 ? `${named}; and ${rest} more — see surface/coverage.json.` : `${named}.`
 }
 
 /**
@@ -61,9 +142,13 @@ function siteBrief({
   platform,
   stack,
   extensionInventory,
-  llmsCuratedLinks
+  llmsCuratedLinks,
+  coverage
 }: DigestInput): string[] {
   const lines: string[] = []
+  // Before the title, because `fitBudget` trims from the tail and this line may never be the one
+  // that goes. It is also the only one here that changes how everything below should be read.
+  lines.push(...coverageLine(coverage))
   lines.push(`# Site brief — ${siteKey}`)
   lines.push('')
   lines.push('What the public web sees of this site (Evidence: Observed unless noted).')
@@ -104,8 +189,11 @@ function siteBrief({
     )
   }
   lines.push('')
+  // Named "Crawl", not "Coverage": since ADR 0092 that word means which DOOR built this copy, and
+  // one word meaning both how far the crawl reached and what the door can see is the exact
+  // confusion the concept exists to remove.
   lines.push(
-    `Coverage: ${report.htmlFetched} pages fetched, ${report.errors} errors, ${report.robotsBlocked} blocked by robots.`
+    `Crawl: ${report.htmlFetched} pages fetched, ${report.errors} errors, ${report.robotsBlocked} blocked by robots.`
   )
   if (report.cappedHtml > 0)
     lines.push(`Capped: ${report.cappedHtml} urls beyond the html budget — see surface/crawl-report.json.`)
@@ -174,7 +262,13 @@ function sectionOf(url: string): string {
   }
 }
 
-/** Joins lines, then trims whole lines from the tail until the budget holds — noting the cut. */
+/**
+ * Joins lines, then trims whole lines from the tail until the budget holds — noting the cut.
+ *
+ * From the TAIL, and never below one line: that is what makes the brief's Coverage line
+ * untrimmable. A size bound that could drop the sentence saying what is missing would leave a
+ * truncated copy looking like a whole one.
+ */
 function fitBudget(lines: string[]): string {
   let kept = lines.length
   let text = lines.join('\n')
