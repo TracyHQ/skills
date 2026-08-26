@@ -31170,6 +31170,25 @@ function describe(probe) {
 var DIGEST_BYTE_BUDGET = 32 * 1024;
 var TOP_FINDINGS = 50;
 var TOP_RECENT_PAGES = 30;
+var DOOR_NAMES = {
+  "shopify:admin": "the Shopify admin door",
+  "shopify:content": "the Shopify content door",
+  "wordpress:rest": "the WordPress REST API",
+  "joomla:web-services": "Joomla Web Services"
+};
+function coverageLine(coverage) {
+  if (!coverage?.door) return [];
+  const door = DOOR_NAMES[coverage.door] ?? coverage.door;
+  const gaps = (coverage.gaps ?? []).filter((gap) => gap.what);
+  if (gaps.length === 0) {
+    return [`> **Coverage:** this local copy was read through ${door}, which sees everything Tracy copies.`, ""];
+  }
+  const missing = gaps.map((gap) => gap.detail ? `${gap.what} \u2014 ${gap.detail}` : `${gap.what}`).join(" Also missing: ");
+  return [
+    `> **Coverage:** this local copy was read through ${door}. Not in it: ${missing} Any count taken here is a count over what this door can see, so say that rather than describing it as the whole site.`,
+    ""
+  ];
+}
 function generateDigests(input) {
   return {
     "SITE-BRIEF.md": fitBudget(siteBrief(input)),
@@ -31187,9 +31206,11 @@ function siteBrief({
   platform,
   stack,
   extensionInventory,
-  llmsCuratedLinks
+  llmsCuratedLinks,
+  coverage
 }) {
   const lines = [];
+  lines.push(...coverageLine(coverage));
   lines.push(`# Site brief \u2014 ${siteKey}`);
   lines.push("");
   lines.push("What the public web sees of this site (Evidence: Observed unless noted).");
@@ -31229,7 +31250,7 @@ function siteBrief({
   }
   lines.push("");
   lines.push(
-    `Coverage: ${report.htmlFetched} pages fetched, ${report.errors} errors, ${report.robotsBlocked} blocked by robots.`
+    `Crawl: ${report.htmlFetched} pages fetched, ${report.errors} errors, ${report.robotsBlocked} blocked by robots.`
   );
   if (report.cappedHtml > 0)
     lines.push(`Capped: ${report.cappedHtml} urls beyond the html budget \u2014 see surface/crawl-report.json.`);
@@ -47725,6 +47746,10 @@ async function runCrawl(input) {
     // them so a reader knows they exist — the files themselves carry the detail.
     stack: await readPreviousSurfaceFile(input.workspacePath, "stack.json"),
     extensionInventory: await readPreviousSurfaceFile(input.workspacePath, "inventory.json"),
+    // Which door built this local copy, as the MIRROR measured it (ADR 0092 §3). The file is the
+    // whole contract: this engine never calls the mirror and never works Coverage out for itself,
+    // so a crawl with no mirror behind it simply finds no file — which is correct, not a gap.
+    coverage: await readPreviousSurfaceFile(input.workspacePath, "coverage.json"),
     llmsCuratedLinks
   });
   await writeTree(input.workspacePath, {
