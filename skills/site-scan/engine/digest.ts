@@ -83,19 +83,35 @@ const DOOR_NAMES: Record<string, string> = {
 function coverageLine(coverage: CoverageDoc | undefined): string[] {
   if (!coverage?.door) return []
   const door = DOOR_NAMES[coverage.door] ?? coverage.door
-  const gaps = (coverage.gaps ?? []).filter((gap) => gap.what)
+  const gaps = (coverage.gaps ?? []).map((gap) => gap.what).filter((what): what is string => Boolean(what))
   if (gaps.length === 0) {
     return [`> **Coverage:** this local copy was read through ${door}, which sees everything Tracy copies.`, '']
   }
-  const missing = gaps
-    .map((gap) => (gap.detail ? `${gap.what} — ${gap.detail}` : `${gap.what}`))
-    .join(' Also missing: ')
-  return [
-    `> **Coverage:** this local copy was read through ${door}. Not in it: ${missing} ` +
-      'Any count taken here is a count over what this door can see, so say that rather than ' +
-      'describing it as the whole site.',
-    ''
-  ]
+  return [`> **Coverage:** this local copy was read through ${door}. Not in it: ${missing(coverage, gaps)}`, HEDGE, '']
+}
+
+/** The instruction half, on its own line: what the reader must DO about the line above. */
+const HEDGE =
+  '> Any count taken here covers only what this door can see, so say that rather than ' +
+  'describing it as the whole site.'
+
+/** How many gaps the opening line names before it stops and points at the file. */
+const NAMED_GAPS = 4
+
+/**
+ * What the door cannot see, as one properly terminated sentence.
+ *
+ * One gap gets its `detail` — that field exists to be the reason in this line. Several do not:
+ * the content door alone declares three by design plus one per role it was refused, and nine
+ * full sentences joined together is a wall in the one place the reader must not skim. Past
+ * `NAMED_GAPS` it names a count and the file that holds the rest.
+ */
+function missing(coverage: CoverageDoc, gaps: string[]): string {
+  const only = gaps.length === 1 ? (coverage.gaps ?? []).find((gap) => gap.what)?.detail : undefined
+  if (gaps.length === 1) return only ? `${gaps[0]} — ${only}` : `${gaps[0]}.`
+  const named = gaps.slice(0, NAMED_GAPS).join('; ')
+  const rest = gaps.length - NAMED_GAPS
+  return rest > 0 ? `${named}; and ${rest} more — see surface/coverage.json.` : `${named}.`
 }
 
 /**

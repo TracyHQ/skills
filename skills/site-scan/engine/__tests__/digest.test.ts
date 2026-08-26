@@ -163,7 +163,37 @@ describe('generateDigests', () => {
         }
       })['SITE-BRIEF.md']
 
-      expect(brief.split('\n')[0]).toMatch(/what this door can see/)
+      // Its own line of the same blockquote: what the reader must DO is a separate idea from
+      // what is missing, and fusing the two is what made the first version a run-on.
+      expect(brief.split('\n')[1]).toMatch(/what this door can see/)
+    })
+
+    it('terminates the sentence even when a gap carries no detail', () => {
+      // The no-detail branch used to run straight into the next sentence with no full stop:
+      // "…draft and archived products Any count taken here…", in the one line that must not skim.
+      const brief = generateDigests({
+        ...base,
+        coverage: { door: 'shopify:content', gaps: [{ what: 'draft and archived products', reason: 'permission' }] }
+      })['SITE-BRIEF.md']
+
+      expect(brief.split('\n')[0]).toMatch(/draft and archived products\.$/)
+    })
+
+    it('names a few gaps and points at the file for the rest, instead of building a wall', () => {
+      // The content door declares three gaps by design plus one per role it is refused, so nine
+      // full sentences joined end to end is the realistic case, not the pathological one.
+      const many = Array.from({ length: 9 }, (_, i) => ({
+        what: `thing ${i}`,
+        reason: 'permission' as const,
+        detail: `A whole sentence explaining thing ${i}, at the length these actually run to.`
+      }))
+      const first = generateDigests({ ...base, coverage: { door: 'shopify:content', gaps: many } })[
+        'SITE-BRIEF.md'
+      ].split('\n')[0]
+
+      expect(first).toContain('thing 0; thing 1; thing 2; thing 3; and 5 more — see surface/coverage.json.')
+      expect(first).not.toContain('thing 8')
+      expect(first.length).toBeLessThan(300)
     })
 
     it('says a wide door sees everything, as a claim and not as silence', () => {

@@ -30867,8 +30867,8 @@ function runMnDiscoverability(allPages, robotsText, siteKey) {
     add2("organization-schema", "No machine-readable brand identity anywhere", [`no Organization markup on ${siteKey}`]);
   } else if (!orgs.some((o) => o.name && o.logo && o.sameAs)) {
     const best = orgs[0];
-    const missing = [!best.name && "name", !best.logo && "logo", !best.sameAs && "sameAs"].filter(Boolean).join(", ");
-    add2("organization-schema", "Brand identity markup is incomplete", [`Organization missing: ${missing}`]);
+    const missing2 = [!best.name && "name", !best.logo && "logo", !best.sameAs && "sameAs"].filter(Boolean).join(", ");
+    add2("organization-schema", "Brand identity markup is incomplete", [`Organization missing: ${missing2}`]);
   }
   add2(
     "video-schema",
@@ -31179,15 +31179,20 @@ var DOOR_NAMES = {
 function coverageLine(coverage) {
   if (!coverage?.door) return [];
   const door = DOOR_NAMES[coverage.door] ?? coverage.door;
-  const gaps = (coverage.gaps ?? []).filter((gap) => gap.what);
+  const gaps = (coverage.gaps ?? []).map((gap) => gap.what).filter((what) => Boolean(what));
   if (gaps.length === 0) {
     return [`> **Coverage:** this local copy was read through ${door}, which sees everything Tracy copies.`, ""];
   }
-  const missing = gaps.map((gap) => gap.detail ? `${gap.what} \u2014 ${gap.detail}` : `${gap.what}`).join(" Also missing: ");
-  return [
-    `> **Coverage:** this local copy was read through ${door}. Not in it: ${missing} Any count taken here is a count over what this door can see, so say that rather than describing it as the whole site.`,
-    ""
-  ];
+  return [`> **Coverage:** this local copy was read through ${door}. Not in it: ${missing(coverage, gaps)}`, HEDGE, ""];
+}
+var HEDGE = "> Any count taken here covers only what this door can see, so say that rather than describing it as the whole site.";
+var NAMED_GAPS = 4;
+function missing(coverage, gaps) {
+  const only = gaps.length === 1 ? (coverage.gaps ?? []).find((gap) => gap.what)?.detail : void 0;
+  if (gaps.length === 1) return only ? `${gaps[0]} \u2014 ${only}` : `${gaps[0]}.`;
+  const named = gaps.slice(0, NAMED_GAPS).join("; ");
+  const rest = gaps.length - NAMED_GAPS;
+  return rest > 0 ? `${named}; and ${rest} more \u2014 see surface/coverage.json.` : `${named}.`;
 }
 function generateDigests(input) {
   return {
@@ -36483,8 +36488,8 @@ function filterParsed(selector, elements, options) {
   }
   for (let i = 0; i < filteredSelectors.length && (found === null || found === void 0 ? void 0 : found.size) !== elements.length; i++) {
     const filteredSelector = filteredSelectors[i];
-    const missing = found ? elements.filter((e) => isTag2(e) && !found.has(e)) : elements;
-    if (missing.length === 0)
+    const missing2 = found ? elements.filter((e) => isTag2(e) && !found.has(e)) : elements;
+    if (missing2.length === 0)
       break;
     const filtered = filterBySelector(filteredSelector, elements, options);
     if (filtered.length) {
@@ -47389,8 +47394,8 @@ function noteAgentDoor(ucp) {
   return ucp.platform ? { kind: "agent-door-split" } : { kind: "agent-door-missing" };
 }
 function noteAgentFiles(ucp) {
-  const missing = ucp.agentFiles.filter((f) => f.status !== 200).length;
-  return missing > 0 ? { kind: "agent-files-missing", count: missing } : void 0;
+  const missing2 = ucp.agentFiles.filter((f) => f.status !== 200).length;
+  return missing2 > 0 ? { kind: "agent-files-missing", count: missing2 } : void 0;
 }
 function noteVerdict(findings) {
   const actionable = findings.filter((f) => !f.platformLimit).length;
