@@ -1,114 +1,88 @@
 ---
 name: wordpress-plugin-update-audit
-description: Use before updating plugins on a live WordPress site — establishes what is actually verifiable, what the checksum check silently skipped, and what to snapshot, so an update that breaks the site can be undone and explained.
+description: Read this BEFORE updating, installing or activating any plugin on a WordPress site — it is the one class of change Tracy cannot undo for you, and cannot verify afterwards. Use when someone asks whether their plugins need updating, asks you to update or install one, or asks whether an update is safe. Covers what the site's own inventory can and cannot tell you, why the usual integrity check is unavailable here, and what must be agreed with the customer before the call rather than explained after it.
+version: 2.0.0
+platforms: wordpress, woocommerce
+requires-mcp:
+  - tracy-apply
 tags:
   - wordpress
-  - wp-cli
   - maintenance
-  - security
-version: 1.0.0
 provenOn: —
 ---
 
-# Auditing a WordPress site before a plugin update
+# Before a plugin update
 
-Updating plugins on a site that takes orders is not a package-manager problem. The risk is not
-that an update fails loudly — it is that it succeeds, changes behaviour, and nobody notices until
-a customer does.
+Every other change an agent makes to a WordPress site can be taken back. This one cannot. Read the
+two sections below before the first call, not after it.
 
-This skill produces the evidence you need **before** touching anything, and it is written around
-one specific trap that reads as good news.
+## What Tracy can and cannot do here
 
-## The trap: "Success" does not mean "all verified"
+| | |
+| --- | --- |
+| Read what is installed, with versions and on/off state | ✅ `TracyWork/agents/surface/inventory.json` |
+| Install a plugin, or install a newer version over an older one | ✅ `mcp__tracy-apply__install_plugin`, from a public `https` `.zip` URL the site downloads itself |
+| Turn one on | ✅ `mcp__tracy-apply__activate_plugin` |
+| **Undo any of that** | ❌ **Nothing.** Install and activate sit outside the Apply log, and `mcp__tracy-apply__revert_apply` does not reach them |
+| **Snapshot the site first** | ❌ No tool exposed to you does this |
+| **Verify the installed files are unmodified** | ❌ No checksum check is available |
 
-`wp plugin verify-checksums` compares installed files against wordpress.org's published hashes.
-Plugins it cannot look up are **skipped**, and the command still exits reporting success:
+Three of those rows are absences, and each one changes what you must say out loud.
 
-```
-Warning: Could not retrieve the checksums for version 8.0.0 of plugin acme-widget, skipping.
-Success: Verified 3 of 4 plugins (1 skipped).
-```
+**No undo.** Turning a plugin off afterwards does not undo activation: activation hooks have already
+created tables and written options, and those stay. So the sentence *"I can put this back if it goes
+wrong"* is one you may not say.
 
-A skipped plugin is not a clean plugin. It is a plugin nobody checked.
+**No snapshot.** You cannot take a backup before the call. If the customer wants one, that is theirs
+to take from their host, and it is worth asking rather than assuming they have one.
 
-Skips are not rare and they are not random. They cluster on exactly the plugins that matter most:
+**No integrity check.** You cannot tell whether the files installed on that site are the ones the
+author published. A plugin edited on the server looks identical to a clean one from here.
 
-- **paid plugins** — never published to wordpress.org, so never checkable
-- **custom or client-commissioned plugins** — same
-- **plugins pinned to a version wordpress.org has dropped**
+## The inventory, and what it does not carry
 
-So the skip list is closer to a list of "plugins most likely to break or to have been edited on
-the server" than to a list of "plugins we can ignore".
+`inventory.json` lists every plugin with its version and whether it is running, and it is
+**attested** — the site itself answered, through the component, rather than being guessed at from
+outside. Two limits belong in what you say:
 
-**Never report a checksum run without reporting the skip count separately from the pass count.**
+- It is a **photograph taken at the last Sync**. Name that date whenever you lean on it.
+- It carries the **installed** version, never the **latest available** one. Nothing in Tracy tells
+  you a plugin is out of date. If you claim one is, say where the newer number came from.
 
-## Procedure
+And a missing `inventory.json` never means "no plugins". It means nobody asked the site, or the site
+did not answer — see the same rule in `wordpress-edit`.
 
-Run these read-only. None of them writes to the site.
+## What to do
 
-### 1. Record what is installed and what wants updating
+1. **Read the inventory.** Name the plugins, their versions, which are on and which are installed
+   but off, and the date the list was taken.
+2. **Say what you cannot check**, in the same breath: not whether a newer version exists, not
+   whether the files are unmodified, and not how the site will behave afterwards.
+3. **Get agreement before the call, not after.** The customer needs to know this specific change is
+   one Tracy cannot reverse, and that no backup is being taken on their behalf. Say it plainly:
+   *this one I cannot undo, and I am not taking a backup — do you have one?*
+4. **Install, then activate — two calls.** A package can install cleanly and still refuse to run, so
+   `mcp__tracy-apply__install_plugin` does not turn anything on. It answers with the plugin file it
+   installed (`wordpress-seo/wp-seo.php`); that string exists only in that reply and
+   `mcp__tracy-apply__activate_plugin` is the only thing that takes it. Write it down as it goes
+   past.
+5. **Report what actually happened**, including `was_active` if the plugin was already on, and say
+   what you did not verify.
 
-```bash
-wp plugin list --fields=name,status,version,update,update_version --format=csv
-```
+## Old patterns
 
-Keep this output. It is the only record of the pre-update state that survives the update, and it
-is what you diff against if something changes.
+<details>
+<summary>The WP-CLI checksum procedure (removed 2026-08-27)</summary>
 
-Pay attention to `status`: an **inactive** plugin with a pending update is still a file on disk
-that can be exploited, but updating it changes nothing a visitor sees. Active plugins are the
-ones that carry behavioural risk.
+Version 1 of this skill was built around `wp plugin verify-checksums`, `wp core verify-checksums`
+and `wp db size`. 🔒 An agent has no route to run WP-CLI on a customer's host: the component exposes
+no shell, and no MCP server of Tracy's opens one. The procedure was unreachable from the first line.
 
-### 2. Verify core, then plugins — and read the skip line
+One finding from it is worth keeping in mind if that route ever opens: `wp plugin verify-checksums`
+**skips** any plugin it cannot look up on wordpress.org and still exits reporting success —
+*"Verified 3 of 4 plugins (1 skipped)"*. A skipped plugin is not a clean plugin; it is a plugin
+nobody checked. And skips are not random: they cluster on paid plugins, bespoke ones, and plugins
+pinned to a version wordpress.org has dropped — the set most likely to have been edited on the
+server. Any future integrity check must report the skip count separately from the pass count.
 
-```bash
-wp core verify-checksums
-wp plugin verify-checksums --all
-```
-
-For core, `Success: WordPress installation verifies against checksums.` means what it says: every
-core file matches.
-
-For plugins, read the `Warning:` lines, not just the final line. Write down each skipped plugin by
-name and version. Those are the ones you cannot make any claim about.
-
-If a plugin verifies as **modified** rather than skipped, stop. Someone edited plugin files on the
-server. Updating overwrites that edit — which may be the right outcome, or may destroy a fix
-somebody made deliberately and never documented. That is a decision for the site owner, not for
-the person running the update.
-
-### 3. Size the rollback before you need it
-
-```bash
-wp db size --format=csv
-wp core version
-```
-
-Knowing the database size tells you whether a pre-update export is a ten-second operation or a
-ten-minute one. Decide that before starting, not while a page is down.
-
-### 4. Snapshot
-
-Take the database export and a copy of `wp-content/plugins` before the first update. An export you
-did not take is not a rollback plan.
-
-## What to report
-
-State these four things separately. Collapsing them is how a real problem gets rounded off into
-"looks fine":
-
-1. **Verified clean** — core, and the plugins that passed.
-2. **Skipped** — by name and version, with the reason they cannot be checked.
-3. **Modified** — any plugin whose files do not match, and what that implies.
-4. **Pending updates** — split into active and inactive.
-
-If someone only wants one sentence, the honest one names the gap:
-
-> Core verifies. 3 of 4 plugins verify. `acme-widget 8.0.0` could not be checked because it is not
-> on wordpress.org, so its files are unverified — that is the one to look at by hand.
-
-## What this skill does not do
-
-It does not update anything, and it does not decide whether an update is safe. It establishes what
-is known and what is unknown, so that the decision is made with the gap visible rather than hidden
-behind a success message.
+</details>
