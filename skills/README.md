@@ -2,7 +2,9 @@
 
 `registry/README.md` covers submitting a **record** that points at a skill elsewhere. This file covers writing one that lives here.
 
-Rules come from Anthropic's `skill-creator` (vendored at `skills/skill-creator/`), from `/doctor`, and from `mattpocock/skills`.
+Rules come from Anthropic's `skill-creator` (vendored at `vendor/skill-creator/`, unedited and
+under its own licence — it is a reference, not a skill this registry serves), from `/doctor`,
+and from `mattpocock/skills`.
 
 ## Anatomy
 
