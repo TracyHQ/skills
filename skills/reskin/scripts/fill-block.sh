@@ -28,6 +28,15 @@
 #              "ordering":1,"source_module":228,"menus":[913],
 #              "set":{"features-grid[title]":["..."],
 #                     "features-grid[data]":{"features-grid[data][title]":["..."]}}}],
+#  "articles":[{                                                     // optional (blog batches)
+#    "id":4001, "title":"...", "alias":"...",
+#    "catid":12,                        // a category that EXISTS on the client's site
+#    "created_by":42,                   // an account that EXISTS on the client's site
+#    "language":"de-DE",                // the site's own language, never '*' on a mono-language site
+#    "introtext":"<p>...</p>", "fulltext":"<p>...</p>",   // real body, sent base64 like everything else
+#    "metadesc":"...", "images":{"image_intro":"..."},
+#    "publish_up":null                  // null = now, so the article renders and verify can see it
+#  }],
 #  "purge_sef_like":["joomla-mcp%"],                                 // extra purges
 #  "verify":{"path":"/joomla-mcp","markers":["..."],"forbid":["THE STACK"]}
 # }
@@ -151,6 +160,77 @@ if page:
     sql(f"DELETE FROM {P}forsef_urls WHERE sef LIKE {q1(alias + '%')}")
     sql(f"DELETE FROM {P}forsef_redirects WHERE source LIKE {q1(alias + '%')}")
 
+# ---------- articles (a real article, not a page shell) ----------
+# The `page` block above writes an article whose whole body is `{loadposition}` — right for a
+# container, wrong for a blog post, where every column that makes it an article is hardcoded
+# (issue TracyHQ/skills#15). This block writes the same table with the columns supplied instead
+# of assumed, and reuses every trap the shell already paid for: base64 bodies so quoting cannot
+# break, the alias-uniqueness check, the forSEF purge, the cache clear below.
+#
+# Deliberately NOT here: a menu item. A blog article is reached through its category, and minting
+# a menu item per article is how a fifty-post batch becomes fifty rows nobody asked for.
+articles = job.get("articles", [])
+future_articles = []
+for art in articles:
+    aid, alias = int(art["id"]), art["alias"]
+
+    # Nothing is guessed. The shell's defaults — catid 9, MIN(id) FROM users, language '*' — are
+    # exactly what makes it a shell, and a blog article inheriting them lands in a category the
+    # client does not use, signed by whichever account happens to be first.
+    for field in ("catid", "created_by", "language"):
+        if art.get(field) in (None, "", 0):
+            raise SystemExit(
+                f"refused: article {aid} has no {field}.\n"
+                f"  A blog article needs a real category, a real author account and the site's own\n"
+                f"  language. Guessing any of them publishes under a name nobody chose.")
+
+    catid, author = int(art["catid"]), int(art["created_by"])
+    if not sql(f"SELECT id FROM {P}categories WHERE id={catid} AND extension='com_content'"):
+        raise SystemExit(f"refused: catid {catid} is not a content category on this site")
+    if not sql(f"SELECT id FROM {P}users WHERE id={author}"):
+        raise SystemExit(f"refused: created_by {author} is not an account on this site")
+
+    # Trap 22b, same as the shell: the alias IS the public URL.
+    taken = sql(f"SELECT id FROM {P}content WHERE alias={q1(alias)} AND id!={aid}")
+    if taken:
+        raise SystemExit(f"alias '{alias}' already belongs to article {taken} — trap 22b: the alias IS the public URL, pick deliberately")
+
+    def b64(v):
+        return base64.b64encode(str(v or "").encode()).decode()
+
+    intro_b = b64(art.get("introtext", ""))
+    full_b = b64(art.get("fulltext", ""))
+    meta_b = b64(art.get("metadesc", ""))
+    imgs_b = base64.b64encode(json.dumps(art.get("images") or {}, separators=(",", ":"), ensure_ascii=False).encode()).decode()
+
+    # The open question in issue #15, answered. The shell forces publish_up NULL so it renders at
+    # once (trap 9), and `verify` fetches the page immediately after writing. An article dated in
+    # the future does not render, so a correct job would fail its own verify. So: no date means
+    # NOW — it renders, and verify means something. A future date is allowed and the article is
+    # then excluded from the render check by name, rather than the check being loosened for all.
+    pu = str(art.get("publish_up") or "").strip()
+    publish_up = "UTC_TIMESTAMP()" if not pu else q1(pu)
+    if pu:
+        future = sql(f"SELECT 1 FROM DUAL WHERE {q1(pu)} > UTC_TIMESTAMP()")
+        if future:
+            future_articles.append(alias)
+
+    state = int(art.get("state", 1))
+    sql(f"INSERT INTO {P}content (id, asset_id, title, alias, introtext, `fulltext`, state, catid, created, created_by, created_by_alias, modified, modified_by, publish_up, publish_down, images, urls, attribs, version, ordering, metakey, metadesc, access, hits, metadata, featured, language, note) "
+        f"VALUES ({aid}, 0, {q1(art['title'])}, {q1(alias)}, FROM_BASE64('{intro_b}'), FROM_BASE64('{full_b}'), {state}, {catid}, UTC_TIMESTAMP(), {author}, '', UTC_TIMESTAMP(), 0, {publish_up}, NULL, FROM_BASE64('{imgs_b}'), '{{}}', '{{}}', 1, 0, '', FROM_BASE64('{meta_b}'), 1, 0, '{{}}', 0, {q1(art['language'])}, '') "
+        f"ON DUPLICATE KEY UPDATE title=VALUES(title), alias=VALUES(alias), introtext=VALUES(introtext), `fulltext`=VALUES(`fulltext`), "
+        f"catid=VALUES(catid), created_by=VALUES(created_by), language=VALUES(language), metadesc=VALUES(metadesc), "
+        f"images=VALUES(images), state=VALUES(state), publish_up=VALUES(publish_up), modified=UTC_TIMESTAMP()")
+
+    # Trap 22a, same reason as the shell: forSEF keeps routing by stale nonsef until told otherwise.
+    sql(f"DELETE FROM {P}forsef_urls WHERE sef LIKE {q1(alias + '%')}")
+    sql(f"DELETE FROM {P}forsef_redirects WHERE source LIKE {q1(alias + '%')}")
+
+if articles:
+    print(f"[articles] wrote {len(articles)} article(s)")
+    if future_articles:
+        print(f"[articles] dated in the future, so NOT expected to render yet: {', '.join(future_articles)}")
+
 # ---------- template styles ----------
 # A template's logo, favicon and footer branding live in STYLE params, not in any
 # block. Porting the mold's logo files makes them load; it does not make them right —
@@ -243,6 +323,13 @@ subprocess.run(["docker", "exec", C["web"], "sh", "-c", "rm -rf /var/www/html/ca
 
 # ---------- immediate render verify (the write-then-grep law) ----------
 v = job.get("verify")
+# The other half of the issue-#15 answer. An article dated in the future does not render, so
+# checking its page would fail a job that is correct. Skip that one path, SAY it was skipped, and
+# leave every other check standing — a verify that quietly passes is worth less than none.
+if v and any(f"/{alias}" in v.get("path", "") for alias in future_articles):
+    print(f"verify SKIPPED {v['path']}: the article is dated in the future and does not render yet.")
+    print("  This job was not render-checked. Re-run the check after its publish date.")
+    v = None
 if v:
     def fetch(path):
         headers = {"Host": C["host"], "X-Forwarded-Proto": "https"}
