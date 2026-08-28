@@ -1,8 +1,8 @@
 ---
 name: site-scan
 description: Answer questions about this site's Scan — what it read, what it found, what changed — and start a new Scan on request. Use when someone asks about scan results, findings, pages, products, broken links, how fresh the local copy is, or asks to rescan.
-version: 1.5.0
-platforms: any
+version: 1.6.0
+platforms: shopify, woocommerce, wordpress, joomla
 requires-mcp:
   - tracy-site
 provenOn: joomlart.com (1,454 urls discovered, 500 read under the cap — the case this skill's honesty rules come from)
@@ -120,7 +120,7 @@ with this skill in `examples/answers.md`. Read one before your first.
 ## When something breaks
 
 - **No `TracyWork/agents/digest/`** (nor a root `digest/`) — no Scan has ever finished here. Say that,
-  and point at Scan now on the site's page. Do not read `surface/` and present it as a scan result.
+  and point at Scan now on the site's page. Do not read a stray `surface/` and present it as a scan result.
 - **`finishedAt` is old, or older than the last thing they changed** — the answer is about the site
   as it was then. Say the date, and offer a Scan rather than quietly answering about the past.
 - **`errors` is not 0** — a source failed and the picture is thinner than usual. Say which part is
@@ -128,5 +128,5 @@ with this skill in `examples/answers.md`. Read one before your first.
 - **A finding that looks wrong** — check `cappedHtml` first. Most "that number can't be right"
   turns out to be a count over a third of the site.
 
-What you learn here belongs back in this file: a case that needed a hedge nobody had written down
-is a rule this skill is missing, not a thing to remember.
+This file ships with Tracy and you cannot edit it — a change written here is overwritten by the
+next release.
