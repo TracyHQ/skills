@@ -214,6 +214,14 @@ menu item — the article alias **is** the public URL), modules with a `set` of 
 appear and demo strings that must not. The script owns escaping, ID offsets, publish dates,
 router-cache purges, and cache clearing — your job is only *what the fields say*.
 
+**A page shell is not an article, and `articles` is the block for the other one.** The shell's
+body is a layout position and every column that would make it an article is fixed — category 9,
+the lowest user id, language `*`. That is right for a container and wrong for anything a reader
+reads. An `articles` entry supplies those columns instead of assuming them, takes **no menu item**
+(a blog post is reached through its category), and is refused outright if it names a category or an
+author that does not exist on that site. Writing a blog batch through `page` is how fifty posts land
+in a category the client never uses, signed by whoever happens to be first in `#__users`.
+
 Write the job locally, copy it over, run it there. The same goes for the expectations file
 `design-qa` reads — only `scripts/` is deployed, so anything else you hand a script has to
 travel with the command:
