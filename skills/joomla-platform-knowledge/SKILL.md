@@ -5,7 +5,7 @@ description: >-
   their support state, the extension taxonomy and where each kind lives, how content and menus
   shape URLs, how templates and overrides work, and the traps that bite on real client sites.
   Reference knowledge, not a procedure. Loaded automatically for Joomla sites.
-version: 1.2.0
+version: 1.2.1
 platforms: joomla
 provenOn: —
 ---
@@ -85,8 +85,10 @@ answers, and only those may be quoted as facts about the site.
   (content — every Editor), `module`, `templateStyle` (code — Developers), `user`,
   `extensionParams` (site — Admins). **Renaming a menu item is kind `menuItem`** — an ordinary
   content edit, not "site configuration". Tree-shaped kinds (menuItem, category, tag) can be
-  edited but not created, and never accept `alias` (paths derive from it). `delete_content` is
-  Joomla's own trash (revertable); find ids with `content.list` for the kind.
+  created as well as edited: leave `id` at 0 to insert, and on an existing node `parent_id` moves
+  it under that parent. They never accept `alias` — it is minted for you, because the path derives
+  from it. Creating one needs the site's component at 0.8.14 or newer. `delete_content` is Joomla's
+  own trash (revertable); find ids with `content.list` for the kind.
 - **State facts come from the site's data, and two files carry most of them**:
   `TracyWork/agents/surface/stack.json` — what the site runs, each fact labeled
   verified/observed/declared — and `TracyWork/agents/surface/inventory.json` — every installed
