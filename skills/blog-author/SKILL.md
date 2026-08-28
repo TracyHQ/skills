@@ -25,7 +25,8 @@ Three skills share this work, and mixing them up is the first mistake to avoid:
   it, and why Approve is a merge. Every content batch lives inside a proposal. Read it first.
 - **this skill** owns the judgement: which topics, in what voice, saying what, and the mapping a
   person reviews before anything is built.
-- **`joomla-apply`** owns the direction after the client says yes. You never call it.
+- **the platform's editing skill** (`joomla-edit`, `wordpress-edit`) owns the direction after the
+  client says yes. You never call it.
 
 Ask the question `proposals` puts first: *after the client clicks Approve, does this run on their
 site?* A blog article does. So this is a proposal, never a deliverable. Writing articles into

@@ -41,8 +41,8 @@ rebuild is a Tuesday.
 
 This skill only **builds and finds** the copy. Dressing it is `reskin`; showing the customer's
 content inside a template demo is `demo-try-on`; putting finished work onto the live site is an
-Apply (`joomla-apply` / `wordpress-apply`), always the customer's decision and gated at the relay
-to Owner/Admin.
+Apply, always the customer's decision and gated at the relay to Owner/Admin. The Apply door itself
+is documented inside the platform's own editing skill, which ships with the app.
 
 ## How a build reaches the live site
 
