@@ -63,6 +63,10 @@ export type CoverageDoc = {
 /** The doors in the reader's words. An unknown door falls back to its own name — never to silence. */
 const DOOR_NAMES: Record<string, string> = {
   'shopify:admin': 'the Shopify admin door',
+  // Named for how Tracy got in, never for what the store is called on Shopify's side: ADR 0095
+  // consequence 6 forbids saying "preview store" in front of a customer, and this line is read
+  // aloud by the thing that writes Proposals.
+  'shopify:born-admin': 'the admin door on the store Tracy built',
   'shopify:content': 'the Shopify content door',
   'wordpress:rest': 'the WordPress REST API',
   'joomla:web-services': 'Joomla Web Services'

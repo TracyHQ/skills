@@ -154,6 +154,31 @@ describe('generateDigests', () => {
       expect(first).toContain('The Storefront API serves published products only.')
     })
 
+    it("names the born-admin door in the reader's words, never by what Shopify calls the store", () => {
+      // The fallback would print `shopify:born-admin` verbatim, which is not silence but is not a
+      // sentence either — and the line it lands in is read by the thing that writes Proposals.
+      // ADR 0095 consequence 6 also forbids the phrase Shopify uses for such a store.
+      const brief = generateDigests({
+        ...base,
+        coverage: {
+          door: 'shopify:born-admin',
+          gaps: [
+            {
+              what: 'customers and their orders',
+              reason: 'platform-limit',
+              detail: 'This door was minted with a fixed scope set that carries no customer access.'
+            }
+          ]
+        }
+      })['SITE-BRIEF.md']
+
+      const first = brief.split('\n')[0]
+      expect(first).toContain('the admin door on the store Tracy built')
+      expect(first).toContain('customers and their orders')
+      expect(first).not.toContain('shopify:born-admin')
+      expect(first.toLowerCase()).not.toContain('preview store')
+    })
+
     it('tells the reader to hedge, so a count here is not reported as a count over the site', () => {
       const brief = generateDigests({
         ...base,
