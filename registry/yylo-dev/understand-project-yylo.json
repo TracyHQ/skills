@@ -1,0 +1,8 @@
+{
+  "$schema": "https://registry.tracy.ai/skills/schema/skill-record.schema.json",
+  "namespace": "yylo-dev",
+  "slug": "understand-project-yylo",
+  "gitUrl": "https://github.com/yylo-dev/yylo-skills",
+  "ref": "main",
+  "skillPath": "skills/understand-project-yylo"
+}
